@@ -101,18 +101,18 @@ export default function JobsPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight mb-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1" style={{ color: "var(--text-1)" }}>
               Open Jobs
             </h1>
-            <p className="text-neutral-500 text-sm">
+            <p className="text-sm" style={{ color: "var(--text-2)" }}>
               {MOCK_JOBS.length} jobs available · Updated live
               <span className="dot-live inline-block ml-2 align-middle" />
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-neutral-500 bg-white border border-neutral-200 rounded-xl px-4 py-2">
+          <div className="flex items-center gap-2 text-xs card rounded-xl px-4 py-2" style={{ color: "var(--text-2)" }}>
             <Bot className="w-3.5 h-3.5 text-emerald-500" />
             <span>Agent jobs: 2</span>
-            <span className="w-px h-3.5 bg-neutral-200" />
+            <span className="w-px h-3.5" style={{ background: "var(--border)" }} />
             <Users className="w-3.5 h-3.5 text-blue-500" />
             <span>Human jobs: 4</span>
           </div>
@@ -121,7 +121,7 @@ export default function JobsPage() {
         {/* Filter bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-3)" }} />
             <input
               type="text"
               placeholder="Search jobs..."

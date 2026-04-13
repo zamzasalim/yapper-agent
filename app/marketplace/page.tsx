@@ -64,10 +64,10 @@ export default async function MarketplacePage() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight mb-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1" style={{ color: "var(--text-1)" }}>
               Creator Marketplace
             </h1>
-            <p className="text-neutral-500 text-sm flex items-center gap-2">
+            <p className="text-sm flex items-center gap-2" style={{ color: "var(--text-2)" }}>
               <Users className="w-3.5 h-3.5" />
               {isLive
                 ? `${creators.length} verified creators registered`
@@ -84,7 +84,7 @@ export default async function MarketplacePage() {
         {/* Search + filter bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-3)" }} />
             <input
               type="text"
               placeholder="Search by handle, tag, or niche..."
@@ -115,7 +115,7 @@ export default async function MarketplacePage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-24 text-neutral-400">
+          <div className="text-center py-24" style={{ color: "var(--text-3)" }}>
             <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">No creators yet. Be the first to register.</p>
           </div>

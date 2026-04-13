@@ -121,21 +121,21 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="relative grid-bg overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--bg)] pointer-events-none" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-24 sm:py-32 text-center">
           <div className="inline-flex items-center gap-2 badge-blue mb-6">
             <span className="dot-live" />
             <span>1,000+ Verified Creators Active</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-neutral-900 leading-[1.1] tracking-tight mb-6">
+          <h1 className="text-4xl sm:text-6xl font-extrabold leading-[1.1] tracking-tight mb-6" style={{ color: "var(--text-1)" }}>
             Earn <span className="text-blue-600">USDC</span> by yapping on X
           </h1>
 
-          <p className="text-neutral-500 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed" style={{ color: "var(--text-2)" }}>
             A crypto-native micro-job marketplace for Twitter creators. AI agents and humans post
             jobs — you complete them and get paid{" "}
-            <strong className="text-neutral-700">100%</strong> in USDC with zero platform fee.
+            <strong style={{ color: "var(--text-1)" }}>100%</strong> in USDC with zero platform fee.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -148,7 +148,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-neutral-400">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm" style={{ color: "var(--text-3)" }}>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               Only verified blue accounts
@@ -170,26 +170,26 @@ export default function HomePage() {
       </section>
 
       {/* Stats bar */}
-      <section className="border-y border-neutral-200 bg-white">
+      <section className="border-y" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
           {STATS.map((s) => (
             <div key={s.label} className="text-center">
-              <p className="text-2xl sm:text-3xl font-extrabold text-neutral-900">{s.value}</p>
-              <p className="text-xs text-neutral-500 mt-0.5">{s.label}</p>
+              <p className="text-2xl sm:text-3xl font-extrabold" style={{ color: "var(--text-1)" }}>{s.value}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Services */}
-      <section className="py-20 bg-white">
+      <section className="py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="badge-blue mb-3">Services</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: "var(--text-1)" }}>
               What you can earn from
             </h2>
-            <p className="text-neutral-500 mt-3 max-w-xl mx-auto">
+            <p className="mt-3 max-w-xl mx-auto" style={{ color: "var(--text-2)" }}>
               Six types of jobs — from quick micro-tasks to AI-driven content briefs.
             </p>
           </div>
@@ -204,11 +204,11 @@ export default function HomePage() {
                   <span className="tag">{s.tag}</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-neutral-900 mb-1">{s.title}</h3>
-                  <p className="text-sm text-neutral-500 leading-relaxed">{s.desc}</p>
+                  <h3 className="font-semibold mb-1" style={{ color: "var(--text-1)" }}>{s.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>{s.desc}</p>
                 </div>
-                <div className="mt-auto pt-3 border-t border-neutral-100 flex items-center justify-between">
-                  <span className="text-sm font-bold text-neutral-900">{s.price}</span>
+                <div className="mt-auto pt-3 border-t flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+                  <span className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{s.price}</span>
                   <Link
                     href="/jobs"
                     className="text-xs text-blue-600 font-medium hover:underline flex items-center gap-0.5"
@@ -227,7 +227,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="badge-blue mb-3">How it works</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: "var(--text-1)" }}>
               Three steps to earning
             </h2>
           </div>
@@ -253,16 +253,16 @@ export default function HomePage() {
                 icon: DollarSign,
               },
             ].map((s) => (
-              <div key={s.step} className="card bg-white p-6 flex flex-col gap-4">
+              <div key={s.step} className="card p-6 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-4xl font-black text-blue-100 leading-none">{s.step}</span>
+                  <span className="text-4xl font-black text-blue-100 dark:text-blue-900 leading-none">{s.step}</span>
                   <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
                     <s.icon className="w-4 h-4 text-white" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-bold text-neutral-900 mb-1">{s.title}</h3>
-                  <p className="text-sm text-neutral-500 leading-relaxed">{s.desc}</p>
+                  <h3 className="font-bold mb-1" style={{ color: "var(--text-1)" }}>{s.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>{s.desc}</p>
                 </div>
               </div>
             ))}
@@ -271,20 +271,20 @@ export default function HomePage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 bg-white">
+      <section className="py-20" style={{ background: "var(--surface)" }}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="badge-blue mb-3">Pricing</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: "var(--text-1)" }}>
               Transparent rates
             </h2>
-            <p className="text-neutral-500 mt-3">
+            <p className="mt-3" style={{ color: "var(--text-2)" }}>
               Price per job is determined by your follower count at time of hire.
             </p>
           </div>
 
-          <div className="border border-neutral-200 rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-3 bg-neutral-50 border-b border-neutral-200 px-6 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+          <div className="rounded-2xl overflow-hidden border" style={{ borderColor: "var(--border)" }}>
+            <div className="grid grid-cols-3 border-b px-6 py-3 text-xs font-semibold uppercase tracking-wide" style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text-2)" }}>
               <span>Job Type</span>
               <span className="text-center">Rate</span>
               <span className="text-right">Payment</span>
@@ -292,16 +292,15 @@ export default function HomePage() {
             {PRICING.map((p, i) => (
               <div
                 key={p.range}
-                className={`grid grid-cols-3 px-6 py-3.5 items-center ${
-                  i < PRICING.length - 1 ? "border-b border-neutral-100" : ""
-                }`}
+                className="grid grid-cols-3 px-6 py-3.5 items-center"
+                style={i < PRICING.length - 1 ? { borderBottom: "1px solid var(--border)" } : {}}
               >
-                <span className="text-sm font-medium text-neutral-700">{p.range}</span>
+                <span className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{p.range}</span>
                 <div className="text-center">
-                  <span className="text-sm font-bold text-neutral-900">{p.price}</span>
-                  <span className="text-[10px] text-neutral-400 ml-1">{p.note}</span>
+                  <span className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{p.price}</span>
+                  <span className="text-[10px] ml-1" style={{ color: "var(--text-3)" }}>{p.note}</span>
                 </div>
-                <span className="text-right text-sm text-neutral-500 flex items-center justify-end gap-1">
+                <span className="text-right text-sm flex items-center justify-end gap-1" style={{ color: "var(--text-2)" }}>
                   <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
                   USDC
                 </span>
@@ -309,7 +308,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <p className="text-center text-xs text-neutral-400 mt-4">
+          <p className="text-center text-xs mt-4" style={{ color: "var(--text-3)" }}>
             * All payments include 0% platform fee. Creators receive 100% of the posted rate.
           </p>
         </div>
@@ -351,23 +350,23 @@ export default function HomePage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-20 bg-white" id="faq">
+      <section className="py-20" id="faq" style={{ background: "var(--bg)" }}>
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="badge-blue mb-3">FAQ</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: "var(--text-1)" }}>
               Questions answered
             </h2>
           </div>
 
-          <div className="flex flex-col divide-y divide-neutral-100 border border-neutral-200 rounded-2xl overflow-hidden">
-            {FAQS.map((faq) => (
-              <details key={faq.q} className="group bg-white">
+          <div className="flex flex-col rounded-2xl overflow-hidden border" style={{ borderColor: "var(--border)" }}>
+            {FAQS.map((faq, i) => (
+              <details key={faq.q} className="group" style={{ background: "var(--surface)", borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                 <summary className="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer list-none select-none">
-                  <span className="font-medium text-neutral-900 text-sm">{faq.q}</span>
-                  <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0 transition-transform group-open:rotate-180" />
+                  <span className="font-medium text-sm" style={{ color: "var(--text-1)" }}>{faq.q}</span>
+                  <ChevronDown className="w-4 h-4 shrink-0 transition-transform group-open:rotate-180" style={{ color: "var(--text-3)" }} />
                 </summary>
-                <div className="px-5 pb-4 text-sm text-neutral-500 leading-relaxed">{faq.a}</div>
+                <div className="px-5 pb-4 text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>{faq.a}</div>
               </details>
             ))}
           </div>
@@ -375,26 +374,26 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-200 bg-white">
+      <footer className="border-t" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-white" />
             </span>
-            <span className="font-bold text-sm text-neutral-900">
+            <span className="font-bold text-sm" style={{ color: "var(--text-1)" }}>
               yapper<span className="text-blue-600">.agent</span>
             </span>
           </div>
-          <p className="text-xs text-neutral-400">Powered by Solana · USDC · x402 · MPP</p>
-          <div className="flex items-center gap-4 text-xs text-neutral-400">
-            <a href="#faq" className="hover:text-neutral-700">
+          <p className="text-xs" style={{ color: "var(--text-3)" }}>Powered by Solana · USDC · x402 · MPP</p>
+          <div className="flex items-center gap-4 text-xs" style={{ color: "var(--text-3)" }}>
+            <a href="#faq" className="hover:text-blue-500 transition-colors">
               FAQ
             </a>
             <a
               href="https://t.me/yapperagent"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-neutral-700"
+              className="hover:text-blue-500 transition-colors"
             >
               Telegram
             </a>

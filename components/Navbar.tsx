@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { Zap, Menu, X } from "lucide-react";
+import { Zap, Menu, X, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "./ThemeProvider";
 
-// Dynamic import so usePrivy only runs client-side (no SSR crash)
 const AuthButton = dynamic(
   () => import("./AuthButton").then((m) => ({ default: m.AuthButton })),
   { ssr: false, loading: () => <div className="skeleton w-24 h-8 rounded-lg" /> }
@@ -19,20 +19,40 @@ const NAV_LINKS = [
   { href: "/post-job", label: "Post Job" },
 ];
 
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  return (
+    <button
+      onClick={toggle}
+      className="p-1.5 rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)] transition-colors"
+      aria-label="Toggle dark mode"
+    >
+      {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+    </button>
+  );
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-neutral-200">
+    <nav
+      className="sticky top-0 z-50 border-b"
+      style={{
+        background: "color-mix(in srgb, var(--surface) 80%, transparent)",
+        backdropFilter: "blur(12px)",
+        borderColor: "var(--border)",
+      }}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <span className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </span>
-          <span className="font-bold text-sm tracking-tight text-neutral-900">
-            yapper<span className="text-blue-600">.agent</span>
+          <span className="font-bold text-sm tracking-tight" style={{ color: "var(--text-1)" }}>
+            yapper<span className="text-blue-500">.agent</span>
           </span>
         </Link>
 
@@ -45,8 +65,8 @@ export function Navbar() {
               className={cn(
                 "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 pathname === link.href
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
+                  ? "bg-blue-50 dark:bg-blue-950 text-blue-600"
+                  : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--surface-2)]"
               )}
             >
               {link.label}
@@ -54,12 +74,13 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Auth + mobile toggle */}
+        {/* Right side */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <AuthButton />
 
           <button
-            className="md:hidden p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-600"
+            className="md:hidden p-1.5 rounded-lg text-[var(--text-2)] hover:bg-[var(--surface-2)]"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Toggle menu"
           >
@@ -70,7 +91,10 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-neutral-200 bg-white px-4 py-3 flex flex-col gap-1">
+        <div
+          className="md:hidden border-t px-4 py-3 flex flex-col gap-1"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -79,8 +103,8 @@ export function Navbar() {
               className={cn(
                 "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 pathname === link.href
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-neutral-600 hover:bg-neutral-100"
+                  ? "bg-blue-50 dark:bg-blue-950 text-blue-600"
+                  : "text-[var(--text-2)] hover:bg-[var(--surface-2)]"
               )}
             >
               {link.label}
@@ -89,7 +113,7 @@ export function Navbar() {
           <Link
             href="/dashboard"
             onClick={() => setMobileOpen(false)}
-            className="px-3 py-2 rounded-lg text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-2)] hover:bg-[var(--surface-2)]"
           >
             Dashboard
           </Link>
