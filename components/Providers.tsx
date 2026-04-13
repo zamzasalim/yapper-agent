@@ -2,7 +2,7 @@
 
 import { PrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -14,14 +14,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
-  const isValidAppId = appId && appId !== "clxxxxxx" && appId.startsWith("cl");
 
-  // During SSR or when app ID isn't configured, skip Privy to avoid build errors
-  if (!mounted || !isValidAppId) {
+  // Only init Privy when a real app ID is present
+  if (!appId || appId.length < 10) {
     return (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
@@ -36,6 +32,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
           theme: "light",
           accentColor: "#0066ff",
           logo: "/logo.png",
+          landingHeader: "Connect to Yapper Agent",
+          loginMessage: "Sign in with your verified X account to start earning USDC.",
         },
         embeddedWallets: {
           solana: { createOnLogin: "users-without-wallets" },

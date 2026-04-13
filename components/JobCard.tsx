@@ -85,7 +85,9 @@ export function JobCard({ job }: { job: Job }) {
       {/* Right */}
       <div className="flex sm:flex-col items-center sm:items-end gap-3 shrink-0">
         <div className="text-right">
-          <p className="text-xl font-extrabold text-neutral-900">${job.priceUsdc}</p>
+          <p className="text-xl font-extrabold text-neutral-900">
+            ${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
+          </p>
           <p className="text-xs text-neutral-400">USDC</p>
         </div>
 

@@ -27,7 +27,7 @@ const SERVICES = [
     icon: Repeat2,
     title: "Repost",
     desc: "Amplify a tweet to your audience. Simple, fast, and pays instantly in USDC.",
-    price: "From $5",
+    price: "$0.50",
     tag: "Quick Task",
     color: "text-blue-600",
     bg: "bg-blue-50",
@@ -35,8 +35,8 @@ const SERVICES = [
   {
     icon: MessageSquare,
     title: "Reply & Comment",
-    desc: "Engage with specific posts by replying thoughtfully. Rate based on your follower tier.",
-    price: "From $5",
+    desc: "Engage with specific posts by replying thoughtfully. Pays per reply.",
+    price: "$0.10",
     tag: "Engagement",
     color: "text-sky-600",
     bg: "bg-sky-50",
@@ -45,7 +45,7 @@ const SERVICES = [
     icon: Heart,
     title: "Like",
     desc: "Support campaigns with authentic likes from verified blue-tick accounts.",
-    price: "From $5",
+    price: "$0.05",
     tag: "Micro-Task",
     color: "text-pink-600",
     bg: "bg-pink-50",
@@ -71,10 +71,13 @@ const SERVICES = [
 ];
 
 const PRICING = [
-  { range: "0 – 1K followers", price: "$5" },
-  { range: "1K – 10K followers", price: "$10" },
-  { range: "10K – 50K followers", price: "Rate Applied" },
-  { range: "50K+ followers", price: "Custom Quote" },
+  { range: "Like", price: "$0.05", note: "per action" },
+  { range: "Reply / Comment", price: "$0.10", note: "per action" },
+  { range: "Repost", price: "$0.50", note: "per action" },
+  { range: "Content — 0–1K followers", price: "$5", note: "per post" },
+  { range: "Content — 1K–10K followers", price: "$10", note: "per post" },
+  { range: "Content — 10K–50K followers", price: "Rate ↗", note: "custom" },
+  { range: "Custom Job", price: "Asking", note: "negotiated" },
 ];
 
 const FAQS = [
@@ -282,22 +285,25 @@ export default function HomePage() {
 
           <div className="border border-neutral-200 rounded-2xl overflow-hidden">
             <div className="grid grid-cols-3 bg-neutral-50 border-b border-neutral-200 px-6 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">
-              <span>Follower Range</span>
-              <span className="text-center">Rate / Job</span>
+              <span>Job Type</span>
+              <span className="text-center">Rate</span>
               <span className="text-right">Payment</span>
             </div>
             {PRICING.map((p, i) => (
               <div
                 key={p.range}
-                className={`grid grid-cols-3 px-6 py-4 items-center ${
+                className={`grid grid-cols-3 px-6 py-3.5 items-center ${
                   i < PRICING.length - 1 ? "border-b border-neutral-100" : ""
                 }`}
               >
                 <span className="text-sm font-medium text-neutral-700">{p.range}</span>
-                <span className="text-center text-sm font-bold text-neutral-900">{p.price}</span>
+                <div className="text-center">
+                  <span className="text-sm font-bold text-neutral-900">{p.price}</span>
+                  <span className="text-[10px] text-neutral-400 ml-1">{p.note}</span>
+                </div>
                 <span className="text-right text-sm text-neutral-500 flex items-center justify-end gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                  USDC · instant
+                  USDC
                 </span>
               </div>
             ))}

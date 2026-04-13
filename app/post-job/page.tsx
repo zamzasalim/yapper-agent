@@ -29,11 +29,19 @@ const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: 
   { type: "custom", icon: HelpCircle, label: "Custom", desc: "Describe your own task" },
 ];
 
+const ACTION_PRICES: Record<string, number | null> = {
+  like: 0.05,
+  reply: 0.10,
+  repost: 0.50,
+  content: null, // follower-based
+  custom: null,  // negotiated
+};
+
 const FOLLOWER_TIERS = [
-  { label: "0 – 1K followers", value: "0-1000", price: 5 },
-  { label: "1K – 10K followers", value: "1000-10000", price: 10 },
-  { label: "10K – 50K followers", value: "10000-50000", price: -1 },
-  { label: "Any follower count", value: "0-99999", price: -1 },
+  { label: "Content — 0–1K followers", value: "0-1000", price: 5 },
+  { label: "Content — 1K–10K followers", value: "1000-10000", price: 10 },
+  { label: "Content — 10K–50K followers", value: "10000-50000", price: -1 },
+  { label: "Custom / Any", value: "0-99999", price: -1 },
 ];
 
 function PostJobForm() {
@@ -51,11 +59,14 @@ function PostJobForm() {
   const [customPrice, setCustomPrice] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const actionPrice = ACTION_PRICES[jobType];
   const selectedTier = FOLLOWER_TIERS.find((t) => t.value === followerTier);
   const price =
-    selectedTier?.price === -1
-      ? parseFloat(customPrice) || 0
-      : (selectedTier?.price ?? 0);
+    actionPrice !== null
+      ? actionPrice
+      : selectedTier?.price === -1
+        ? parseFloat(customPrice) || 0
+        : (selectedTier?.price ?? 0);
 
   if (!authenticated) {
     return (
@@ -253,29 +264,41 @@ function PostJobForm() {
         <div className="card p-5 flex flex-col gap-4">
           <h3 className="text-sm font-semibold text-neutral-900">Creator Tier & Budget</h3>
 
-          <div className="grid grid-cols-2 gap-2">
-            {FOLLOWER_TIERS.map((tier) => (
-              <button
-                key={tier.value}
-                onClick={() => setFollowerTier(tier.value)}
-                className={cn(
-                  "p-3 rounded-xl border text-left transition-all",
-                  followerTier === tier.value
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-neutral-200 hover:border-neutral-300"
-                )}
-              >
-                <p className={cn("text-xs font-semibold", followerTier === tier.value ? "text-blue-700" : "text-neutral-700")}>
-                  {tier.label}
-                </p>
-                <p className={cn("text-sm font-bold mt-0.5", followerTier === tier.value ? "text-blue-600" : "text-neutral-900")}>
-                  {tier.price === -1 ? "Custom price" : `$${tier.price} USDC`}
-                </p>
-              </button>
-            ))}
-          </div>
+          {/* Action-based jobs have fixed prices */}
+          {actionPrice !== null ? (
+            <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <Info className="w-4 h-4 text-blue-500 shrink-0" />
+              <p className="text-sm text-blue-700">
+                Fixed rate for <strong>{jobType}</strong>:{" "}
+                <strong>${actionPrice.toFixed(2)} USDC</strong> per action.
+                Price applies to all verified creators.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {FOLLOWER_TIERS.map((tier) => (
+                <button
+                  key={tier.value}
+                  onClick={() => setFollowerTier(tier.value)}
+                  className={cn(
+                    "p-3 rounded-xl border text-left transition-all",
+                    followerTier === tier.value
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-neutral-200 hover:border-neutral-300"
+                  )}
+                >
+                  <p className={cn("text-xs font-semibold", followerTier === tier.value ? "text-blue-700" : "text-neutral-700")}>
+                    {tier.label}
+                  </p>
+                  <p className={cn("text-sm font-bold mt-0.5", followerTier === tier.value ? "text-blue-600" : "text-neutral-900")}>
+                    {tier.price === -1 ? "Custom price" : `$${tier.price} USDC`}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
 
-          {selectedTier?.price === -1 && (
+          {actionPrice === null && selectedTier?.price === -1 && (
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">
                 Custom Price (USDC) *
@@ -296,13 +319,15 @@ function PostJobForm() {
             <div>
               <p className="text-xs text-neutral-500">You pay (locked in escrow)</p>
               <p className="text-xl font-extrabold text-neutral-900">
-                ${price || "—"} <span className="text-sm font-normal text-neutral-400">USDC</span>
+                {price ? `$${price < 1 ? price.toFixed(2) : price}` : "—"}{" "}
+                <span className="text-sm font-normal text-neutral-400">USDC</span>
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-neutral-500">Creator receives</p>
               <p className="text-lg font-bold text-green-600">
-                ${price || "—"} <span className="text-sm font-normal text-neutral-400">USDC</span>
+                {price ? `$${price < 1 ? price.toFixed(2) : price}` : "—"}{" "}
+                <span className="text-sm font-normal text-neutral-400">USDC</span>
               </p>
               <p className="text-[10px] text-neutral-400">0% platform fee</p>
             </div>

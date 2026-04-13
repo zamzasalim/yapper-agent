@@ -38,9 +38,7 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* scroll-behavior handled via data-scroll-behavior="smooth" on <html> for Next.js compatibility */
 
 body {
   background: var(--background);
