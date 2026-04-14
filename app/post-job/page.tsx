@@ -201,6 +201,7 @@ function PostJobForm() {
       twitter_handle: twitterHandle,
       display_name:   displayName,
       twitter_id:     twitterId,
+      privy_did:      user?.id,
       type:           jobType,
       title,
       description:

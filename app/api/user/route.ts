@@ -10,7 +10,7 @@ import type { Database } from "@/types/database";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { twitter_handle, twitter_id, display_name } = body;
+    const { twitter_handle, twitter_id, display_name, privy_did } = body;
 
     if (!twitter_handle) {
       return NextResponse.json({ error: "twitter_handle required" }, { status: 400 });
@@ -34,12 +34,13 @@ export async function POST(req: NextRequest) {
       .from("users")
       .insert({
         id: crypto.randomUUID(),
+        privy_did: privy_did || twitter_handle,
         wallet_address: "pending",
         twitter_handle,
         twitter_id: twitter_id || twitter_handle,
         twitter_followers: 0,
         display_name: display_name || twitter_handle,
-        is_verified_blue: true, // X OAuth confirms real account
+        is_verified_blue: true,
         role: "creator" as const,
       })
       .select()
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { twitter_handle, twitter_id, display_name, wallet_address, twitter_followers } = body;
+    const { twitter_handle, twitter_id, display_name, privy_did, wallet_address, twitter_followers } = body;
 
     if (!twitter_handle) {
       return NextResponse.json({ error: "twitter_handle required" }, { status: 400 });
@@ -72,11 +73,31 @@ export async function PATCH(req: NextRequest) {
 
     const db = createServerClient();
 
-    // Build upsert payload — provide all required fields with safe defaults
-    // so it creates the record if it doesn't exist yet
+    // Try UPDATE first — fast path when user already exists
+    const { data: updated, error: updateError } = await db
+      .from("users")
+      .update({
+        ...(wallet_address !== undefined && { wallet_address }),
+        ...(twitter_followers !== undefined && { twitter_followers }),
+      })
+      .eq("twitter_handle", twitter_handle)
+      .select()
+      .single();
+
+    // PGRST116 = no rows matched — user doesn't exist yet, create them
+    if (!updateError) {
+      return NextResponse.json({ user: updated });
+    }
+
+    if (updateError.code !== "PGRST116") {
+      return NextResponse.json({ error: updateError.message, code: updateError.code }, { status: 500 });
+    }
+
+    // INSERT new user record
     type UserInsert = Database["public"]["Tables"]["users"]["Insert"];
     const payload: UserInsert = {
       id: crypto.randomUUID(),
+      privy_did: privy_did || twitter_handle,
       twitter_handle,
       twitter_id: twitter_id || twitter_handle,
       display_name: display_name || twitter_handle,
@@ -88,7 +109,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data, error } = await db
       .from("users")
-      .upsert(payload, { onConflict: "twitter_handle", ignoreDuplicates: false })
+      .insert(payload)
       .select()
       .single();
 

@@ -11,6 +11,7 @@ export type Database = {
         Row: {
           id: string;
           created_at: string;
+          privy_did: string;
           wallet_address: string;
           twitter_handle: string;
           twitter_id: string;
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           id: string;
           created_at?: string;
+          privy_did: string;
           wallet_address: string;
           twitter_handle: string;
           twitter_id: string;

@@ -90,7 +90,7 @@ export default function DashboardPage() {
         const res = await fetch("/api/user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ twitter_handle: twitterHandle, twitter_id: twitterId, display_name: displayName }),
+          body: JSON.stringify({ twitter_handle: twitterHandle, twitter_id: twitterId, display_name: displayName, privy_did: user?.id }),
         });
         setRegistering(false);
 
@@ -130,15 +130,16 @@ export default function DashboardPage() {
       const res = await fetch("/api/user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ twitter_handle: twitterHandle, wallet_address: trimmed }),
+        body: JSON.stringify({ twitter_handle: twitterHandle, wallet_address: trimmed, privy_did: user?.id }),
       });
-      if (!res.ok) throw new Error("Failed to save");
-      const { user: updated } = await res.json();
-      setProfile(updated);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "Failed to save");
+      setProfile(json.user);
       setWalletInput("");
       setEditingWallet(false);
-    } catch {
-      setWalletError("Failed to save wallet. Please try again.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setWalletError(`Error: ${msg}`);
     } finally {
       setSavingWallet(false);
     }

@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
           .from("users")
           .insert({
             id: crypto.randomUUID(),
+            privy_did: body.privy_did || body.twitter_handle,
             wallet_address: body.wallet_address || "pending",
             twitter_handle: body.twitter_handle,
             twitter_id: body.twitter_id || body.twitter_handle,
