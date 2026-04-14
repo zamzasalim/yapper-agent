@@ -14,33 +14,18 @@ async function getCreators() {
       .order("jobs_completed", { ascending: false })
       .limit(30);
 
-    if (error || !data?.length) return null;
+    if (error || !data) return null;
     return data;
   } catch {
     return null;
   }
 }
 
-// Fallback mock — shown when DB is not yet set up
-const MOCK_CREATORS = [
-  { id: "1", twitter_handle: "cryptoyapper",  display_name: "CryptoYapper",   twitter_followers: 9800,  avatar_url: null, rating: 4.9, jobs_completed: 47, tags: ["DeFi", "NFT", "Alpha"],      is_verified_blue: true },
-  { id: "2", twitter_handle: "solana_shill",  display_name: "SolanaShill",    twitter_followers: 4300,  avatar_url: null, rating: 4.7, jobs_completed: 31, tags: ["Solana", "Meme", "Airdrop"], is_verified_blue: true },
-  { id: "3", twitter_handle: "web3writer",    display_name: "Web3Writer",      twitter_followers: 820,   avatar_url: null, rating: 5.0, jobs_completed: 12, tags: ["Content", "Thread"],         is_verified_blue: true },
-  { id: "4", twitter_handle: "alphasniper",   display_name: "AlphaSniper",     twitter_followers: 11200, avatar_url: null, rating: 4.6, jobs_completed: 88, tags: ["Alpha", "DeFi"],             is_verified_blue: true },
-  { id: "5", twitter_handle: "nftqueen",      display_name: "NFT Queen",       twitter_followers: 3100,  avatar_url: null, rating: 4.8, jobs_completed: 24, tags: ["NFT", "Art"],                is_verified_blue: true },
-  { id: "6", twitter_handle: "degenlife",     display_name: "DegenLife",       twitter_followers: 650,   avatar_url: null, rating: 4.5, jobs_completed: 8,  tags: ["Degen", "Meme"],            is_verified_blue: true },
-  { id: "7", twitter_handle: "blockchainbro", display_name: "Blockchain Bro",  twitter_followers: 7200,  avatar_url: null, rating: 4.9, jobs_completed: 55, tags: ["Tech", "Thread"],            is_verified_blue: true },
-  { id: "8", twitter_handle: "yapmaster",     display_name: "YapMaster",       twitter_followers: 2400,  avatar_url: null, rating: 4.6, jobs_completed: 19, tags: ["General", "Engagement"],     is_verified_blue: true },
-  { id: "9", twitter_handle: "solside",       display_name: "Solside",         twitter_followers: 490,   avatar_url: null, rating: 4.7, jobs_completed: 6,  tags: ["Solana", "Active"],          is_verified_blue: true },
-];
-
 const FILTERS = ["All", "0–1K", "1K–10K", "10K–50K"];
 
 export default async function MarketplacePage() {
-  const dbCreators = await getCreators();
-  const raw = dbCreators ?? MOCK_CREATORS;
-
-  const creators = raw.map((c) => ({
+  const raw = await getCreators();
+  const creators = (raw ?? []).map((c) => ({
     id: c.id,
     handle: c.twitter_handle ?? "",
     name: c.display_name ?? c.twitter_handle ?? "",
@@ -48,12 +33,11 @@ export default async function MarketplacePage() {
     avatar: c.avatar_url ?? null,
     rating: c.rating ?? 5.0,
     jobsDone: c.jobs_completed ?? 0,
-    // @ts-ignore
-    tags: (c as { tags?: string[] }).tags ?? [],
+    tags: [] as string[],
     verified: c.is_verified_blue ?? true,
   }));
 
-  const isLive = !!dbCreators;
+  const isLive = raw !== null;
 
   return (
     <>
@@ -69,9 +53,11 @@ export default async function MarketplacePage() {
             <p className="text-neutral-500 dark:text-neutral-400 text-sm flex items-center gap-2">
               <Users className="w-3.5 h-3.5" />
               {isLive
-                ? `${creators.length} verified creators registered`
-                : `1,000+ verified blue-tick creators`}
-              {isLive && (
+                ? creators.length > 0
+                  ? `${creators.length} verified creator${creators.length !== 1 ? "s" : ""} registered`
+                  : "No creators registered yet"
+                : "Connecting to database…"}
+              {isLive && creators.length > 0 && (
                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
                   <span className="dot-live" /> Live
                 </span>
@@ -81,30 +67,32 @@ export default async function MarketplacePage() {
         </div>
 
         {/* Search + filter bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-            <input
-              type="text"
-              placeholder="Search by handle, tag, or niche..."
-              className="input-field pl-9"
-            />
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {FILTERS.map((f) => (
-              <button
-                key={f}
-                className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
-              >
-                {f}
+        {creators.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-3 mb-8">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
+              <input
+                type="text"
+                placeholder="Search by handle, tag, or niche..."
+                className="input-field pl-9"
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {FILTERS.map((f) => (
+                <button
+                  key={f}
+                  className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
+                >
+                  {f}
+                </button>
+              ))}
+              <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Filter
               </button>
-            ))}
-            <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Filter
-            </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Grid */}
         {creators.length > 0 ? (
@@ -114,9 +102,13 @@ export default async function MarketplacePage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-24 text-neutral-400 dark:text-neutral-500">
-            <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No creators yet. Be the first to register.</p>
+          <div className="text-center py-28 text-neutral-400 dark:text-neutral-500">
+            <Users className="w-10 h-10 mx-auto mb-4 opacity-30" />
+            <p className="text-sm font-medium mb-1">No creators registered yet</p>
+            <p className="text-xs mb-6">Be the first verified creator to join the marketplace.</p>
+            <a href="/dashboard" className="btn-primary text-sm px-6">
+              Register as Creator
+            </a>
           </div>
         )}
 

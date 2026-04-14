@@ -15,18 +15,18 @@ interface Job {
   status: JobStatus;
   isAgentJob: boolean;
   clientHandle: string;
-  minFollowers: number;
-  maxFollowers: number;
+  minFollowers?: number;
+  maxFollowers?: number;
   deadline: string;
   postedAt: string;
 }
 
 const TYPE_ICON: Record<JobType, string> = {
   content: "✍️",
-  repost: "🔁",
-  reply: "💬",
-  like: "❤️",
-  custom: "⚡",
+  repost:  "🔁",
+  reply:   "💬",
+  like:    "❤️",
+  custom:  "⚡",
 };
 
 const TYPE_COLOR: Record<JobType, string> = {
@@ -44,6 +44,8 @@ function formatFollowerRange(min: number, max: number) {
 }
 
 export function JobCard({ job }: { job: Job }) {
+  const showFollowers = job.minFollowers !== undefined && job.maxFollowers !== undefined;
+
   return (
     <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-5">
       {/* Left */}
@@ -71,10 +73,12 @@ export function JobCard({ job }: { job: Job }) {
         <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 leading-relaxed">{job.description}</p>
 
         <div className="flex items-center gap-4 mt-3 text-xs text-neutral-400 dark:text-neutral-500">
-          <span className="flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-blue-400" />
-            {formatFollowerRange(job.minFollowers, job.maxFollowers)} followers
-          </span>
+          {showFollowers && (
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-blue-400" />
+              {formatFollowerRange(job.minFollowers!, job.maxFollowers!)} followers
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {job.deadline} deadline
