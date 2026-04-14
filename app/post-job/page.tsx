@@ -22,42 +22,42 @@ import { Suspense } from "react";
 type JobType = "content" | "repost" | "reply" | "like" | "custom";
 
 const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: string }[] = [
-  { type: "content", icon: FileText, label: "Content", desc: "Write original tweets / threads" },
-  { type: "repost", icon: Repeat2, label: "Repost", desc: "Retweet to your audience" },
-  { type: "reply", icon: MessageSquare, label: "Reply", desc: "Reply to a specific tweet" },
-  { type: "like", icon: Heart, label: "Like", desc: "Like a specific tweet" },
-  { type: "custom", icon: HelpCircle, label: "Custom", desc: "Describe your own task" },
+  { type: "content", icon: FileText,      label: "Content", desc: "Write original tweets / threads" },
+  { type: "repost",  icon: Repeat2,       label: "Repost",  desc: "Retweet to your audience" },
+  { type: "reply",   icon: MessageSquare, label: "Reply",   desc: "Reply to a specific tweet" },
+  { type: "like",    icon: Heart,         label: "Like",    desc: "Like a specific tweet" },
+  { type: "custom",  icon: HelpCircle,    label: "Custom",  desc: "Describe your own task" },
 ];
 
 const ACTION_PRICES: Record<string, number | null> = {
-  like: 0.05,
-  reply: 0.10,
-  repost: 0.50,
-  content: null, // follower-based
-  custom: null,  // negotiated
+  like:    0.05,
+  reply:   0.10,
+  repost:  0.50,
+  content: null,
+  custom:  null,
 };
 
 const FOLLOWER_TIERS = [
-  { label: "Content — 0–1K followers", value: "0-1000", price: 5 },
-  { label: "Content — 1K–10K followers", value: "1000-10000", price: 10 },
-  { label: "Content — 10K–50K followers", value: "10000-50000", price: -1 },
-  { label: "Custom / Any", value: "0-99999", price: -1 },
+  { label: "Content — 0–1K followers",    value: "0-1000",     price: 5  },
+  { label: "Content — 1K–10K followers",  value: "1000-10000", price: 10 },
+  { label: "Content — 10K–50K followers", value: "10000-50000",price: -1 },
+  { label: "Custom / Any",                value: "0-99999",    price: -1 },
 ];
 
 function PostJobForm() {
-  const { authenticated, login, user } = usePrivy();
+  const { authenticated, login } = usePrivy();
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
 
-  const [jobType, setJobType] = useState<JobType>("content");
-  const [isAgentJob, setIsAgentJob] = useState(false);
+  const [jobType, setJobType]         = useState<JobType>("content");
+  const [isAgentJob, setIsAgentJob]   = useState(false);
   const [followerTier, setFollowerTier] = useState("1000-10000");
-  const [title, setTitle] = useState("");
+  const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
-  const [tweetUrl, setTweetUrl] = useState("");
-  const [deadline, setDeadline] = useState("24");
+  const [tweetUrl, setTweetUrl]       = useState("");
+  const [deadline, setDeadline]       = useState("24");
   const [customPrice, setCustomPrice] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted]     = useState(false);
 
   const actionPrice = ACTION_PRICES[jobType];
   const selectedTier = FOLLOWER_TIERS.find((t) => t.value === followerTier);
@@ -75,12 +75,12 @@ function PostJobForm() {
           <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center mx-auto mb-4">
             <Zap className="w-6 h-6 text-blue-600" />
           </div>
-          <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text-1)" }}>Connect to post a job</h2>
-          <p className="text-sm mb-6" style={{ color: "var(--text-2)" }}>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Connect to post a job</h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
             Sign in with Twitter to post jobs and hire creators.
           </p>
           <button onClick={() => login()} className="btn-primary w-full">
-            Connect Twitter
+            Connect X
           </button>
         </div>
       </div>
@@ -94,21 +94,18 @@ function PostJobForm() {
           <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">🎉</span>
           </div>
-          <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text-1)" }}>Job posted!</h2>
-          <p className="text-sm mb-2" style={{ color: "var(--text-2)" }}>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Job posted!</h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
             Your job has been broadcast to the Yapper Agent Telegram channel.
           </p>
-          <p className="text-xs mb-6" style={{ color: "var(--text-3)" }}>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
             Creators will start accepting within minutes.
           </p>
           <div className="flex flex-col gap-2">
             <button onClick={() => setSubmitted(false)} className="btn-outline text-sm">
               Post Another Job
             </button>
-            <a
-              href="/jobs"
-              className="btn-primary text-sm"
-            >
+            <a href="/jobs" className="btn-primary text-sm">
               View All Jobs <ArrowRight className="w-4 h-4" />
             </a>
           </div>
@@ -120,10 +117,10 @@ function PostJobForm() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1" style={{ color: "var(--text-1)" }}>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-1">
           Post a Job
         </h1>
-        <p className="text-sm" style={{ color: "var(--text-2)" }}>
+        <p className="text-neutral-500 dark:text-neutral-400 text-sm">
           Hire a verified blue-tick creator. Payment in USDC — released on approval.
         </p>
       </div>
@@ -131,11 +128,11 @@ function PostJobForm() {
       <div className="flex flex-col gap-6">
         {/* Job source: Human or Agent */}
         <div className="card p-5">
-          <label className="block text-sm font-semibold mb-3" style={{ color: "var(--text-1)" }}>Job Posted By</label>
+          <label className="block text-sm font-semibold text-neutral-900 dark:text-white mb-3">Job Posted By</label>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { val: false, icon: Users, label: "Human", desc: "You're posting directly" },
-              { val: true, icon: Bot, label: "AI Agent", desc: "x402 / MPP agent flow" },
+              { val: false, icon: Users, label: "Human",    desc: "You're posting directly" },
+              { val: true,  icon: Bot,   label: "AI Agent", desc: "x402 / MPP agent flow"  },
             ].map((opt) => (
               <button
                 key={String(opt.val)}
@@ -144,23 +141,15 @@ function PostJobForm() {
                   "flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
                   isAgentJob === opt.val
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                    : "hover:border-blue-300"
+                    : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
                 )}
-                style={isAgentJob !== opt.val ? { borderColor: "var(--border)" } : {}}
               >
-                <opt.icon
-                  className={cn(
-                    "w-5 h-5",
-                    isAgentJob === opt.val ? "text-blue-600" : ""
-                  )}
-                  style={isAgentJob !== opt.val ? { color: "var(--text-3)" } : {}}
-                />
+                <opt.icon className={cn("w-5 h-5", isAgentJob === opt.val ? "text-blue-600" : "text-neutral-400 dark:text-neutral-500")} />
                 <div>
-                  <p className={cn("text-sm font-semibold", isAgentJob === opt.val ? "text-blue-700 dark:text-blue-400" : "")}
-                    style={isAgentJob !== opt.val ? { color: "var(--text-1)" } : {}}>
+                  <p className={cn("text-sm font-semibold", isAgentJob === opt.val ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>
                     {opt.label}
                   </p>
-                  <p className="text-xs" style={{ color: "var(--text-3)" }}>{opt.desc}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500">{opt.desc}</p>
                 </div>
               </button>
             ))}
@@ -169,7 +158,7 @@ function PostJobForm() {
 
         {/* Job type */}
         <div className="card p-5">
-          <label className="block text-sm font-semibold mb-3" style={{ color: "var(--text-1)" }}>Job Type</label>
+          <label className="block text-sm font-semibold text-neutral-900 dark:text-white mb-3">Job Type</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {JOB_TYPES.map((jt) => (
               <button
@@ -179,19 +168,14 @@ function PostJobForm() {
                   "flex flex-col gap-1.5 p-3 rounded-xl border text-left transition-all",
                   jobType === jt.type
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                    : "hover:border-blue-300"
+                    : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
                 )}
-                style={jobType !== jt.type ? { borderColor: "var(--border)" } : {}}
               >
-                <jt.icon
-                  className={cn("w-4 h-4", jobType === jt.type ? "text-blue-600" : "")}
-                  style={jobType !== jt.type ? { color: "var(--text-3)" } : {}}
-                />
-                <p className={cn("text-xs font-semibold", jobType === jt.type ? "text-blue-700 dark:text-blue-400" : "")}
-                  style={jobType !== jt.type ? { color: "var(--text-1)" } : {}}>
+                <jt.icon className={cn("w-4 h-4", jobType === jt.type ? "text-blue-600" : "text-neutral-400 dark:text-neutral-500")} />
+                <p className={cn("text-xs font-semibold", jobType === jt.type ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>
                   {jt.label}
                 </p>
-                <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{jt.desc}</p>
+                <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{jt.desc}</p>
               </button>
             ))}
           </div>
@@ -199,7 +183,7 @@ function PostJobForm() {
 
         {/* Details */}
         <div className="card p-5 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Job Details</h3>
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Job Details</h3>
 
           {prefilledCreator && (
             <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 text-sm text-blue-700 dark:text-blue-400">
@@ -209,7 +193,7 @@ function PostJobForm() {
           )}
 
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-2)" }}>Job Title *</label>
+            <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Job Title *</label>
             <input
               className="input-field"
               placeholder="e.g. Repost our Solana launch tweet"
@@ -219,7 +203,7 @@ function PostJobForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+            <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
               Description / Brief *
             </label>
             <textarea
@@ -232,7 +216,7 @@ function PostJobForm() {
 
           {(jobType === "repost" || jobType === "reply" || jobType === "like") && (
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                 Tweet URL *
               </label>
               <input
@@ -245,14 +229,8 @@ function PostJobForm() {
           )}
 
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
-              Deadline
-            </label>
-            <select
-              className="input-field"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            >
+            <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Deadline</label>
+            <select className="input-field" value={deadline} onChange={(e) => setDeadline(e.target.value)}>
               <option value="3">3 hours</option>
               <option value="6">6 hours</option>
               <option value="12">12 hours</option>
@@ -265,9 +243,8 @@ function PostJobForm() {
 
         {/* Follower tier + pricing */}
         <div className="card p-5 flex flex-col gap-4">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Creator Tier & Budget</h3>
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Creator Tier & Budget</h3>
 
-          {/* Action-based jobs have fixed prices */}
           {actionPrice !== null ? (
             <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3">
               <Info className="w-4 h-4 text-blue-500 shrink-0" />
@@ -287,16 +264,13 @@ function PostJobForm() {
                     "p-3 rounded-xl border text-left transition-all",
                     followerTier === tier.value
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                      : "hover:border-blue-300"
+                      : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
                   )}
-                  style={followerTier !== tier.value ? { borderColor: "var(--border)" } : {}}
                 >
-                  <p className={cn("text-xs font-semibold", followerTier === tier.value ? "text-blue-700 dark:text-blue-400" : "")}
-                    style={followerTier !== tier.value ? { color: "var(--text-2)" } : {}}>
+                  <p className={cn("text-xs font-semibold", followerTier === tier.value ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>
                     {tier.label}
                   </p>
-                  <p className={cn("text-sm font-bold mt-0.5", followerTier === tier.value ? "text-blue-600" : "")}
-                    style={followerTier !== tier.value ? { color: "var(--text-1)" } : {}}>
+                  <p className={cn("text-sm font-bold mt-0.5", followerTier === tier.value ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
                     {tier.price === -1 ? "Custom price" : `$${tier.price} USDC`}
                   </p>
                 </button>
@@ -306,7 +280,7 @@ function PostJobForm() {
 
           {actionPrice === null && selectedTier?.price === -1 && (
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-2)" }}>
+              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                 Custom Price (USDC) *
               </label>
               <input
@@ -321,21 +295,21 @@ function PostJobForm() {
           )}
 
           {/* Summary */}
-          <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: "var(--surface-2)" }}>
+          <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-xs" style={{ color: "var(--text-2)" }}>You pay (locked in escrow)</p>
-              <p className="text-xl font-extrabold" style={{ color: "var(--text-1)" }}>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">You pay (locked in escrow)</p>
+              <p className="text-xl font-extrabold text-neutral-900 dark:text-white">
                 {price ? `$${price < 1 ? price.toFixed(2) : price}` : "—"}{" "}
-                <span className="text-sm font-normal" style={{ color: "var(--text-3)" }}>USDC</span>
+                <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500">USDC</span>
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs" style={{ color: "var(--text-2)" }}>Creator receives</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Creator receives</p>
               <p className="text-lg font-bold text-green-600">
                 {price ? `$${price < 1 ? price.toFixed(2) : price}` : "—"}{" "}
-                <span className="text-sm font-normal" style={{ color: "var(--text-3)" }}>USDC</span>
+                <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500">USDC</span>
               </p>
-              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>0% platform fee</p>
+              <p className="text-[10px] text-neutral-400 dark:text-neutral-500">0% platform fee</p>
             </div>
           </div>
         </div>
@@ -343,16 +317,13 @@ function PostJobForm() {
         {/* Submit */}
         <button
           className="btn-primary text-sm py-3 w-full"
-          onClick={() => {
-            if (!title || !description) return;
-            setSubmitted(true);
-          }}
+          onClick={() => { if (!title || !description) return; setSubmitted(true); }}
         >
           Post Job &amp; Lock USDC
           <ArrowRight className="w-4 h-4" />
         </button>
 
-        <p className="text-center text-xs" style={{ color: "var(--text-3)" }}>
+        <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
           USDC is held in escrow and released when you approve the creator&apos;s proof.
           Job will be broadcast to the Telegram channel instantly.
         </p>

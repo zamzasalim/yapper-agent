@@ -33,42 +33,42 @@ export function CreatorCard({ creator }: { creator: Creator }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-sm truncate" style={{ color: "var(--text-1)" }}>
+            <span className="font-semibold text-sm truncate text-neutral-900 dark:text-white">
               {creator.name}
             </span>
             {creator.verified && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
           </div>
-          <span className="text-xs" style={{ color: "var(--text-3)" }}>
+          <span className="text-xs text-neutral-400 dark:text-neutral-500">
             @{creator.handle}
           </span>
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="font-bold text-sm" style={{ color: "var(--text-1)" }}>
+          <p className="font-bold text-sm text-neutral-900 dark:text-white">
             {price === -1 ? "Rate ↗" : `$${price}`}
           </p>
-          <p className="text-xs" style={{ color: "var(--text-3)" }}>per job</p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">per job</p>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 text-center rounded-xl px-3 py-2.5" style={{ background: "var(--surface-2)" }}>
+      <div className="grid grid-cols-3 gap-2 text-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
         <div>
-          <p className="font-bold text-xs" style={{ color: "var(--text-1)" }}>
+          <p className="font-bold text-xs text-neutral-900 dark:text-white">
             {formatFollowers(creator.followers)}
           </p>
-          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>followers</p>
+          <p className="text-[10px] text-neutral-400 dark:text-neutral-500">followers</p>
         </div>
         <div>
-          <p className="font-bold text-xs flex items-center justify-center gap-0.5" style={{ color: "var(--text-1)" }}>
+          <p className="font-bold text-xs text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
             <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
             {creator.rating.toFixed(1)}
           </p>
-          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>rating</p>
+          <p className="text-[10px] text-neutral-400 dark:text-neutral-500">rating</p>
         </div>
         <div>
-          <p className="font-bold text-xs" style={{ color: "var(--text-1)" }}>{creator.jobsDone}</p>
-          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>jobs done</p>
+          <p className="font-bold text-xs text-neutral-900 dark:text-white">{creator.jobsDone}</p>
+          <p className="text-[10px] text-neutral-400 dark:text-neutral-500">jobs done</p>
         </div>
       </div>
 
