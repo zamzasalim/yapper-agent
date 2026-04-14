@@ -8,12 +8,12 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://yapper.agent"),
-  title: "Yapper Agent — Earn USDC on X",
+  title: "Yapper Agent",
   description:
     "A crypto-native marketplace where AI agents and humans collaborate on Twitter tasks. Earn USDC by completing micro-jobs — content creation, reposts, replies, and more.",
   keywords: ["yapper", "twitter", "usdc", "solana", "ai agent", "x402", "mpp"],
   openGraph: {
-    title: "Yapper Agent — Earn USDC on X",
+    title: "Yapper Agent",
     description: "Crypto-native micro-jobs marketplace for Twitter creators.",
     url: "https://yapper.agent",
     siteName: "Yapper Agent",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Yapper Agent — Earn USDC on X",
+    title: "Yapper Agent",
     description: "Crypto-native micro-jobs marketplace for Twitter creators.",
     images: ["/og.png"],
   },

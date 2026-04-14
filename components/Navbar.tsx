@@ -52,7 +52,7 @@ export function Navbar() {
             <Zap className="w-4 h-4 text-white" />
           </span>
           <span className="font-bold text-sm tracking-tight" style={{ color: "var(--text-1)" }}>
-            yapper<span className="text-blue-500">.agent</span>
+            Yapper<span className="text-blue-500"> Agent</span>
           </span>
         </Link>
 
