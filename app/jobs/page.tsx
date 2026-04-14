@@ -1,3 +1,5 @@
+export const revalidate = 60; // ISR: cache page for 60 seconds
+
 import { Navbar } from "@/components/Navbar";
 import { JobCard } from "@/components/JobCard";
 import { Search, Bot, Users, Filter, Briefcase } from "lucide-react";
@@ -69,6 +71,28 @@ export default async function JobsPage() {
   const humanCount = jobs.filter((j) => !j.isAgentJob).length;
   const isLive = rawJobs !== null;
 
+  // ── Empty state: full-page centered ─────────────────────────────────────
+  if (jobs.length === 0) {
+    return (
+      <>
+        <Navbar />
+        <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+          <Briefcase className="w-14 h-14 mb-5 text-neutral-300 dark:text-neutral-700" />
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-2">
+            Open Jobs
+          </h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">No open jobs yet</p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-8">
+            Be the first to post a job and hire verified creators.
+          </p>
+          <a href="/post-job" className="btn-primary text-sm px-8">
+            Post a Job
+          </a>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
@@ -81,9 +105,7 @@ export default async function JobsPage() {
               Open Jobs
             </h1>
             <p className="text-neutral-500 dark:text-neutral-400 text-sm flex items-center gap-2">
-              {jobs.length > 0
-                ? `${jobs.length} job${jobs.length !== 1 ? "s" : ""} available`
-                : "No open jobs yet"}
+              {jobs.length} job{jobs.length !== 1 ? "s" : ""} available
               {isLive && (
                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
                   <span className="dot-live" /> Live
@@ -92,62 +114,47 @@ export default async function JobsPage() {
             </p>
           </div>
 
-          {jobs.length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-2">
-              <Bot className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Agent: {agentCount}</span>
-              <span className="w-px h-3.5 bg-neutral-200 dark:bg-neutral-700" />
-              <Users className="w-3.5 h-3.5 text-blue-500" />
-              <span>Human: {humanCount}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-2">
+            <Bot className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Agent: {agentCount}</span>
+            <span className="w-px h-3.5 bg-neutral-200 dark:bg-neutral-700" />
+            <Users className="w-3.5 h-3.5 text-blue-500" />
+            <span>Human: {humanCount}</span>
+          </div>
         </div>
 
         {/* Filter bar */}
-        {jobs.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-3 mb-8">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-              <input
-                type="text"
-                placeholder="Search jobs..."
-                className="input-field pl-9"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {TYPE_FILTERS.map((f) => (
-                <button
-                  key={f}
-                  className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
-                >
-                  {f}
-                </button>
-              ))}
-              <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-                <Filter className="w-3.5 h-3.5" />
-                Filter
-              </button>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              className="input-field pl-9"
+            />
           </div>
-        )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {TYPE_FILTERS.map((f) => (
+              <button
+                key={f}
+                className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
+              >
+                {f}
+              </button>
+            ))}
+            <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5" />
+              Filter
+            </button>
+          </div>
+        </div>
 
         {/* Job list */}
-        {jobs.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[50vh] text-neutral-400 dark:text-neutral-500">
-            <Briefcase className="w-12 h-12 mb-4 opacity-25" />
-            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">No open jobs yet</p>
-            <p className="text-xs mb-6">Be the first to post a job and hire verified creators.</p>
-            <a href="/post-job" className="btn-primary text-sm px-6">
-              Post a Job
-            </a>
-          </div>
-        )}
+        <div className="flex flex-col gap-3">
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
       </div>
     </>
   );

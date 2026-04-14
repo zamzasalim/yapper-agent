@@ -1,3 +1,5 @@
+export const revalidate = 60; // ISR: cache page for 60 seconds
+
 import { Navbar } from "@/components/Navbar";
 import { CreatorCard } from "@/components/CreatorCard";
 import { Search, SlidersHorizontal, Users } from "lucide-react";
@@ -39,6 +41,28 @@ export default async function MarketplacePage() {
 
   const isLive = raw !== null;
 
+  // ── Empty state: full-page centered ─────────────────────────────────────
+  if (creators.length === 0) {
+    return (
+      <>
+        <Navbar />
+        <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+          <Users className="w-14 h-14 mb-5 text-neutral-300 dark:text-neutral-700" />
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-2">
+            Creator Marketplace
+          </h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">No creators registered yet</p>
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-8">
+            Connect your X account to join the marketplace as a verified creator.
+          </p>
+          <a href="/dashboard" className="btn-primary text-sm px-8">
+            Join as Creator
+          </a>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
@@ -52,12 +76,8 @@ export default async function MarketplacePage() {
             </h1>
             <p className="text-neutral-500 dark:text-neutral-400 text-sm flex items-center gap-2">
               <Users className="w-3.5 h-3.5" />
-              {isLive
-                ? creators.length > 0
-                  ? `${creators.length} verified creator${creators.length !== 1 ? "s" : ""} registered`
-                  : "No creators registered yet"
-                : "Connecting to database…"}
-              {isLive && creators.length > 0 && (
+              {creators.length} verified creator{creators.length !== 1 ? "s" : ""} registered
+              {isLive && (
                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
                   <span className="dot-live" /> Live
                 </span>
@@ -67,50 +87,37 @@ export default async function MarketplacePage() {
         </div>
 
         {/* Search + filter bar */}
-        {creators.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-3 mb-8">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-              <input
-                type="text"
-                placeholder="Search by handle, tag, or niche..."
-                className="input-field pl-9"
-              />
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
-                >
-                  {f}
-                </button>
-              ))}
-              <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                Filter
-              </button>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
+            <input
+              type="text"
+              placeholder="Search by handle, tag, or niche..."
+              className="input-field pl-9"
+            />
           </div>
-        )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
+              >
+                {f}
+              </button>
+            ))}
+            <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Filter
+            </button>
+          </div>
+        </div>
 
         {/* Grid */}
-        {creators.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {creators.map((c) => (
-              <CreatorCard key={c.id} creator={c} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[50vh] text-neutral-400 dark:text-neutral-500">
-            <Users className="w-12 h-12 mb-4 opacity-25" />
-            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">No creators registered yet</p>
-            <p className="text-xs mb-6">Connect your X account to join the marketplace as a creator.</p>
-            <a href="/dashboard" className="btn-primary text-sm px-6">
-              Join as Creator
-            </a>
-          </div>
-        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {creators.map((c) => (
+            <CreatorCard key={c.id} creator={c} />
+          ))}
+        </div>
 
         {/* Load more */}
         {creators.length >= 30 && (

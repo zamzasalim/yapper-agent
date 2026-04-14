@@ -59,11 +59,12 @@ export async function POST(req: NextRequest) {
 /**
  * PATCH /api/user
  * Update wallet address and/or follower count.
+ * Uses upsert so it works even if the user record doesn't exist yet.
  */
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { twitter_handle, wallet_address, twitter_followers } = body;
+    const { twitter_handle, twitter_id, display_name, wallet_address, twitter_followers } = body;
 
     if (!twitter_handle) {
       return NextResponse.json({ error: "twitter_handle required" }, { status: 400 });
@@ -71,20 +72,28 @@ export async function PATCH(req: NextRequest) {
 
     const db = createServerClient();
 
-    type UserUpdate = Database["public"]["Tables"]["users"]["Update"];
-    const updates: UserUpdate = {};
-    if (wallet_address !== undefined) updates.wallet_address = wallet_address;
-    if (twitter_followers !== undefined) updates.twitter_followers = twitter_followers;
+    // Build upsert payload — provide all required fields with safe defaults
+    // so it creates the record if it doesn't exist yet
+    type UserInsert = Database["public"]["Tables"]["users"]["Insert"];
+    const payload: UserInsert = {
+      id: crypto.randomUUID(),
+      twitter_handle,
+      twitter_id: twitter_id || twitter_handle,
+      display_name: display_name || twitter_handle,
+      wallet_address: wallet_address ?? "pending",
+      twitter_followers: twitter_followers ?? 0,
+      is_verified_blue: true,
+      role: "creator" as const,
+    };
 
     const { data, error } = await db
       .from("users")
-      .update(updates)
-      .eq("twitter_handle", twitter_handle)
+      .upsert(payload, { onConflict: "twitter_handle", ignoreDuplicates: false })
       .select()
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
     }
 
     return NextResponse.json({ user: data });

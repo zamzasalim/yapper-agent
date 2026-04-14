@@ -236,10 +236,18 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-amber-500 flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" />
-                Wallet not set — add below to receive USDC payments
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs text-amber-500 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Wallet not set
+                </p>
+                <button
+                  onClick={() => setEditingWallet(true)}
+                  className="text-xs text-blue-500 hover:underline font-medium"
+                >
+                  + Add Wallet
+                </button>
+              </div>
             )}
           </div>
 
@@ -249,7 +257,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Wallet input card ──────────────────────────────────── */}
-        {(!walletAddress || editingWallet) && profile && (
+        {(!walletAddress || editingWallet) && authenticated && (
           <div className="card p-5 mb-6 border-amber-200 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/20">
             <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">
               {editingWallet ? "Update Solana Wallet" : "Add Your Solana Wallet"}
