@@ -139,9 +139,9 @@ export default async function JobsPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-28 text-neutral-400 dark:text-neutral-500">
-            <Briefcase className="w-10 h-10 mx-auto mb-4 opacity-30" />
-            <p className="text-sm font-medium mb-1">No open jobs yet</p>
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-neutral-400 dark:text-neutral-500">
+            <Briefcase className="w-12 h-12 mb-4 opacity-25" />
+            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">No open jobs yet</p>
             <p className="text-xs mb-6">Be the first to post a job and hire verified creators.</p>
             <a href="/post-job" className="btn-primary text-sm px-6">
               Post a Job

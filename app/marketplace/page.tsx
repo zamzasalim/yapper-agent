@@ -102,12 +102,12 @@ export default async function MarketplacePage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-28 text-neutral-400 dark:text-neutral-500">
-            <Users className="w-10 h-10 mx-auto mb-4 opacity-30" />
-            <p className="text-sm font-medium mb-1">No creators registered yet</p>
-            <p className="text-xs mb-6">Be the first verified creator to join the marketplace.</p>
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-neutral-400 dark:text-neutral-500">
+            <Users className="w-12 h-12 mb-4 opacity-25" />
+            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">No creators registered yet</p>
+            <p className="text-xs mb-6">Connect your X account to join the marketplace as a creator.</p>
             <a href="/dashboard" className="btn-primary text-sm px-6">
-              Register as Creator
+              Join as Creator
             </a>
           </div>
         )}
