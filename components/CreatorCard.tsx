@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Star, CheckCircle2, ArrowRight } from "lucide-react";
 import { formatFollowers, getPriceTier } from "@/lib/solana";
@@ -27,9 +29,19 @@ export function CreatorCard({ creator }: { creator: Creator }) {
     <div className="card p-5 flex flex-col gap-4">
       {/* Top row */}
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shrink-0 text-white font-bold text-sm">
-          {initials}
-        </div>
+        {creator.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={creator.avatar}
+            alt={creator.name}
+            className="w-11 h-11 rounded-full object-cover shrink-0 border border-neutral-200 dark:border-neutral-700"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shrink-0 text-white font-bold text-sm">
+            {initials}
+          </div>
+        )}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">

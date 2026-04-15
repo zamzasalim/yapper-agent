@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Navbar } from "@/components/Navbar";
 import {
   Zap,
@@ -223,6 +224,21 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Why Us? — ticker */}
+      <section className="border-y border-neutral-800 bg-neutral-950 overflow-hidden py-5">
+        <div className="animate-ticker">
+          {[...Array(6)].map((_, i) => (
+            <span key={i} className="flex items-center gap-4 px-8 whitespace-nowrap text-sm font-semibold text-white">
+              <span className="text-neutral-500">·</span>
+              <span className="text-neutral-500">·</span>
+              <span className="text-neutral-300">Powered by <span className="text-blue-400">IndoYaps</span> as Community Hub for Web3 Creators</span>
+              <span className="text-neutral-500">·</span>
+              <span className="text-neutral-500">·</span>
+            </span>
+          ))}
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="py-20 grid-bg">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -298,6 +314,52 @@ export default function HomePage() {
           <p className="text-center text-xs text-neutral-400 dark:text-neutral-500 mt-4">
             * All payments include 0% platform fee, creators receive 100% of the posted rate
           </p>
+        </div>
+      </section>
+
+      {/* Partnership */}
+      <section className="py-20 bg-white dark:bg-neutral-950">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <div className="mb-12">
+            <p className="badge-blue mb-3">Partnership</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">
+              Trusted by Industry Leaders
+            </h2>
+            <p className="text-neutral-500 dark:text-neutral-400 mt-3 max-w-lg mx-auto">
+              We&apos;ve worked alongside leading Web3 companies to build a reliable, creator-first ecosystem
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-12">
+            <div className="flex flex-col items-center gap-3 group">
+              <div className="rounded-2xl border border-neutral-200 bg-white px-8 py-5 flex items-center justify-center w-52 h-24 transition-shadow group-hover:shadow-md">
+                <Image
+                  src="/bitgetwallet.png"
+                  alt="Bitget Wallet"
+                  width={140}
+                  height={0}
+                  style={{ height: "auto", maxHeight: "44px", width: "auto", maxWidth: "140px" }}
+                  unoptimized
+                />
+              </div>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium">Bitget Wallet</p>
+            </div>
+
+            <div className="flex flex-col items-center gap-3 group">
+              <div className="rounded-2xl border border-neutral-200 bg-white px-8 py-5 flex items-center justify-center w-52 h-24 transition-shadow group-hover:shadow-md">
+                <Image
+                  src="/numbersprotocol.png"
+                  alt="Numbers Protocol"
+                  width={160}
+                  height={0}
+                  style={{ height: "auto", maxHeight: "84px", width: "auto", maxWidth: "200px" }}
+                  unoptimized
+                />
+              </div>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 font-medium">Numbers Protocol</p>
+            </div>
+          </div>
+
         </div>
       </section>
 

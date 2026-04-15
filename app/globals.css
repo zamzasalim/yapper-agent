@@ -198,6 +198,18 @@ select.input-field { color-scheme: light dark; }
   border-radius: 6px;
 }
 
+/* ── Ticker / Marquee ─────────────────────────────────────────────────────── */
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker {
+  display: flex;
+  width: max-content;
+  animation: ticker 18s linear infinite;
+  will-change: transform;
+}
+
 /* ── Live dot ─────────────────────────────────────────────────────────────── */
 .dot-live {
   display: inline-block;

@@ -10,7 +10,7 @@ import type { Database } from "@/types/database";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { twitter_handle, twitter_id, display_name, privy_did } = body;
+    const { twitter_handle, twitter_id, display_name, privy_did, avatar_url } = body;
 
     if (!twitter_handle) {
       return NextResponse.json({ error: "twitter_handle required" }, { status: 400 });
@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
+      // Refresh avatar_url in case profile picture changed
+      if (avatar_url && avatar_url !== existing.avatar_url) {
+        await db.from("users").update({ avatar_url }).eq("id", existing.id);
+        return NextResponse.json({ user: { ...existing, avatar_url } });
+      }
       return NextResponse.json({ user: existing });
     }
 
@@ -40,6 +45,7 @@ export async function POST(req: NextRequest) {
         twitter_id: twitter_id || twitter_handle,
         twitter_followers: 0,
         display_name: display_name || twitter_handle,
+        avatar_url: avatar_url ?? null,
         is_verified_blue: true,
         role: "creator" as const,
       })

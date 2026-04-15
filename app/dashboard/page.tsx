@@ -33,6 +33,7 @@ interface UserRecord {
   total_earned_usdc: number;
   jobs_completed: number;
   rating: number;
+  avatar_url: string | null;
 }
 
 interface JobRecord {
@@ -77,6 +78,15 @@ export default function DashboardPage() {
     ?? "";
   const displayName = (user as any)?.twitter?.name ?? twitterHandle;
   const twitterId   = (user as any)?.twitter?.subject ?? twitterHandle;
+  // Profile picture URL from Privy Twitter OAuth
+  const privyAvatarUrl: string | null =
+    (user as any)?.twitter?.profilePictureUrl
+    ?? twitterAccount?.profilePictureUrl
+    ?? null;
+  // Use higher-res version (replace _normal with _bigger)
+  const avatarUrl = privyAvatarUrl
+    ? privyAvatarUrl.replace("_normal", "_bigger")
+    : (profile?.avatar_url ?? null);
 
   // ── Auto-register + load profile on login ──────────────────────────────
   useEffect(() => {
@@ -90,7 +100,7 @@ export default function DashboardPage() {
         const res = await fetch("/api/user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ twitter_handle: twitterHandle, twitter_id: twitterId, display_name: displayName, privy_did: user?.id }),
+          body: JSON.stringify({ twitter_handle: twitterHandle, twitter_id: twitterId, display_name: displayName, privy_did: user?.id, avatar_url: privyAvatarUrl?.replace("_normal", "_bigger") ?? null }),
         });
         setRegistering(false);
 
@@ -196,9 +206,18 @@ export default function DashboardPage() {
 
         {/* ── Profile header ─────────────────────────────────────── */}
         <div className="card p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
-            {(twitterHandle || "?").slice(0, 2).toUpperCase()}
-          </div>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={twitterHandle}
+              className="w-14 h-14 rounded-full object-cover shrink-0 border-2 border-neutral-200 dark:border-neutral-700"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
+              {(twitterHandle || "?").slice(0, 2).toUpperCase()}
+            </div>
+          )}
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
