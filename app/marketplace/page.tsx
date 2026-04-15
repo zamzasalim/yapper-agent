@@ -1,8 +1,8 @@
 export const revalidate = 60; // ISR: cache page for 60 seconds
 
 import { Navbar } from "@/components/Navbar";
-import { CreatorCard } from "@/components/CreatorCard";
-import { Search, SlidersHorizontal, Users } from "lucide-react";
+import { MarketplaceClient } from "@/components/MarketplaceClient";
+import { Users } from "lucide-react";
 import { createServerClient } from "@/lib/supabase";
 
 async function getCreators() {
@@ -22,8 +22,6 @@ async function getCreators() {
     return null;
   }
 }
-
-const FILTERS = ["All", "0–1K", "1K–10K", "10K–50K"];
 
 export default async function MarketplacePage() {
   const raw = await getCreators();
@@ -86,48 +84,7 @@ export default async function MarketplacePage() {
           </div>
         </div>
 
-        {/* Search + filter bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-            <input
-              type="text"
-              placeholder="Search by handle, tag, or niche..."
-              className="input-field"
-              style={{ paddingLeft: '2.25rem' }}
-            />
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {FILTERS.map((f) => (
-              <button
-                key={f}
-                className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
-              >
-                {f}
-              </button>
-            ))}
-            <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Filter
-            </button>
-          </div>
-        </div>
-
-        {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {creators.map((c) => (
-            <CreatorCard key={c.id} creator={c} />
-          ))}
-        </div>
-
-        {/* Load more */}
-        {creators.length >= 30 && (
-          <div className="mt-10 text-center">
-            <button className="btn-outline text-sm px-6 py-2.5">
-              Load More Creators
-            </button>
-          </div>
-        )}
+        <MarketplaceClient creators={creators} />
       </div>
     </>
   );

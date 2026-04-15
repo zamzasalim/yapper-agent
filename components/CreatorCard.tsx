@@ -50,9 +50,14 @@ export function CreatorCard({ creator }: { creator: Creator }) {
             </span>
             {creator.verified && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
           </div>
-          <span className="text-xs text-neutral-400 dark:text-neutral-500">
+          <a
+            href={`https://twitter.com/${creator.handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-neutral-400 dark:text-neutral-500 hover:text-blue-500 transition-colors"
+          >
             @{creator.handle}
-          </span>
+          </a>
         </div>
 
         <div className="shrink-0 text-right">

@@ -57,7 +57,7 @@ function isValidSolanaAddress(addr: string): boolean {
 }
 
 export default function DashboardPage() {
-  const { authenticated, login, user } = usePrivy();
+  const { authenticated, login, logout, user } = usePrivy();
 
   const [profile, setProfile]           = useState<UserRecord | null>(null);
   const [jobs, setJobs]                 = useState<JobRecord[]>([]);
@@ -272,9 +272,17 @@ export default function DashboardPage() {
 
           </div>
 
-          <Link href="/post-job" className="btn-primary text-xs px-4 py-2.5 shrink-0">
-            Post a Job <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex flex-col gap-2 shrink-0">
+            <Link href="/post-job" className="btn-primary text-xs px-4 py-2.5">
+              Post a Job <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+            <button
+              onClick={() => logout()}
+              className="btn-outline text-xs px-4 py-2"
+            >
+              Disconnect
+            </button>
+          </div>
         </div>
 
         {/* ── Wallet input card ──────────────────────────────────── */}

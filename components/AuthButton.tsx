@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 
 export function AuthButton() {
   const pathname = usePathname();
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { ready, authenticated, login, user } = usePrivy();
 
   const twitterHandle = (user?.linkedAccounts ?? []).find(
     (a) => a.type === "twitter_oauth"
@@ -20,32 +20,24 @@ export function AuthButton() {
 
   if (authenticated) {
     return (
-      <div className="flex items-center gap-2">
-        <Link
-          href="/dashboard"
-          className={cn(
-            "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-            pathname === "/dashboard"
-              ? "bg-blue-50 text-blue-600"
-              : "text-neutral-600 hover:bg-neutral-100"
-          )}
-        >
-          {twitterHandle ? (
-            <>
-              <span className="text-blue-500">@</span>
-              {twitterHandle}
-            </>
-          ) : (
-            "Dashboard"
-          )}
-        </Link>
-        <button
-          onClick={() => logout()}
-          className="btn-outline text-xs px-3 py-1.5"
-        >
-          Disconnect
-        </button>
-      </div>
+      <Link
+        href="/dashboard"
+        className={cn(
+          "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+          pathname === "/dashboard"
+            ? "bg-blue-50 text-blue-600"
+            : "text-neutral-600 hover:bg-neutral-100"
+        )}
+      >
+        {twitterHandle ? (
+          <>
+            <span className="text-blue-500">@</span>
+            {twitterHandle}
+          </>
+        ) : (
+          "Dashboard"
+        )}
+      </Link>
     );
   }
 

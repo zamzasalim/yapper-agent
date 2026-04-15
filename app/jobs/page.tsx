@@ -1,8 +1,8 @@
 export const revalidate = 60; // ISR: cache page for 60 seconds
 
 import { Navbar } from "@/components/Navbar";
-import { JobCard } from "@/components/JobCard";
-import { Search, Bot, Users, Filter, Briefcase } from "lucide-react";
+import { JobsClient } from "@/components/JobsClient";
+import { Bot, Users, Briefcase } from "lucide-react";
 import { createServerClient } from "@/lib/supabase";
 
 type JobType = "content" | "repost" | "reply" | "like" | "custom";
@@ -49,8 +49,6 @@ async function getJobs(): Promise<RawJob[] | null> {
     return null;
   }
 }
-
-const TYPE_FILTERS = ["All", "Content", "Repost", "Reply", "Like", "Custom", "Agent Jobs"];
 
 export default async function JobsPage() {
   const rawJobs = await getJobs();
@@ -123,38 +121,7 @@ export default async function JobsPage() {
           </div>
         </div>
 
-        {/* Filter bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-            <input
-              type="text"
-              placeholder="Search jobs..."
-              className="input-field pl-9"
-            />
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {TYPE_FILTERS.map((f) => (
-              <button
-                key={f}
-                className="tag cursor-pointer hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-xs"
-              >
-                {f}
-              </button>
-            ))}
-            <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5" />
-              Filter
-            </button>
-          </div>
-        </div>
-
-        {/* Job list */}
-        <div className="flex flex-col gap-3">
-          {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
+        <JobsClient jobs={jobs} />
       </div>
     </>
   );

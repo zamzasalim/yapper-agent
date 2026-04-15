@@ -1,9 +1,11 @@
 "use client";
 
-import { Bot, Users, Clock, CheckCircle2, ArrowRight, Zap } from "lucide-react";
+import { useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { Bot, Users, Clock, CheckCircle2, ArrowRight, Zap, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-type JobType = "content" | "repost" | "reply" | "like" | "custom";
+type JobType   = "content" | "repost" | "reply" | "like" | "custom";
 type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
 
 interface Job {
@@ -44,6 +46,38 @@ function formatFollowerRange(min: number, max: number) {
 }
 
 export function JobCard({ job }: { job: Job }) {
+  const { authenticated, login, user } = usePrivy();
+
+  const [accepting, setAccepting] = useState(false);
+  const [accepted, setAccepted]   = useState(false);
+  const [acceptError, setAcceptError] = useState("");
+
+  const twitterHandle =
+    ((user?.linkedAccounts ?? []).find((a) => a.type === "twitter_oauth") as any)?.username ??
+    (user as any)?.twitter?.username ??
+    "";
+
+  async function handleAccept() {
+    if (!authenticated) { login(); return; }
+
+    setAccepting(true);
+    setAcceptError("");
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/accept`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
+      setAccepted(true);
+    } catch (err: unknown) {
+      setAcceptError(err instanceof Error ? err.message : "Failed to accept");
+    } finally {
+      setAccepting(false);
+    }
+  }
+
   const showFollowers = job.minFollowers !== undefined && job.maxFollowers !== undefined;
 
   return (
@@ -95,13 +129,31 @@ export function JobCard({ job }: { job: Job }) {
           <p className="text-xs text-neutral-400 dark:text-neutral-500">USDC</p>
         </div>
 
-        <button className="btn-primary text-xs px-4 py-2.5">
-          {job.isAgentJob ? (
-            <><Zap className="w-3.5 h-3.5" /> Accept</>
-          ) : (
-            <>Accept <ArrowRight className="w-3.5 h-3.5" /></>
-          )}
-        </button>
+        {accepted ? (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-400 px-4 py-2.5">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Accepted!
+          </div>
+        ) : (
+          <button
+            onClick={handleAccept}
+            disabled={accepting}
+            className="btn-primary text-xs px-4 py-2.5"
+          >
+            {accepting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : job.isAgentJob ? (
+              <><Zap className="w-3.5 h-3.5" /> Accept</>
+            ) : (
+              <>Accept <ArrowRight className="w-3.5 h-3.5" /></>
+            )}
+          </button>
+        )}
+
+        {acceptError && (
+          <p className="text-[10px] text-red-500 text-right max-w-[150px] leading-tight">
+            {acceptError}
+          </p>
+        )}
       </div>
     </div>
   );

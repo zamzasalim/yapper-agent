@@ -231,7 +231,7 @@ export default function HomePage() {
             <span key={i} className="flex items-center gap-4 px-8 whitespace-nowrap text-sm font-semibold text-white">
               <span className="text-neutral-500">·</span>
               <span className="text-neutral-500">·</span>
-              <span className="text-neutral-300">Powered by <span className="text-blue-400">IndoYaps</span> as Community Hub for Web3 Creators</span>
+              <span className="text-neutral-300">Powered by <span className="text-blue-400">IndoYaps</span> · Community Hub for Web3 Creators</span>
               <span className="text-neutral-500">·</span>
               <span className="text-neutral-500">·</span>
             </span>
