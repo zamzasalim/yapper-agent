@@ -45,18 +45,20 @@ export function Navbar() {
         borderColor: "var(--border)",
       }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Zap className="w-4 h-4 text-white" />
-          </span>
-          <span className="font-bold text-sm tracking-tight" style={{ color: "var(--text-1)" }}>
-            Yapper<span className="text-blue-500"> Agent</span>
-          </span>
-        </Link>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+        {/* Logo — flex-1 so nav links are truly centered */}
+        <div className="flex-1">
+          <Link href="/" className="flex items-center gap-2 w-fit">
+            <span className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </span>
+            <span className="font-bold text-sm tracking-tight" style={{ color: "var(--text-1)" }}>
+              Yapper<span className="text-blue-500"> Agent</span>
+            </span>
+          </Link>
+        </div>
 
-        {/* Desktop links */}
+        {/* Desktop links — center */}
         <div className="hidden md:flex items-center gap-1">
           {NAV_LINKS.map((link) => (
             <Link
@@ -74,8 +76,8 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Right side */}
-        <div className="flex items-center gap-2">
+        {/* Right side — flex-1 justify-end */}
+        <div className="flex-1 flex items-center justify-end gap-2">
           <ThemeToggle />
           <AuthButton />
 

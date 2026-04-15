@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
+/** Fetch follower count + verified status from Twitter API v2. */
+async function fetchTwitterStats(
+  twitterId: string
+): Promise<{ followers: number; is_verified_blue: boolean } | null> {
+  const bearerToken = decodeURIComponent(process.env.TWITTER_BEARER_TOKEN ?? "");
+  if (!bearerToken || !twitterId) return null;
+  try {
+    const res = await fetch(
+      `https://api.twitter.com/2/users/${twitterId}?user.fields=public_metrics,verified`,
+      { headers: { Authorization: `Bearer ${bearerToken}` } }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return {
+      followers: json.data?.public_metrics?.followers_count ?? 0,
+      is_verified_blue: json.data?.verified ?? false,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/user
  * Upsert a creator record when the user first connects their X account.
@@ -26,13 +48,26 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      // Refresh avatar_url in case profile picture changed
-      if (avatar_url && avatar_url !== existing.avatar_url) {
-        await db.from("users").update({ avatar_url }).eq("id", existing.id);
-        return NextResponse.json({ user: { ...existing, avatar_url } });
+      // Refresh live stats (followers + avatar) in the background on every login
+      type UserUpdate = Database["public"]["Tables"]["users"]["Update"];
+      const updates: UserUpdate = {};
+      if (avatar_url && avatar_url !== existing.avatar_url) updates.avatar_url = avatar_url;
+
+      const stats = await fetchTwitterStats(twitter_id || existing.twitter_id);
+      if (stats) {
+        updates.twitter_followers = stats.followers;
+        updates.is_verified_blue  = stats.is_verified_blue;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await db.from("users").update(updates).eq("id", existing.id);
+        return NextResponse.json({ user: { ...existing, ...updates } });
       }
       return NextResponse.json({ user: existing });
     }
+
+    // Fetch real follower count from Twitter API for new user
+    const stats = await fetchTwitterStats(twitter_id);
 
     // Create new creator record
     const { data: created, error } = await db
@@ -43,10 +78,10 @@ export async function POST(req: NextRequest) {
         wallet_address: "pending",
         twitter_handle,
         twitter_id: twitter_id || twitter_handle,
-        twitter_followers: 0,
+        twitter_followers: stats?.followers ?? 0,
         display_name: display_name || twitter_handle,
         avatar_url: avatar_url ?? null,
-        is_verified_blue: true,
+        is_verified_blue: stats?.is_verified_blue ?? false,
         role: "creator" as const,
       })
       .select()

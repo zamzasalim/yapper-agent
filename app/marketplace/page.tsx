@@ -93,7 +93,8 @@ export default async function MarketplacePage() {
             <input
               type="text"
               placeholder="Search by handle, tag, or niche..."
-              className="input-field pl-9"
+              className="input-field"
+              style={{ paddingLeft: '2.25rem' }}
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">

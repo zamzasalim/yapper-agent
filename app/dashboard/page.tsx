@@ -269,6 +269,7 @@ export default function DashboardPage() {
                 </button>
               </div>
             )}
+
           </div>
 
           <Link href="/post-job" className="btn-primary text-xs px-4 py-2.5 shrink-0">
