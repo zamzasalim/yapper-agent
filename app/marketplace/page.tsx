@@ -11,7 +11,6 @@ async function getCreators() {
     const { data, error } = await db
       .from("users")
       .select("id, twitter_handle, display_name, twitter_followers, avatar_url, rating, jobs_completed, is_verified_blue")
-      .eq("is_verified_blue", true)
       .eq("role", "creator")
       .order("jobs_completed", { ascending: false })
       .limit(30);
