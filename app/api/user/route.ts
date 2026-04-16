@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { fetchTwitterUserStats } from "@/lib/scrapebadger";
 import type { Database } from "@/types/database";
-
-/** Fetch follower count + verified status from Twitter API v2. */
-async function fetchTwitterStats(
-  twitterId: string
-): Promise<{ followers: number; is_verified_blue: boolean } | null> {
-  const bearerToken = decodeURIComponent(process.env.TWITTER_BEARER_TOKEN ?? "");
-  if (!bearerToken || !twitterId) return null;
-  try {
-    const res = await fetch(
-      `https://api.twitter.com/2/users/${twitterId}?user.fields=public_metrics,verified`,
-      { headers: { Authorization: `Bearer ${bearerToken}` } }
-    );
-    if (!res.ok) return null;
-    const json = await res.json();
-    return {
-      followers: json.data?.public_metrics?.followers_count ?? 0,
-      is_verified_blue: json.data?.verified ?? false,
-    };
-  } catch {
-    return null;
-  }
-}
 
 /**
  * POST /api/user
@@ -53,7 +32,7 @@ export async function POST(req: NextRequest) {
       const updates: UserUpdate = {};
       if (avatar_url && avatar_url !== existing.avatar_url) updates.avatar_url = avatar_url;
 
-      const stats = await fetchTwitterStats(twitter_id || existing.twitter_id);
+      const stats = await fetchTwitterUserStats(twitter_handle || existing.twitter_handle);
       if (stats) {
         updates.twitter_followers = stats.followers;
         updates.is_verified_blue  = stats.is_verified_blue;
@@ -66,8 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ user: existing });
     }
 
-    // Fetch real follower count from Twitter API for new user
-    const stats = await fetchTwitterStats(twitter_id);
+    // Fetch real follower count + blue status from ScrapeBadger for new user
+    const stats = await fetchTwitterUserStats(twitter_handle);
 
     // Create new creator record
     const { data: created, error } = await db

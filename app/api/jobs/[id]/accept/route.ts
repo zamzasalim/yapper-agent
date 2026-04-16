@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { fetchTwitterUserStats, parseJobRequirements } from "@/lib/scrapebadger";
 
 /**
  * PATCH /api/jobs/[id]/accept
  * Accept an open job as a creator.
  * Body: { twitter_handle: string }
+ *
+ * Flow:
+ *  1. Look up creator in DB → get current stats
+ *  2. Refresh stats from ScrapeBadger and persist to DB
+ *  3. Parse S&K requirements from job description
+ *  4. Validate creator meets requirements (cenblue, min followers)
+ *  5. Accept the job
  */
 export async function PATCH(
   req: NextRequest,
@@ -19,10 +27,10 @@ export async function PATCH(
 
     const db = createServerClient();
 
-    // Look up creator by handle
+    // ── 1. Look up creator ─────────────────────────────────────────────────
     const { data: creator } = await db
       .from("users")
-      .select("id")
+      .select("id, twitter_followers, is_verified_blue")
       .eq("twitter_handle", twitter_handle)
       .maybeSingle();
 
@@ -33,10 +41,25 @@ export async function PATCH(
       );
     }
 
-    // Check job exists and is still open
+    // ── 2. Refresh stats from ScrapeBadger + persist ───────────────────────
+    let followers      = creator.twitter_followers ?? 0;
+    let isBlueVerified = creator.is_verified_blue  ?? false;
+
+    const fresh = await fetchTwitterUserStats(twitter_handle);
+    if (fresh) {
+      followers      = fresh.followers;
+      isBlueVerified = fresh.is_verified_blue;
+      // persist updated stats (non-blocking path — ignore error)
+      await db
+        .from("users")
+        .update({ twitter_followers: followers, is_verified_blue: isBlueVerified })
+        .eq("id", creator.id);
+    }
+
+    // ── 3. Fetch job ───────────────────────────────────────────────────────
     const { data: job } = await db
       .from("jobs")
-      .select("id, status")
+      .select("id, status, description")
       .eq("id", id)
       .maybeSingle();
 
@@ -47,7 +70,25 @@ export async function PATCH(
       return NextResponse.json({ error: "This job is no longer available." }, { status: 409 });
     }
 
-    // Accept the job
+    // ── 4. Validate S&K requirements ──────────────────────────────────────
+    const { requireCenblue, minFollowers } = parseJobRequirements(job.description ?? "");
+
+    if (requireCenblue && !isBlueVerified) {
+      return NextResponse.json(
+        { error: "This job requires a verified blue (cenblue) account." },
+        { status: 403 }
+      );
+    }
+    if (minFollowers > 0 && followers < minFollowers) {
+      return NextResponse.json(
+        {
+          error: `This job requires at least ${minFollowers.toLocaleString()} followers. Your account has ${followers.toLocaleString()}.`,
+        },
+        { status: 403 }
+      );
+    }
+
+    // ── 5. Accept the job ──────────────────────────────────────────────────
     const { data: updated, error } = await db
       .from("jobs")
       .update({ status: "in_progress", creator_id: creator.id })
