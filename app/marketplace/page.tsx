@@ -33,7 +33,7 @@ export default async function MarketplacePage() {
     rating: c.rating ?? 5.0,
     jobsDone: c.jobs_completed ?? 0,
     tags: [] as string[],
-    verified: c.is_verified_blue ?? true,
+    verified: c.is_verified_blue ?? false,
   }));
 
   const isLive = raw !== null;
