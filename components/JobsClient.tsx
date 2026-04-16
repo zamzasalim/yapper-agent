@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 import { JobCard } from "./JobCard";
 import { cn } from "@/lib/cn";
 
@@ -78,10 +78,6 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
               {f}
             </button>
           ))}
-          <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5" />
-            Filter
-          </button>
         </div>
       </div>
 

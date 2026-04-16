@@ -64,6 +64,7 @@ export type Database = {
           is_agent_job: boolean;
           deadline_hours: number;
           telegram_message_id: string | null;
+          rating: number | null;
         };
         Insert: {
           id?: string;
@@ -81,6 +82,7 @@ export type Database = {
           is_agent_job?: boolean;
           deadline_hours: number;
           telegram_message_id?: string | null;
+          rating?: number | null;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];

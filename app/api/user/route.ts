@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!user) return NextResponse.json({ user: null });
 
-    // Fetch their accepted/completed jobs
+    // Fetch their accepted/completed jobs (as creator)
     const { data: jobs } = await db
       .from("jobs")
       .select("id, created_at, type, title, price_usdc, status, client_id")
@@ -174,7 +174,15 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    return NextResponse.json({ user, jobs: jobs ?? [] });
+    // Fetch jobs they posted (as client)
+    const { data: clientJobs } = await db
+      .from("jobs")
+      .select("id, created_at, type, title, price_usdc, status, creator_id, rating")
+      .eq("client_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    return NextResponse.json({ user, jobs: jobs ?? [], clientJobs: clientJobs ?? [] });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

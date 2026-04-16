@@ -19,6 +19,7 @@ import {
   X,
   Briefcase,
   Loader2,
+  Star,
 } from "lucide-react";
 
 type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
@@ -45,6 +46,17 @@ interface JobRecord {
   status: JobStatus;
 }
 
+interface ClientJobRecord {
+  id: string;
+  created_at: string;
+  type: string;
+  title: string;
+  price_usdc: number;
+  status: JobStatus;
+  creator_id: string | null;
+  rating: number | null;
+}
+
 const STATUS_STYLE: Record<string, string> = {
   completed:   "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400",
   in_progress: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400",
@@ -61,8 +73,13 @@ export default function DashboardPage() {
 
   const [profile, setProfile]           = useState<UserRecord | null>(null);
   const [jobs, setJobs]                 = useState<JobRecord[]>([]);
+  const [clientJobs, setClientJobs]     = useState<ClientJobRecord[]>([]);
   const [loading, setLoading]           = useState(false);
   const [registering, setRegistering]   = useState(false);
+  const [ratingJobId, setRatingJobId]   = useState<string | null>(null);
+  const [ratingValue, setRatingValue]   = useState(0);
+  const [ratingHover, setRatingHover]   = useState(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const [walletInput, setWalletInput]   = useState("");
   const [walletError, setWalletError]   = useState("");
@@ -116,8 +133,9 @@ export default function DashboardPage() {
         // Load their jobs
         const jobsRes = await fetch(`/api/user?handle=${twitterHandle}`);
         if (jobsRes.ok) {
-          const { jobs: j } = await jobsRes.json();
+          const { jobs: j, clientJobs: cj } = await jobsRes.json();
           setJobs(j ?? []);
+          setClientJobs(cj ?? []);
         }
       } finally {
         setLoading(false);
@@ -152,6 +170,27 @@ export default function DashboardPage() {
       setWalletError(`Error: ${msg}`);
     } finally {
       setSavingWallet(false);
+    }
+  }
+
+  async function handleSubmitRating(jobId: string) {
+    if (!ratingValue) return;
+    setSubmittingRating(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_handle: twitterHandle, rating: ratingValue }),
+      });
+      if (res.ok) {
+        setClientJobs((prev) =>
+          prev.map((j) => (j.id === jobId ? { ...j, rating: ratingValue } : j))
+        );
+        setRatingJobId(null);
+        setRatingValue(0);
+      }
+    } finally {
+      setSubmittingRating(false);
     }
   }
 
@@ -394,6 +433,88 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+
+            {/* ── Jobs You Posted ───────────────────────────────────── */}
+            {clientJobs.length > 0 && (
+              <div className="card overflow-hidden mb-6">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+                  <h2 className="font-semibold text-neutral-900 dark:text-white">Jobs You Posted</h2>
+                  <Link href="/post-job" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5">
+                    Post new <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                  {clientJobs.map((job) => (
+                    <div key={job.id} className="px-5 py-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+                            {job.title}
+                          </p>
+                          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                            {job.type} · {new Date(job.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
+                          {job.status.replace("_", " ")}
+                        </span>
+                        <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
+                          ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
+                        </span>
+                      </div>
+
+                      {/* Rating section */}
+                      {job.status === "completed" && job.creator_id && (
+                        job.rating !== null ? (
+                          <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
+                            <span>Your rating:</span>
+                            {[1,2,3,4,5].map((s) => (
+                              <Star key={s} className={`w-3.5 h-3.5 ${s <= job.rating! ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
+                            ))}
+                          </div>
+                        ) : ratingJobId === job.id ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-0.5">
+                              {[1,2,3,4,5].map((s) => (
+                                <button
+                                  key={s}
+                                  onMouseEnter={() => setRatingHover(s)}
+                                  onMouseLeave={() => setRatingHover(0)}
+                                  onClick={() => setRatingValue(s)}
+                                  className="p-0.5"
+                                >
+                                  <Star className={`w-5 h-5 transition-colors ${s <= (ratingHover || ratingValue) ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => handleSubmitRating(job.id)}
+                              disabled={!ratingValue || submittingRating}
+                              className="btn-primary text-xs px-3 py-1.5"
+                            >
+                              {submittingRating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Submit"}
+                            </button>
+                            <button
+                              onClick={() => { setRatingJobId(null); setRatingValue(0); setRatingHover(0); }}
+                              className="text-xs text-neutral-400 hover:text-neutral-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setRatingJobId(job.id); setRatingValue(0); setRatingHover(0); }}
+                            className="text-xs text-blue-500 hover:underline self-start flex items-center gap-1"
+                          >
+                            <Star className="w-3 h-3" /> Rate this creator
+                          </button>
+                        )
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ── Telegram ──────────────────────────────────────────── */}
             <div className="card p-5 flex items-center gap-4 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900">

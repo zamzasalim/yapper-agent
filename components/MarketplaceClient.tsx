@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 import { CreatorCard } from "./CreatorCard";
 import { cn } from "@/lib/cn";
 
@@ -74,10 +74,6 @@ export function MarketplaceClient({ creators }: { creators: Creator[] }) {
               {f.label}
             </button>
           ))}
-          <button className="btn-outline text-xs px-3 py-2 flex items-center gap-1.5">
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filter
-          </button>
         </div>
       </div>
 
