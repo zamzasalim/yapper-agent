@@ -7,7 +7,7 @@ import {
   DollarSign,
   CheckCircle2,
   ArrowRight,
-  MessageSquare,
+  Flag,
   Heart,
   Repeat2,
   FileText,
@@ -34,22 +34,22 @@ const SERVICES = [
     bg: "bg-blue-50 dark:bg-blue-950",
   },
   {
-    icon: MessageSquare,
-    title: "Reply & Comment",
-    desc: "Engage with specific posts by replying thoughtfully, pays per reply",
-    price: "$0.10",
-    tag: "Engagement",
-    color: "text-sky-600",
-    bg: "bg-sky-50 dark:bg-sky-950",
-  },
-  {
     icon: Heart,
-    title: "Like",
-    desc: "Support campaigns with authentic likes from verified blue-tick accounts",
-    price: "$0.05",
-    tag: "Micro-Task",
+    title: "Like & Reply",
+    desc: "Like + reply on a specific tweet. Authentic engagement from verified blue-tick accounts",
+    price: "$0.20",
+    tag: "Engagement",
     color: "text-pink-600",
     bg: "bg-pink-50 dark:bg-pink-950",
+  },
+  {
+    icon: Flag,
+    title: "Campaign / Challenge",
+    desc: "Launch a multi-creator challenge or viral event. Set a brief, pick a tier, and watch creators compete",
+    price: "Custom",
+    tag: "Multi-Creator",
+    color: "text-amber-600",
+    bg: "bg-amber-50 dark:bg-amber-950",
   },
   {
     icon: Bot,
@@ -72,12 +72,12 @@ const SERVICES = [
 ];
 
 const PRICING = [
-  { range: "Like",                         price: "$0.05",  note: "per action" },
-  { range: "Reply / Comment",              price: "$0.10",  note: "per action" },
+  { range: "Like & Reply",                 price: "$0.20",  note: "per action" },
   { range: "Repost",                       price: "$0.50",  note: "per action" },
   { range: "Content, 0–1k followers",     price: "$5",     note: "per post"   },
   { range: "Content, 1k–10k followers",   price: "$10",    note: "per post"   },
   { range: "Content, 10k–50k followers",  price: "Rate ↗", note: "custom"     },
+  { range: "Campaign / Challenge",         price: "Custom", note: "per creator"},
   { range: "Custom Job",                   price: "Asking", note: "negotiated" },
 ];
 
@@ -195,7 +195,7 @@ export default function HomePage() {
               What You Can Earn From
             </h2>
             <p className="text-neutral-500 dark:text-neutral-400 mt-3 max-w-xl mx-auto">
-              Six types of jobs, from quick micro-tasks to AI-driven content brief
+              Six types of jobs, from quick micro-tasks to multi-creator campaigns
             </p>
           </div>
 
@@ -230,9 +230,9 @@ export default function HomePage() {
           {[...Array(6)].map((_, i) => (
             <span key={i} className="flex items-center gap-4 px-8 whitespace-nowrap text-sm font-semibold text-white">
               <span className="text-neutral-500">·</span>
+              <span className="text-neutral-300">Powered by <span className="text-blue-400">IndoYaps</span></span>
               <span className="text-neutral-500">·</span>
-              <span className="text-neutral-300">Powered by <span className="text-blue-400">IndoYaps</span> · Community Hub for Web3 Creators</span>
-              <span className="text-neutral-500">·</span>
+              <span className="text-neutral-300"><span className="text-blue-400"></span>Community Hub for Web3 Creators</span>
               <span className="text-neutral-500">·</span>
             </span>
           ))}

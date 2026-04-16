@@ -7,8 +7,8 @@ import { useSearchParams } from "next/navigation";
 import {
   FileText,
   Repeat2,
-  MessageSquare,
   Heart,
+  Flag,
   Zap,
   HelpCircle,
   Info,
@@ -25,23 +25,23 @@ import { Suspense } from "react";
 import { buildUsdcTransfer, connection, PLATFORM_WALLET } from "@/lib/solana";
 import { PublicKey } from "@solana/web3.js";
 
-type JobType = "content" | "repost" | "reply" | "like" | "custom";
+type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
 type TxPhase = "idle" | "loading" | "success" | "error";
 
 const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: string }[] = [
-  { type: "content", icon: FileText,      label: "Content", desc: "Write original tweets / threads" },
-  { type: "repost",  icon: Repeat2,       label: "Repost",  desc: "Retweet to your audience" },
-  { type: "reply",   icon: MessageSquare, label: "Reply",   desc: "Reply to a specific tweet" },
-  { type: "like",    icon: Heart,         label: "Like",    desc: "Like a specific tweet" },
-  { type: "custom",  icon: HelpCircle,    label: "Custom",  desc: "Describe your own task" },
+  { type: "content",    icon: FileText,   label: "Content",    desc: "Write original tweets / threads" },
+  { type: "repost",     icon: Repeat2,    label: "Repost",     desc: "Retweet to your audience" },
+  { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on a tweet · $0.20 per creator" },
+  { type: "campaign",   icon: Flag,       label: "Campaign",   desc: "Challenge / event for multiple creators" },
+  { type: "custom",     icon: HelpCircle, label: "Custom",     desc: "Describe your own task" },
 ];
 
 const ACTION_PRICES: Record<string, number | null> = {
-  like:    0.05,
-  reply:   0.10,
-  repost:  0.50,
-  content: null,
-  custom:  null,
+  like_reply: 0.20,
+  repost:     0.50,
+  content:    null,
+  campaign:   null,
+  custom:     null,
 };
 
 const FOLLOWER_TIERS = [
@@ -173,6 +173,8 @@ function PostJobForm() {
   const [deadline, setDeadline]         = useState("24");
   const [customPrice, setCustomPrice]   = useState("");
   const [numCreators, setNumCreators]   = useState(1);
+  const [requireCenblue, setRequireCenblue] = useState(true);
+  const [minFollowers, setMinFollowers]     = useState(0);
   const [submitted, setSubmitted]       = useState(false);
 
   // Modal state
@@ -197,6 +199,13 @@ function PostJobForm() {
 
   // ── Save job to Supabase after USDC confirmed ──
   async function saveJob() {
+    const reqParts: string[] = [];
+    if (requireCenblue) reqParts.push("cenblue wajib");
+    if (minFollowers > 0) reqParts.push(`min. ${minFollowers.toLocaleString()} followers`);
+    const reqPrefix      = reqParts.length > 0 ? `[S&K: ${reqParts.join(", ")}]\n\n` : "";
+    const campaignPrefix = numCreators > 1 ? `[Campaign: ${numCreators} creators]\n\n` : "";
+    const finalDescription = reqPrefix + campaignPrefix + description;
+
     const body = {
       twitter_handle: twitterHandle,
       display_name:   displayName,
@@ -204,10 +213,7 @@ function PostJobForm() {
       privy_did:      user?.id,
       type:           jobType,
       title,
-      description:
-        numCreators > 1
-          ? `[Campaign: ${numCreators} creators]\n\n${description}`
-          : description,
+      description:    finalDescription,
       price_usdc:    unitPrice,
       tweet_url:     tweetUrl || null,
       content_brief: null,
@@ -258,7 +264,7 @@ function PostJobForm() {
 
   function openModal() {
     if (!title.trim() || !description.trim()) return;
-    if ((jobType === "repost" || jobType === "reply" || jobType === "like") && !tweetUrl.trim()) return;
+    if ((jobType === "repost" || jobType === "like_reply") && !tweetUrl.trim()) return;
     if (totalUsdc <= 0) return;
     setTxPhase("idle");
     setTxError("");
@@ -317,7 +323,7 @@ function PostJobForm() {
     title.trim() &&
     description.trim() &&
     totalUsdc > 0 &&
-    (["content", "custom"].includes(jobType) || tweetUrl.trim());
+    (["content", "campaign", "custom"].includes(jobType) || tweetUrl.trim() !== "");
 
   return (
     <>
@@ -433,7 +439,7 @@ function PostJobForm() {
               />
             </div>
 
-            {(jobType === "repost" || jobType === "reply" || jobType === "like") && (
+            {(jobType === "repost" || jobType === "like_reply") && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                   Tweet URL *
@@ -457,6 +463,56 @@ function PostJobForm() {
                 <option value="48">48 hours</option>
                 <option value="72">72 hours</option>
               </select>
+            </div>
+          </div>
+
+          {/* Creator Requirements (S&K) */}
+          <div className="card p-5 flex flex-col gap-4">
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Creator Requirements (S&K)</h3>
+
+            {/* Cenblue toggle */}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Wajib Verified Blue (Cenblue)</p>
+                <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">Creator harus memiliki centang biru Twitter</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRequireCenblue((v) => !v)}
+                className="relative shrink-0"
+                style={{
+                  width: "2.5rem", height: "1.25rem", borderRadius: "9999px",
+                  backgroundColor: requireCenblue ? "#3b82f6" : "#d1d5db",
+                  transition: "background-color 0.2s",
+                }}
+                aria-label="Toggle require verified blue"
+              >
+                <span
+                  className="absolute rounded-full bg-white shadow"
+                  style={{
+                    width: "1rem", height: "1rem",
+                    top: "0.125rem",
+                    left: requireCenblue ? "1.375rem" : "0.125rem",
+                    transition: "left 0.2s",
+                  }}
+                />
+              </button>
+            </div>
+
+            {/* Min followers */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                Minimum Followers <span className="font-normal text-neutral-400">(0 = tidak ada minimum)</span>
+              </label>
+              <input
+                className="input-field"
+                type="number"
+                min="0"
+                step="100"
+                placeholder="0"
+                value={minFollowers || ""}
+                onChange={(e) => setMinFollowers(Math.max(0, parseInt(e.target.value) || 0))}
+              />
             </div>
           </div>
 

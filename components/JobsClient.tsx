@@ -5,7 +5,7 @@ import { Search, Filter } from "lucide-react";
 import { JobCard } from "./JobCard";
 import { cn } from "@/lib/cn";
 
-type JobType   = "content" | "repost" | "reply" | "like" | "custom";
+type JobType   = "content" | "repost" | "like_reply" | "campaign" | "custom";
 type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
 
 interface Job {
@@ -23,7 +23,7 @@ interface Job {
   postedAt: string;
 }
 
-const TYPE_FILTERS = ["All", "Content", "Repost", "Reply", "Like", "Custom", "Agent Jobs"];
+const TYPE_FILTERS = ["All", "Content", "Repost", "Like & Reply", "Campaign", "Custom", "Agent Jobs"];
 
 export function JobsClient({ jobs }: { jobs: Job[] }) {
   const [query, setQuery]               = useState("");
@@ -37,11 +37,12 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
         j.title.toLowerCase().includes(q) ||
         j.description.toLowerCase().includes(q) ||
         j.clientHandle.toLowerCase().includes(q);
+      const filterToType: Record<string, string> = { "Like & Reply": "like_reply" };
       const matchesType =
         activeFilter === "All" ||
         (activeFilter === "Agent Jobs"
           ? j.isAgentJob
-          : j.type === activeFilter.toLowerCase());
+          : j.type === (filterToType[activeFilter] ?? activeFilter.toLowerCase()));
       return matchesQuery && matchesType;
     });
   }, [jobs, query, activeFilter]);

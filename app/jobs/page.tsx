@@ -5,7 +5,7 @@ import { JobsClient } from "@/components/JobsClient";
 import { Bot, Users, Briefcase } from "lucide-react";
 import { createServerClient } from "@/lib/supabase";
 
-type JobType = "content" | "repost" | "reply" | "like" | "custom";
+type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
 
 interface RawJob {
   id: string;

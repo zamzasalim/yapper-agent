@@ -5,7 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Bot, Users, Clock, CheckCircle2, ArrowRight, Zap, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-type JobType   = "content" | "repost" | "reply" | "like" | "custom";
+type JobType   = "content" | "repost" | "like_reply" | "campaign" | "custom";
 type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
 
 interface Job {
@@ -24,19 +24,27 @@ interface Job {
 }
 
 const TYPE_ICON: Record<JobType, string> = {
-  content: "✍️",
-  repost:  "🔁",
-  reply:   "💬",
-  like:    "❤️",
-  custom:  "⚡",
+  content:    "✍️",
+  repost:     "🔁",
+  like_reply: "❤️",
+  campaign:   "🏆",
+  custom:     "⚡",
+};
+
+const TYPE_LABEL: Record<JobType, string> = {
+  content:    "content",
+  repost:     "repost",
+  like_reply: "like & reply",
+  campaign:   "campaign",
+  custom:     "custom",
 };
 
 const TYPE_COLOR: Record<JobType, string> = {
-  content: "text-violet-600 bg-violet-50 dark:bg-violet-950 dark:text-violet-400",
-  repost:  "text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400",
-  reply:   "text-sky-600 bg-sky-50 dark:bg-sky-950 dark:text-sky-400",
-  like:    "text-pink-600 bg-pink-50 dark:bg-pink-950 dark:text-pink-400",
-  custom:  "text-amber-600 bg-amber-50 dark:bg-amber-950 dark:text-amber-400",
+  content:    "text-violet-600 bg-violet-50 dark:bg-violet-950 dark:text-violet-400",
+  repost:     "text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400",
+  like_reply: "text-pink-600 bg-pink-50 dark:bg-pink-950 dark:text-pink-400",
+  campaign:   "text-amber-600 bg-amber-50 dark:bg-amber-950 dark:text-amber-400",
+  custom:     "text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400",
 };
 
 function formatFollowerRange(min: number, max: number) {
@@ -86,7 +94,7 @@ export function JobCard({ job }: { job: Job }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className={cn("tag text-[10px] px-2 py-0.5", TYPE_COLOR[job.type])}>
-            {TYPE_ICON[job.type]} {job.type}
+            {TYPE_ICON[job.type]} {TYPE_LABEL[job.type]}
           </span>
 
           {job.isAgentJob ? (

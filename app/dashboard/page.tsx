@@ -272,10 +272,7 @@ export default function DashboardPage() {
 
           </div>
 
-          <div className="flex flex-col gap-2 shrink-0">
-            <Link href="/post-job" className="btn-primary text-xs px-4 py-2.5">
-              Post a Job <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+          <div className="shrink-0">
             <button
               onClick={() => logout()}
               className="btn-outline text-xs px-4 py-2"
