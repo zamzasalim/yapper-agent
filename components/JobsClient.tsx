@@ -69,10 +69,10 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
               key={f}
               onClick={() => setActiveFilter(f)}
               className={cn(
-                "tag cursor-pointer transition-colors text-xs",
+                "inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer",
                 activeFilter === f
-                  ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
-                  : "hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+                  ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600"
+                  : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 bg-transparent hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 dark:hover:text-blue-400"
               )}
             >
               {f}

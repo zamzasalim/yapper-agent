@@ -77,10 +77,14 @@ export function CreatorCard({ creator }: { creator: Creator }) {
           <p className="text-[10px] text-neutral-400 dark:text-neutral-500">followers</p>
         </div>
         <div>
-          <p className="font-bold text-xs text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
-            <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-            {creator.rating.toFixed(1)}
-          </p>
+          {creator.jobsDone > 0 ? (
+            <p className="font-bold text-xs text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              {creator.rating.toFixed(1)}
+            </p>
+          ) : (
+            <p className="font-bold text-xs text-neutral-400 dark:text-neutral-500">New</p>
+          )}
           <p className="text-[10px] text-neutral-400 dark:text-neutral-500">rating</p>
         </div>
         <div>
