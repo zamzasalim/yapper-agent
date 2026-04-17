@@ -39,7 +39,7 @@ async function getJobs(): Promise<RawJob[] | null> {
          price_usdc, tweet_url, is_agent_job, deadline_hours,
          client:users!client_id(twitter_handle, display_name)`
       )
-      .eq("status", "open")
+      .in("status", ["open", "in_progress"])
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -66,8 +66,9 @@ export default async function JobsPage() {
     postedAt: timeAgo(j.created_at),
   }));
 
-  const agentCount = jobs.filter((j) => j.isAgentJob).length;
-  const humanCount = jobs.filter((j) => !j.isAgentJob).length;
+  const openJobs   = jobs.filter((j) => j.status === "open");
+  const agentCount = openJobs.filter((j) => j.isAgentJob).length;
+  const humanCount = openJobs.filter((j) => !j.isAgentJob).length;
   const isLive = rawJobs !== null;
 
   // ── Empty state: full-page centered ─────────────────────────────────────
@@ -104,7 +105,7 @@ export default async function JobsPage() {
               Open Jobs
             </h1>
             <p className="text-neutral-500 dark:text-neutral-400 text-sm flex items-center gap-2">
-              {jobs.length} job{jobs.length !== 1 ? "s" : ""} available
+              {openJobs.length} available · {jobs.length - openJobs.length} in progress
               {isLive && (
                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
                   <span className="dot-live" /> Live

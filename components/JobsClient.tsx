@@ -14,6 +14,7 @@ interface Job {
   title: string;
   description: string;
   priceUsdc: number;
+  tweetUrl?: string | null;
   status: JobStatus;
   isAgentJob: boolean;
   clientHandle: string;
@@ -24,32 +25,70 @@ interface Job {
 }
 
 const TYPE_FILTERS = ["All", "Content", "Repost", "Like & Reply", "Campaign", "Custom", "Agent Jobs"];
+const STATUS_TABS: { label: string; value: "all" | "open" | "in_progress" }[] = [
+  { label: "All",         value: "all"         },
+  { label: "Available",   value: "open"        },
+  { label: "In Progress", value: "in_progress" },
+];
 
 export function JobsClient({ jobs }: { jobs: Job[] }) {
   const [query, setQuery]               = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [statusTab, setStatusTab]       = useState<"all" | "open" | "in_progress">("all");
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
     return jobs.filter((j) => {
-      const matchesQuery =
+      const matchesStatus = statusTab === "all" || j.status === statusTab;
+      const matchesQuery  =
         !q ||
         j.title.toLowerCase().includes(q) ||
-        j.description.toLowerCase().includes(q) ||
-        j.clientHandle.toLowerCase().includes(q);
+        j.description.toLowerCase().includes(q);
       const filterToType: Record<string, string> = { "Like & Reply": "like_reply" };
       const matchesType =
         activeFilter === "All" ||
         (activeFilter === "Agent Jobs"
           ? j.isAgentJob
           : j.type === (filterToType[activeFilter] ?? activeFilter.toLowerCase()));
-      return matchesQuery && matchesType;
+      return matchesStatus && matchesQuery && matchesType;
     });
-  }, [jobs, query, activeFilter]);
+  }, [jobs, query, activeFilter, statusTab]);
+
+  const openCount       = jobs.filter((j) => j.status === "open").length;
+  const inProgressCount = jobs.filter((j) => j.status === "in_progress").length;
 
   return (
     <>
-      {/* Filter bar */}
+      {/* Status tabs */}
+      <div className="flex gap-1 mb-5 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 w-fit">
+        {STATUS_TABS.map((t) => {
+          const count = t.value === "open" ? openCount : t.value === "in_progress" ? inProgressCount : jobs.length;
+          return (
+            <button
+              key={t.value}
+              onClick={() => setStatusTab(t.value)}
+              className={cn(
+                "text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5",
+                statusTab === t.value
+                  ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
+                  : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
+              )}
+            >
+              {t.label}
+              <span className={cn(
+                "text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none",
+                statusTab === t.value
+                  ? "bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
+                  : "bg-neutral-200 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-500"
+              )}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search + type filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-8">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500 pointer-events-none" />
@@ -91,9 +130,9 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
       ) : (
         <div className="text-center py-16 text-neutral-400 dark:text-neutral-500">
           <Search className="w-8 h-8 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No jobs match your search.</p>
+          <p className="text-sm">No jobs match your filters.</p>
           <button
-            onClick={() => { setQuery(""); setActiveFilter("All"); }}
+            onClick={() => { setQuery(""); setActiveFilter("All"); setStatusTab("all"); }}
             className="text-xs text-blue-500 hover:underline mt-2 block mx-auto"
           >
             Clear filters

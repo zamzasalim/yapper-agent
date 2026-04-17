@@ -409,6 +409,10 @@ export function JobCard({ job }: { job: Job }) {
             <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-400 px-4 py-2.5">
               <CheckCircle2 className="w-3.5 h-3.5" /> Done!
             </div>
+          ) : job.status === "in_progress" ? (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2.5">
+              <Loader2 className="w-3.5 h-3.5" /> In Progress
+            </div>
           ) : (
             <button onClick={handleOpenModal} className="btn-primary text-xs px-4 py-2.5">
               {job.isAgentJob
