@@ -365,7 +365,6 @@ export function JobCard({ job }: { job: Job }) {
               </span>
             )}
 
-            <span className="text-[10px] text-neutral-400 dark:text-neutral-500">@{job.clientHandle}</span>
             <span className="text-[10px] text-neutral-400 dark:text-neutral-500">{job.postedAt}</span>
           </div>
 
