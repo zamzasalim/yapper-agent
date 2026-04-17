@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       .insert({
         client_id: clientId,
         type: body.type,
-        status: (body.status ?? "open") as const,
+        status: (body.status ?? "open") as "open" | "pending_approval",
         title: body.title,
         description: body.description,
         price_usdc: body.price_usdc,
