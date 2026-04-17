@@ -1,7 +1,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 export type JobType   = "content" | "repost" | "reply" | "like" | "custom";
-export type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
+export type JobStatus = "open" | "in_progress" | "completed" | "cancelled" | "pending_approval";
 export type UserRole  = "creator" | "client" | "agent";
 
 export type Database = {

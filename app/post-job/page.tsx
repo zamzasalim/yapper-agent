@@ -149,8 +149,12 @@ function PostJobForm() {
 
   // Custom specific
   const [proofRequirement, setProofRequirement] = useState("");
+  const [rewardType, setRewardType] = useState<"whitelist" | "nft" | "code" | "other">("whitelist");
+  const [rewardDescription, setRewardDescription] = useState("");
+  const [submittingCustom, setSubmittingCustom] = useState(false);
+  const [customError, setCustomError] = useState("");
 
-  // Budget (content / campaign / custom)
+  // Budget (content / campaign)
   const [creatorTier, setCreatorTier]   = useState("1000-10000");
   const [customPrice, setCustomPrice]   = useState("");
   const [requireCenblue, setRequireCenblue] = useState(false);
@@ -218,9 +222,11 @@ function PostJobForm() {
     }
 
     if (jobType === "custom") {
+      const rewardLabel = { whitelist: "Whitelist", nft: "NFT", code: "Access Code", other: "Other" }[rewardType];
       finalDescription = [
-        reqPrefix + description,
+        description,
         `\n---`,
+        `Reward: ${rewardLabel}${rewardDescription ? ` — ${rewardDescription}` : ""}`,
         `Proof required: ${proofRequirement}`,
       ].filter(Boolean).join("\n");
     }
@@ -233,7 +239,8 @@ function PostJobForm() {
         twitter_id: twitterId, privy_did: user?.id,
         type: jobType, title,
         description: finalDescription,
-        price_usdc: unitPrice,
+        price_usdc: jobType === "custom" ? 0 : unitPrice,
+        status: jobType === "custom" ? "pending_approval" : "open",
         tweet_url: tweetUrl || null,
         content_brief: null,
         is_agent_job: isAgentJob,
@@ -244,6 +251,20 @@ function PostJobForm() {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? "Failed to save job");
+  }
+
+  // ── Direct submit for custom (no USDC) ──
+  async function handleCustomSubmit() {
+    setSubmittingCustom(true);
+    setCustomError("");
+    try {
+      await saveJob();
+      setSubmitted(true);
+    } catch (err: unknown) {
+      setCustomError(err instanceof Error ? err.message : "Failed to submit");
+    } finally {
+      setSubmittingCustom(false);
+    }
   }
 
   // ── Phantom payment ──
@@ -271,24 +292,25 @@ function PostJobForm() {
 
   // ── Validation ──
   const canSubmit = (() => {
-    if (!title.trim() || totalUsdc <= 0) return false;
+    if (!title.trim()) return false;
     switch (jobType) {
       case "repost":
-      case "like_reply": return !!tweetUrl.trim();
-      case "content":    return !!description.trim();
-      case "campaign":   return !!description.trim() && !!hashtag.trim() && effectiveCreators >= 2;
-      case "custom":     return !!description.trim() && !!proofRequirement.trim() && parseFloat(customPrice) > 0;
+      case "like_reply": return !!tweetUrl.trim() && totalUsdc > 0;
+      case "content":    return !!description.trim() && totalUsdc > 0;
+      case "campaign":   return !!description.trim() && !!hashtag.trim() && effectiveCreators >= 2 && totalUsdc > 0;
+      case "custom":     return !!description.trim() && !!proofRequirement.trim();
     }
   })();
 
   function openModal() {
-    if (!canSubmit) return;
+    if (!canSubmit || jobType === "custom") return;
     setTxPhase("idle"); setTxError(""); setShowModal(true);
   }
 
   function resetForm() {
     setSubmitted(false); setTitle(""); setDescription(""); setTweetUrl("");
-    setNumCreators(1); setHashtag(""); setProofRequirement(""); setCustomPrice(""); setReferenceUrl("");
+    setNumCreators(1); setHashtag(""); setProofRequirement(""); setCustomPrice("");
+    setReferenceUrl(""); setRewardDescription(""); setRewardType("whitelist"); setCustomError("");
   }
 
   // ── Auth guard ──
@@ -316,12 +338,25 @@ function PostJobForm() {
             <span className="text-2xl">🎉</span>
           </div>
           <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Job posted!</h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
-            ${totalUsdc} USDC locked in escrow. Job is now live for creators to accept.
-          </p>
-          <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
-            Job has been broadcast to the Yapper Agent Telegram channel.
-          </p>
+          {jobType === "custom" ? (
+            <>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
+                Your custom job is under review by our admins.
+              </p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
+                Once approved by <strong>@Autosultan_team</strong> or <strong>@0xhnfdm</strong>, it will go live for creators to accept.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
+                ${totalUsdc} USDC locked in escrow. Job is now live for creators to accept.
+              </p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
+                Job has been broadcast to the Yapper Agent Telegram channel.
+              </p>
+            </>
+          )}
           <div className="flex flex-col gap-2">
             <button onClick={resetForm} className="btn-outline text-sm">Post Another Job</button>
             <a href="/jobs" className="btn-primary text-sm">View All Jobs <ArrowRight className="w-4 h-4" /></a>
@@ -529,19 +564,54 @@ function PostJobForm() {
               </>
             )}
 
-            {/* Custom-specific: Proof requirement */}
+            {/* Custom-specific: Reward type + Proof */}
             {jobType === "custom" && (
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Proof / Deliverable Required *
-                </label>
-                <input className="input-field"
-                  placeholder="e.g. Screenshot of posted tweet, Google Doc link, etc."
-                  value={proofRequirement} onChange={(e) => setProofRequirement(e.target.value)} />
-                <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5">
-                  What must the creator submit to prove the task is complete?
-                </p>
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Reward Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ["whitelist", "🎟️ Whitelist"],
+                      ["nft",       "🖼️ NFT"],
+                      ["code",      "🔑 Access Code"],
+                      ["other",     "🎁 Other"],
+                    ] as const).map(([val, lbl]) => (
+                      <button key={val} onClick={() => setRewardType(val)}
+                        className={cn("text-xs px-3 py-2.5 rounded-xl border text-left transition-all font-medium",
+                          rewardType === val
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400"
+                            : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300")}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    Reward Description <span className="font-normal text-neutral-400">(optional)</span>
+                  </label>
+                  <input className="input-field"
+                    placeholder="e.g. 1x OG Whitelist for MintProject, 1x NFT from collection XYZ"
+                    value={rewardDescription} onChange={(e) => setRewardDescription(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    Proof / Deliverable Required *
+                  </label>
+                  <input className="input-field"
+                    placeholder="e.g. Screenshot of posted tweet, Google Doc link, wallet address"
+                    value={proofRequirement} onChange={(e) => setProofRequirement(e.target.value)} />
+                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5">
+                    What must the creator submit as proof of completion?
+                  </p>
+                </div>
+                <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3">
+                  <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Custom jobs require admin review before going live. Our admins (<strong>@Autosultan_team</strong> / <strong>@0xhnfdm</strong>) will approve within 24 hours. No USDC required.
+                  </p>
+                </div>
+              </>
             )}
 
             {/* Deadline — not shown for campaign (uses duration instead) */}
@@ -589,8 +659,8 @@ function PostJobForm() {
             )}
           </div>
 
-          {/* ── Budget ── */}
-          <div className="card p-5 flex flex-col gap-4">
+          {/* ── Budget (not shown for custom) ── */}
+          {jobType !== "custom" && <div className="card p-5 flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Budget</h3>
 
             {/* Fixed price */}
@@ -627,11 +697,11 @@ function PostJobForm() {
               </div>
             )}
 
-            {/* Custom price input — custom type, or when tier is -1 */}
-            {(jobType === "custom" || (showTier && selectedTier?.price === -1)) && (
+            {/* Custom price input — only when tier is -1 (Macro) */}
+            {showTier && selectedTier?.price === -1 && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  {jobType === "custom" ? "Budget per Creator (USDC) *" : "Custom Price per Creator (USDC) *"}
+                  Custom Price per Creator (USDC) *
                 </label>
                 <input className="input-field" type="number" min="1" placeholder="e.g. 50"
                   value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} />
@@ -671,17 +741,40 @@ function PostJobForm() {
                 <p className="text-[10px] text-neutral-400 dark:text-neutral-500">0% platform fee</p>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* ── Submit ── */}
-          <button className={cn("btn-primary text-sm py-3 w-full", !canSubmit && "opacity-50 cursor-not-allowed")}
-            onClick={openModal} disabled={!canSubmit}>
-            Post Job &amp; Lock ${totalUsdc || "—"} USDC
-            <ArrowRight className="w-4 h-4" />
-          </button>
-          <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
-            USDC is held in escrow via Phantom wallet and released when you approve the creator&apos;s proof.
-          </p>
+          {jobType === "custom" ? (
+            <>
+              {customError && (
+                <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700 dark:text-red-400">{customError}</p>
+                </div>
+              )}
+              <button
+                className={cn("btn-primary text-sm py-3 w-full", (!canSubmit || submittingCustom) && "opacity-50 cursor-not-allowed")}
+                onClick={handleCustomSubmit}
+                disabled={!canSubmit || submittingCustom}
+              >
+                {submittingCustom ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : <>Submit for Admin Review <ArrowRight className="w-4 h-4" /></>}
+              </button>
+              <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
+                No USDC required. Admin will review and approve before the job goes live.
+              </p>
+            </>
+          ) : (
+            <>
+              <button className={cn("btn-primary text-sm py-3 w-full", !canSubmit && "opacity-50 cursor-not-allowed")}
+                onClick={openModal} disabled={!canSubmit}>
+                Post Job &amp; Lock ${totalUsdc || "—"} USDC
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
+                USDC is held in escrow via Phantom wallet and released when you approve the creator&apos;s proof.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </>
