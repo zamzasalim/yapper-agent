@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { checkRetweeted, checkLiked } from "@/lib/scrapebadger";
+import { checkRetweeted } from "@/lib/scrapebadger";
 
 function extractTweetId(url: string): string | null {
   return url.match(/\/status\/(\d+)/)?.[1] ?? null;
@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { twitter_handle } = await req.json();
+    const { twitter_handle, proof_url } = await req.json();
     if (!twitter_handle) {
       return NextResponse.json({ error: "twitter_handle required" }, { status: 400 });
     }
@@ -29,12 +29,6 @@ export async function POST(
     if (job.status !== "in_progress") {
       return NextResponse.json({ error: "Job is not in progress" }, { status: 409 });
     }
-    if (job.type !== "repost" && job.type !== "like_reply") {
-      return NextResponse.json({ error: "This job type requires manual verification" }, { status: 400 });
-    }
-    if (!job.tweet_url) {
-      return NextResponse.json({ error: "No tweet URL on this job" }, { status: 400 });
-    }
 
     // Verify creator matches
     const { data: creator } = await db
@@ -47,29 +41,35 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const tweetId = extractTweetId(job.tweet_url);
-    if (!tweetId) {
-      return NextResponse.json({ error: "Could not parse tweet ID from URL" }, { status: 400 });
-    }
+    let finalProofUrl: string = proof_url ?? "";
 
-    let verified = false;
     if (job.type === "repost") {
-      verified = await checkRetweeted(tweetId, twitter_handle);
+      // Auto-verify via ScrapeBadger
+      if (!job.tweet_url) {
+        return NextResponse.json({ error: "No tweet URL on this job" }, { status: 400 });
+      }
+      const tweetId = extractTweetId(job.tweet_url);
+      if (!tweetId) {
+        return NextResponse.json({ error: "Could not parse tweet ID from URL" }, { status: 400 });
+      }
+      const verified = await checkRetweeted(tweetId, twitter_handle);
+      if (!verified) {
+        return NextResponse.json(
+          { error: "Repost not found yet. Make sure you've retweeted and try again." },
+          { status: 422 }
+        );
+      }
+      finalProofUrl = job.tweet_url;
     } else {
-      verified = await checkLiked(tweetId, twitter_handle);
-    }
-
-    if (!verified) {
-      const action = job.type === "repost" ? "repost" : "like";
-      return NextResponse.json(
-        { error: `${action === "repost" ? "Repost" : "Like"} not found yet. Make sure you've done the action and try again.` },
-        { status: 422 }
-      );
+      // Manual proof: like_reply, content, campaign, custom — require proof_url from user
+      if (!proof_url || !proof_url.trim()) {
+        return NextResponse.json({ error: "proof_url required for this job type" }, { status: 400 });
+      }
     }
 
     const { data: updated, error } = await db
       .from("jobs")
-      .update({ status: "completed", proof_url: job.tweet_url })
+      .update({ status: "completed", proof_url: finalProofUrl })
       .eq("id", id)
       .select()
       .single();

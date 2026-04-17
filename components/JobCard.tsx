@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   Bot, Users, Clock, CheckCircle2, ArrowRight, Zap,
-  Loader2, ExternalLink, X, AlertCircle,
+  Loader2, ExternalLink, X, AlertCircle, Link,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -59,6 +59,14 @@ const TYPE_TASK: Record<JobType, string> = {
   custom:     "Complete this task",
 };
 
+const PROOF_PLACEHOLDER: Record<JobType, string> = {
+  repost:     "",
+  like_reply: "https://x.com/yourhandle/status/...",
+  content:    "https://x.com/yourhandle/status/...",
+  campaign:   "https://x.com/yourhandle/status/...",
+  custom:     "https://x.com/yourhandle/status/...",
+};
+
 function formatFollowerRange(min: number, max: number) {
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(0)}K` : n.toString());
   if (max >= 99999) return `${fmt(min)}+`;
@@ -76,12 +84,13 @@ interface AcceptModalProps {
 }
 
 function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) {
-  const [phase, setPhase]     = useState<ModalPhase>("confirm");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const [phase, setPhase]       = useState<ModalPhase>("confirm");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+  const [proofUrl, setProofUrl] = useState("");
 
-  const hasTweet = (job.type === "repost" || job.type === "like_reply") && job.tweetUrl;
-  const needsProof = job.type === "repost" || job.type === "like_reply";
+  const hasTweet   = (job.type === "repost" || job.type === "like_reply") && job.tweetUrl;
+  const isAutoVerify = job.type === "repost";
 
   async function handleAccept() {
     setLoading(true);
@@ -94,8 +103,7 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
-      setPhase(needsProof ? "proof" : "done");
-      if (!needsProof) onDone();
+      setPhase("proof");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to accept");
       setPhase("error_accept");
@@ -105,13 +113,20 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
   }
 
   async function handleSubmitProof() {
+    if (!isAutoVerify && !proofUrl.trim()) {
+      setError("Please paste the link to your tweet/post.");
+      return;
+    }
     setPhase("verifying");
     setError("");
     try {
       const res = await fetch(`/api/jobs/${job.id}/verify-proof`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ twitter_handle: twitterHandle }),
+        body: JSON.stringify({
+          twitter_handle: twitterHandle,
+          proof_url: isAutoVerify ? undefined : proofUrl.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Verification failed");
@@ -131,11 +146,10 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-neutral-900 dark:text-white">
-            {phase === "confirm"                        && "Accept Job?"}
-            {(phase === "proof" || phase === "error_proof") && "Complete the Task"}
-            {phase === "verifying"                     && "Verifying…"}
-            {phase === "done"                          && "All Done!"}
-            {phase === "error_accept"                  && "Accept Job?"}
+            {(phase === "confirm" || phase === "error_accept") && "Accept Job?"}
+            {(phase === "proof"   || phase === "error_proof")  && "Submit Proof"}
+            {phase === "verifying" && (isAutoVerify ? "Verifying…" : "Submitting…")}
+            {phase === "done"      && "All Done!"}
           </h3>
           {canClose && (
             <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
@@ -208,24 +222,45 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
           <>
             <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 mb-4 text-xs text-green-700 dark:text-green-400">
               <CheckCircle2 className="w-3.5 h-3.5 inline mr-1.5" />
-              Job accepted! Now complete the task below, then click Submit Proof.
+              Job accepted! Complete the task then submit proof below.
             </div>
 
-            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-              {TYPE_TASK[job.type]}:
-            </p>
+            {/* Target tweet link (for repost / like_reply) */}
+            {hasTweet && (
+              <>
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  {TYPE_TASK[job.type]}:
+                </p>
+                <a
+                  href={job.tweetUrl!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors group"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate flex-1">{job.tweetUrl}</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              </>
+            )}
 
-            {job.tweetUrl && (
-              <a
-                href={job.tweetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors group"
-              >
-                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate flex-1">{job.tweetUrl}</span>
-                <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
+            {/* Manual proof URL input (non-repost) */}
+            {!isAutoVerify && (
+              <div className="mb-4">
+                <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400 block mb-1.5">
+                  Paste your tweet / post link:
+                </label>
+                <div className="flex items-center gap-2 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 py-2.5 bg-white dark:bg-neutral-900 focus-within:ring-2 focus-within:ring-violet-400">
+                  <Link className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                  <input
+                    type="url"
+                    value={proofUrl}
+                    onChange={(e) => { setProofUrl(e.target.value); setError(""); }}
+                    placeholder={PROOF_PLACEHOLDER[job.type]}
+                    className="flex-1 text-xs bg-transparent outline-none text-neutral-900 dark:text-white placeholder:text-neutral-400"
+                  />
+                </div>
+              </div>
             )}
 
             {error && (
@@ -236,17 +271,22 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
             )}
 
             <button onClick={handleSubmitProof} className="btn-primary w-full text-sm">
-              <CheckCircle2 className="w-4 h-4" /> Submit Proof
+              <CheckCircle2 className="w-4 h-4" />
+              {isAutoVerify ? "Verify Repost" : "Submit Proof"}
             </button>
           </>
         )}
 
-        {/* ── VERIFYING phase ── */}
+        {/* ── VERIFYING / SUBMITTING phase ── */}
         {phase === "verifying" && (
           <div className="flex flex-col items-center py-6 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">Verifying your action on Twitter…</p>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500">This may take a few seconds</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              {isAutoVerify ? "Verifying your repost on Twitter…" : "Submitting proof…"}
+            </p>
+            {isAutoVerify && (
+              <p className="text-xs text-neutral-400 dark:text-neutral-500">This may take a few seconds</p>
+            )}
           </div>
         )}
 
@@ -258,12 +298,12 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
                 <CheckCircle2 className="w-7 h-7 text-green-600 dark:text-green-400" />
               </div>
               <p className="text-sm font-semibold text-neutral-900 dark:text-white">
-                {needsProof ? "Verified!" : "Accepted!"}
+                {isAutoVerify ? "Repost Verified!" : "Proof Submitted!"}
               </p>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
-                {needsProof
+                {isAutoVerify
                   ? "Great job! Your payment will be processed shortly."
-                  : "Our team will review your submission within 24 hours."}
+                  : "Our team will review your proof and process payment shortly."}
               </p>
             </div>
             <button onClick={onClose} className="btn-primary w-full text-sm">
