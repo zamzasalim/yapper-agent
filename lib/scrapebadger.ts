@@ -29,6 +29,50 @@ export async function fetchTwitterUserStats(
   }
 }
 
+/** Check if `handle` has retweeted `tweetId`. Paginates up to 5 pages. */
+export async function checkRetweeted(tweetId: string, handle: string): Promise<boolean> {
+  const apiKey = process.env.SCRAPEBADGER_API_KEY ?? "";
+  if (!apiKey) return false;
+  const lc = handle.toLowerCase();
+  let cursor: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    const url = new URL(`https://scrapebadger.com/v1/twitter/tweets/tweet/${tweetId}/retweeters`);
+    if (cursor) url.searchParams.set("cursor", cursor);
+    try {
+      const res = await fetch(url.toString(), { headers: { "x-api-key": apiKey } });
+      if (!res.ok) return false;
+      const json = await res.json();
+      const users: Array<{ username: string }> = json.data ?? [];
+      if (users.some((u) => u.username.toLowerCase() === lc)) return true;
+      cursor = json.next_cursor;
+      if (!cursor) break;
+    } catch { return false; }
+  }
+  return false;
+}
+
+/** Check if `handle` has liked `tweetId`. Paginates up to 5 pages. */
+export async function checkLiked(tweetId: string, handle: string): Promise<boolean> {
+  const apiKey = process.env.SCRAPEBADGER_API_KEY ?? "";
+  if (!apiKey) return false;
+  const lc = handle.toLowerCase();
+  let cursor: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    const url = new URL(`https://scrapebadger.com/v1/twitter/tweets/tweet/${tweetId}/liking_users`);
+    if (cursor) url.searchParams.set("cursor", cursor);
+    try {
+      const res = await fetch(url.toString(), { headers: { "x-api-key": apiKey } });
+      if (!res.ok) return false;
+      const json = await res.json();
+      const users: Array<{ username: string }> = json.data ?? [];
+      if (users.some((u) => u.username.toLowerCase() === lc)) return true;
+      cursor = json.next_cursor;
+      if (!cursor) break;
+    } catch { return false; }
+  }
+  return false;
+}
+
 /** Parse S&K requirements encoded in a job description. */
 export function parseJobRequirements(description: string): {
   requireCenblue: boolean;

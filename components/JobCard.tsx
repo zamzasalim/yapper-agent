@@ -65,89 +65,212 @@ function formatFollowerRange(min: number, max: number) {
   return `${fmt(min)} – ${fmt(max)}`;
 }
 
-// ─── Accept Confirmation Modal ─────────────────────────────────────────────
+// ─── Modal phases ─────────────────────────────────────────────────────────────
+type ModalPhase = "confirm" | "proof" | "verifying" | "done" | "error_accept" | "error_proof";
+
 interface AcceptModalProps {
   job: Job;
-  onConfirm: () => Promise<void>;
+  twitterHandle: string;
   onClose: () => void;
-  accepting: boolean;
-  error: string;
+  onDone: () => void;
 }
 
-function AcceptModal({ job, onConfirm, onClose, accepting, error }: AcceptModalProps) {
+function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) {
+  const [phase, setPhase]     = useState<ModalPhase>("confirm");
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
+
   const hasTweet = (job.type === "repost" || job.type === "like_reply") && job.tweetUrl;
+  const needsProof = job.type === "repost" || job.type === "like_reply";
+
+  async function handleAccept() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/accept`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
+      setPhase(needsProof ? "proof" : "done");
+      if (!needsProof) onDone();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to accept");
+      setPhase("error_accept");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSubmitProof() {
+    setPhase("verifying");
+    setError("");
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/verify-proof`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Verification failed");
+      setPhase("done");
+      onDone();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+      setPhase("error_proof");
+    }
+  }
+
+  const canClose = !loading && phase !== "verifying";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="card p-6 max-w-sm w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-neutral-900 dark:text-white">Accept Job?</h3>
-          {!accepting && (
+          <h3 className="font-bold text-neutral-900 dark:text-white">
+            {phase === "confirm"                        && "Accept Job?"}
+            {(phase === "proof" || phase === "error_proof") && "Complete the Task"}
+            {phase === "verifying"                     && "Verifying…"}
+            {phase === "done"                          && "All Done!"}
+            {phase === "error_accept"                  && "Accept Job?"}
+          </h3>
+          {canClose && (
             <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
               <X className="w-5 h-5" />
             </button>
           )}
         </div>
 
-        {/* Job summary */}
-        <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-4 mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", TYPE_COLOR[job.type])}>
-              {TYPE_ICON[job.type]} {TYPE_LABEL[job.type]}
-            </span>
-          </div>
-          <p className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">{job.title}</p>
-          <div className="flex items-center gap-4 text-xs text-neutral-500 dark:text-neutral-400">
-            <span className="font-bold text-neutral-900 dark:text-white">${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc} USDC</span>
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {job.deadline} deadline</span>
-          </div>
-        </div>
+        {/* ── CONFIRM phase ── */}
+        {(phase === "confirm" || phase === "error_accept") && (
+          <>
+            <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-4 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", TYPE_COLOR[job.type])}>
+                  {TYPE_ICON[job.type]} {TYPE_LABEL[job.type]}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">{job.title}</p>
+              <div className="flex items-center gap-4 text-xs text-neutral-500 dark:text-neutral-400">
+                <span className="font-bold text-neutral-900 dark:text-white">
+                  ${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc} USDC
+                </span>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {job.deadline} deadline</span>
+              </div>
+            </div>
 
-        {/* Task instruction */}
-        <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-          {TYPE_TASK[job.type]}:
-        </p>
+            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+              {TYPE_TASK[job.type]}:
+            </p>
 
-        {/* Tweet link — repost / like_reply */}
-        {hasTweet && (
-          <a
-            href={job.tweetUrl!}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors group"
-          >
-            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate flex-1">{job.tweetUrl}</span>
-            <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </a>
+            {hasTweet ? (
+              <a
+                href={job.tweetUrl!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors group"
+              >
+                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate flex-1">{job.tweetUrl}</span>
+                <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
+            ) : (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap leading-relaxed bg-neutral-50 dark:bg-neutral-900 rounded-xl px-4 py-3 mb-4 line-clamp-4">
+                {job.description}
+              </p>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button onClick={onClose} disabled={loading} className="btn-outline flex-1 text-sm">
+                Cancel
+              </button>
+              <button onClick={handleAccept} disabled={loading} className="btn-primary flex-1 text-sm">
+                {loading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Accepting…</>
+                  : <>Accept & Start <ArrowRight className="w-4 h-4" /></>}
+              </button>
+            </div>
+          </>
         )}
 
-        {/* Description */}
-        {!hasTweet && (
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap leading-relaxed bg-neutral-50 dark:bg-neutral-900 rounded-xl px-4 py-3 mb-4 line-clamp-4">
-            {job.description}
-          </p>
+        {/* ── PROOF phase ── */}
+        {(phase === "proof" || phase === "error_proof") && (
+          <>
+            <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 mb-4 text-xs text-green-700 dark:text-green-400">
+              <CheckCircle2 className="w-3.5 h-3.5 inline mr-1.5" />
+              Job accepted! Now complete the task below, then click Submit Proof.
+            </div>
+
+            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+              {TYPE_TASK[job.type]}:
+            </p>
+
+            {job.tweetUrl && (
+              <a
+                href={job.tweetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors group"
+              >
+                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate flex-1">{job.tweetUrl}</span>
+                <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+              </div>
+            )}
+
+            <button onClick={handleSubmitProof} className="btn-primary w-full text-sm">
+              <CheckCircle2 className="w-4 h-4" /> Submit Proof
+            </button>
+          </>
         )}
 
-        {/* Error */}
-        {error && (
-          <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
-            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+        {/* ── VERIFYING phase ── */}
+        {phase === "verifying" && (
+          <div className="flex flex-col items-center py-6 gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Verifying your action on Twitter…</p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">This may take a few seconds</p>
           </div>
         )}
 
-        <div className="flex gap-2">
-          <button onClick={onClose} disabled={accepting} className="btn-outline flex-1 text-sm">
-            Cancel
-          </button>
-          <button onClick={onConfirm} disabled={accepting} className="btn-primary flex-1 text-sm">
-            {accepting
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Accepting…</>
-              : <>Accept & Start <ArrowRight className="w-4 h-4" /></>}
-          </button>
-        </div>
+        {/* ── DONE phase ── */}
+        {phase === "done" && (
+          <>
+            <div className="flex flex-col items-center py-6 gap-3">
+              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-green-600 dark:text-green-400" />
+              </div>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                {needsProof ? "Verified!" : "Accepted!"}
+              </p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
+                {needsProof
+                  ? "Great job! Your payment will be processed shortly."
+                  : "Our team will review your submission within 24 hours."}
+              </p>
+            </div>
+            <button onClick={onClose} className="btn-primary w-full text-sm">
+              Close
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -157,10 +280,8 @@ function AcceptModal({ job, onConfirm, onClose, accepting, error }: AcceptModalP
 export function JobCard({ job }: { job: Job }) {
   const { authenticated, login, user } = usePrivy();
 
-  const [showModal, setShowModal]     = useState(false);
-  const [accepting, setAccepting]     = useState(false);
-  const [accepted, setAccepted]       = useState(false);
-  const [acceptError, setAcceptError] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [done, setDone]           = useState(false);
 
   const twitterHandle =
     ((user?.linkedAccounts ?? []).find((a) => a.type === "twitter_oauth") as any)?.username ??
@@ -169,28 +290,7 @@ export function JobCard({ job }: { job: Job }) {
 
   function handleOpenModal() {
     if (!authenticated) { login(); return; }
-    setAcceptError("");
     setShowModal(true);
-  }
-
-  async function handleConfirm() {
-    setAccepting(true);
-    setAcceptError("");
-    try {
-      const res = await fetch(`/api/jobs/${job.id}/accept`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ twitter_handle: twitterHandle }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
-      setAccepted(true);
-      setShowModal(false);
-    } catch (err: unknown) {
-      setAcceptError(err instanceof Error ? err.message : "Failed to accept");
-    } finally {
-      setAccepting(false);
-    }
   }
 
   const showFollowers = job.minFollowers !== undefined && job.maxFollowers !== undefined;
@@ -201,10 +301,9 @@ export function JobCard({ job }: { job: Job }) {
       {showModal && (
         <AcceptModal
           job={job}
-          onConfirm={handleConfirm}
-          onClose={() => { if (!accepting) setShowModal(false); }}
-          accepting={accepting}
-          error={acceptError}
+          twitterHandle={twitterHandle}
+          onClose={() => setShowModal(false)}
+          onDone={() => setDone(true)}
         />
       )}
 
@@ -267,15 +366,12 @@ export function JobCard({ job }: { job: Job }) {
             <p className="text-xs text-neutral-400 dark:text-neutral-500">USDC</p>
           </div>
 
-          {accepted ? (
+          {done ? (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-400 px-4 py-2.5">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Accepted!
+              <CheckCircle2 className="w-3.5 h-3.5" /> Done!
             </div>
           ) : (
-            <button
-              onClick={handleOpenModal}
-              className="btn-primary text-xs px-4 py-2.5"
-            >
+            <button onClick={handleOpenModal} className="btn-primary text-xs px-4 py-2.5">
               {job.isAgentJob
                 ? <><Zap className="w-3.5 h-3.5" /> Accept</>
                 : <>Accept <ArrowRight className="w-3.5 h-3.5" /></>}
