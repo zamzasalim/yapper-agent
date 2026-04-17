@@ -67,6 +67,7 @@ export type Database = {
           deadline_hours: number;
           telegram_message_id: string | null;
           rating: number | null;
+          tx_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -85,6 +86,7 @@ export type Database = {
           deadline_hours: number;
           telegram_message_id?: string | null;
           rating?: number | null;
+          tx_hash?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];

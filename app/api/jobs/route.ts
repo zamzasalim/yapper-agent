@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
         content_brief: body.content_brief || null,
         is_agent_job: body.is_agent_job ?? false,
         deadline_hours: body.deadline_hours,
+        tx_hash: body.tx_hash ?? null,
       })
       .select()
       .single();

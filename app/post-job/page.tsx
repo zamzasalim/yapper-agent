@@ -11,12 +11,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
-import { buildUsdcTransfer, connection, PLATFORM_WALLET } from "@/lib/solana";
-import { PublicKey } from "@solana/web3.js";
-import { Zap } from "lucide-react";
+import { Zap, Copy, Check } from "lucide-react";
+
+const PLATFORM_WALLET_ADDRESS =
+  process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "CzQZDvbjHHZDXxDeGUX2KTorQhiZnJvt6z6V2QtfMDU2";
 
 type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
-type TxPhase = "idle" | "loading" | "success" | "error";
+type TxPhase = "idle" | "verifying" | "verified" | "error";
 
 const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: string }[] = [
   { type: "content",    icon: FileText,   label: "Content",      desc: "Original tweet / thread by creator" },
@@ -40,65 +41,104 @@ const CREATOR_TIERS = [
   { label: "Macro", sub: "50K+ followers",    value: "50000-99999", price: -1, min: 50000 },
 ];
 
-// ─── Transaction Modal ───────────────────────────────────────────────────────
-interface ModalProps {
+// ─── Payment Modal (Manual Transfer + TX Hash Verify) ────────────────────────
+interface PaymentModalProps {
   totalUsdc: number; unitPrice: number; numCreators: number; jobType: JobType;
-  onConfirm: () => Promise<void>; onClose: () => void; phase: TxPhase; error: string;
+  txHash: string; onTxHashChange: (v: string) => void;
+  onVerify: () => Promise<void>; onClose: () => void;
+  phase: TxPhase; error: string; copied: boolean; onCopy: () => void;
 }
 
-function TxModal({ totalUsdc, unitPrice, numCreators, jobType, onConfirm, onClose, phase, error }: ModalProps) {
+function PaymentModal({
+  totalUsdc, unitPrice, numCreators, jobType,
+  txHash, onTxHashChange, onVerify, onClose,
+  phase, error, copied, onCopy,
+}: PaymentModalProps) {
+  const busy = phase === "verifying" || phase === "verified";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="card p-6 max-w-sm w-full">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-neutral-900 dark:text-white">Confirm & Lock USDC</h3>
-          {phase !== "loading" && (
+          <h3 className="font-bold text-neutral-900 dark:text-white">Pay & Post Job</h3>
+          {!busy && (
             <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
               <X className="w-5 h-5" />
             </button>
           )}
         </div>
-        <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-5 mb-4 text-center">
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Total locked in escrow</p>
-          <p className="text-4xl font-extrabold text-neutral-900 dark:text-white">
+
+        {/* Amount */}
+        <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-4 mb-4 text-center">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Send exactly</p>
+          <p className="text-3xl font-extrabold text-neutral-900 dark:text-white">
             ${totalUsdc < 1 ? totalUsdc.toFixed(2) : totalUsdc}
             <span className="text-base font-normal text-neutral-400 dark:text-neutral-500 ml-1">USDC</span>
           </p>
           {numCreators > 1 && (
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-              {numCreators} creators × ${unitPrice < 1 ? unitPrice.toFixed(2) : unitPrice} USDC each ({jobType})
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              {numCreators} creators × ${unitPrice < 1 ? unitPrice.toFixed(2) : unitPrice} ({jobType})
             </p>
           )}
         </div>
-        <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4">
-          <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-700 dark:text-blue-400">
-            USDC is sent to the platform escrow wallet via Phantom. Released to creators only after you approve their proof.
+
+        {/* Wallet address */}
+        <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+          Send USDC on Solana to:
+        </p>
+        <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl px-3 py-2.5 mb-1">
+          <p className="text-[11px] font-mono text-neutral-700 dark:text-neutral-300 flex-1 break-all leading-relaxed">
+            {PLATFORM_WALLET_ADDRESS}
+          </p>
+          <button onClick={onCopy} className="shrink-0 text-neutral-400 hover:text-blue-600 transition-colors ml-1">
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mb-4">
+          Open your wallet (Phantom, Backpack, etc.), send exactly the amount above to this address.
+        </p>
+
+        {/* TX Hash input */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+            Paste Transaction Signature
+          </label>
+          <input
+            className="input-field font-mono text-xs"
+            placeholder="e.g. 5J7Xk3m…"
+            value={txHash}
+            onChange={(e) => onTxHashChange(e.target.value)}
+            disabled={busy}
+          />
+          <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1">
+            After sending, copy the transaction signature from your wallet history.
           </p>
         </div>
-        <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-4 text-center">
-          Phantom wallet required. Make sure it&apos;s installed and connected.
-        </p>
+
         {phase === "error" && (
           <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
           </div>
         )}
-        {phase === "success" && (
+        {phase === "verified" && (
           <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 mb-4">
             <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-            <p className="text-xs text-green-700 dark:text-green-400">Transaction confirmed! Saving job…</p>
+            <p className="text-xs text-green-700 dark:text-green-400">Payment verified! Saving job…</p>
           </div>
         )}
+
         <div className="flex gap-2">
-          <button onClick={onClose} disabled={phase === "loading" || phase === "success"} className="btn-outline flex-1 text-sm">
-            Cancel
-          </button>
-          <button onClick={onConfirm} disabled={phase === "loading" || phase === "success"} className="btn-primary flex-1 text-sm">
-            {phase === "loading" ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
-              : phase === "success" ? <><CheckCircle2 className="w-4 h-4" /> Done</>
-              : <>Confirm & Send <ArrowRight className="w-4 h-4" /></>}
+          <button onClick={onClose} disabled={busy} className="btn-outline flex-1 text-sm">Cancel</button>
+          <button
+            onClick={onVerify}
+            disabled={!txHash.trim() || busy}
+            className="btn-primary flex-1 text-sm"
+          >
+            {phase === "verifying"
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</>
+              : phase === "verified"
+              ? <><CheckCircle2 className="w-4 h-4" /> Done</>
+              : <>Verify & Post <ArrowRight className="w-4 h-4" /></>}
           </button>
         </div>
       </div>
@@ -164,6 +204,8 @@ function PostJobForm() {
   const [showModal, setShowModal] = useState(false);
   const [txPhase, setTxPhase]     = useState<TxPhase>("idle");
   const [txError, setTxError]     = useState("");
+  const [txHash, setTxHash]       = useState("");
+  const [copied, setCopied]       = useState(false);
 
   // ── Price calc ──
   const fixedPrice   = FIXED_PRICE[jobType];
@@ -185,7 +227,7 @@ function PostJobForm() {
   const twitterId     = (user as any)?.twitter?.subject ?? twitterHandle;
 
   // ── Save job ──
-  async function saveJob() {
+  async function saveJob(txHashStr?: string) {
     // For content/campaign: derive min followers from selected tier automatically
     const effectiveMinFollowers =
       showTier ? (selectedTier?.min ?? 0) : minFollowers;
@@ -241,6 +283,7 @@ function PostJobForm() {
         description: finalDescription,
         price_usdc: jobType === "custom" ? 0 : unitPrice,
         status: jobType === "custom" ? "pending_approval" : "open",
+        tx_hash: txHashStr ?? null,
         tweet_url: tweetUrl || null,
         content_brief: null,
         is_agent_job: isAgentJob,
@@ -267,27 +310,33 @@ function PostJobForm() {
     }
   }
 
-  // ── Phantom payment ──
-  async function handleConfirm() {
-    setTxPhase("loading");
+  // ── Manual payment verify ──
+  async function handleVerifyAndPost() {
+    if (!txHash.trim()) return;
+    setTxPhase("verifying");
     setTxError("");
     try {
-      const solana = (window as any).solana;
-      if (!solana?.isPhantom) throw new Error("Phantom wallet not detected. Please install the Phantom extension.");
-      await solana.connect();
-      const senderPubkey = new PublicKey(solana.publicKey.toString());
-      const tx     = await buildUsdcTransfer(senderPubkey, PLATFORM_WALLET, totalUsdc);
-      const signed = await solana.signTransaction(tx);
-      const sig    = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(sig, "confirmed");
-      setTxPhase("success");
-      await saveJob();
+      const res = await fetch("/api/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tx_hash: txHash.trim(), expected_usdc: totalUsdc }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Payment verification failed");
+      setTxPhase("verified");
+      await saveJob(txHash.trim());
       setShowModal(false);
       setSubmitted(true);
     } catch (err: unknown) {
-      setTxError(err instanceof Error ? err.message : "Transaction failed");
+      setTxError(err instanceof Error ? err.message : "Verification failed");
       setTxPhase("error");
     }
+  }
+
+  function handleCopyWallet() {
+    navigator.clipboard.writeText(PLATFORM_WALLET_ADDRESS);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   // ── Validation ──
@@ -304,7 +353,7 @@ function PostJobForm() {
 
   function openModal() {
     if (!canSubmit || jobType === "custom") return;
-    setTxPhase("idle"); setTxError(""); setShowModal(true);
+    setTxPhase("idle"); setTxError(""); setTxHash(""); setShowModal(true);
   }
 
   function resetForm() {
@@ -350,7 +399,7 @@ function PostJobForm() {
           ) : (
             <>
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
-                ${totalUsdc} USDC locked in escrow. Job is now live for creators to accept.
+                ${totalUsdc} USDC payment verified. Job is now live for creators to accept.
               </p>
               <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
                 Job has been broadcast to the Yapper Agent Telegram channel.
@@ -372,10 +421,15 @@ function PostJobForm() {
   return (
     <>
       {showModal && (
-        <TxModal totalUsdc={totalUsdc} unitPrice={unitPrice} numCreators={effectiveCreators}
-          jobType={jobType} onConfirm={handleConfirm}
-          onClose={() => { if (txPhase !== "loading") setShowModal(false); }}
-          phase={txPhase} error={txError} />
+        <PaymentModal
+          totalUsdc={totalUsdc} unitPrice={unitPrice} numCreators={effectiveCreators}
+          jobType={jobType}
+          txHash={txHash} onTxHashChange={setTxHash}
+          onVerify={handleVerifyAndPost}
+          onClose={() => { if (txPhase !== "verifying" && txPhase !== "verified") setShowModal(false); }}
+          phase={txPhase} error={txError}
+          copied={copied} onCopy={handleCopyWallet}
+        />
       )}
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
@@ -767,11 +821,11 @@ function PostJobForm() {
             <>
               <button className={cn("btn-primary text-sm py-3 w-full", !canSubmit && "opacity-50 cursor-not-allowed")}
                 onClick={openModal} disabled={!canSubmit}>
-                Post Job &amp; Lock ${totalUsdc || "—"} USDC
+                Post Job &amp; Pay ${totalUsdc || "—"} USDC
                 <ArrowRight className="w-4 h-4" />
               </button>
               <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
-                USDC is held in escrow via Phantom wallet and released when you approve the creator&apos;s proof.
+                Send USDC manually to our wallet, then paste the TX hash to verify and post your job.
               </p>
             </>
           )}
