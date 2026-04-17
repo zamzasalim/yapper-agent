@@ -58,6 +58,7 @@ export default async function JobsPage() {
     title: j.title,
     description: j.description,
     priceUsdc: j.price_usdc,
+    tweetUrl: j.tweet_url ?? null,
     status: j.status as "open",
     isAgentJob: j.is_agent_job,
     clientHandle: j.client?.twitter_handle ?? "unknown",
