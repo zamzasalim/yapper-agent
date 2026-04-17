@@ -24,6 +24,13 @@ import {
 
 type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
 
+const ALL_NICHES = [
+  "Crypto", "Web3", "DeFi", "NFT", "Airdrop", "Trading", "Blockchain", "GameFi",
+  "Gaming", "Tech", "AI", "Developer", "Finance", "Business", "Marketing",
+  "Art", "Music", "Sports", "Fitness", "Fashion", "Lifestyle", "Travel",
+  "Food", "Education", "News", "Entertainment", "Politics", "Meme", "Content Creator",
+];
+
 interface UserRecord {
   id: string;
   wallet_address: string;
@@ -35,6 +42,7 @@ interface UserRecord {
   jobs_completed: number;
   rating: number;
   avatar_url: string | null;
+  niches: string[] | null;
 }
 
 interface JobRecord {
@@ -76,6 +84,9 @@ export default function DashboardPage() {
   const [clientJobs, setClientJobs]     = useState<ClientJobRecord[]>([]);
   const [loading, setLoading]           = useState(false);
   const [registering, setRegistering]   = useState(false);
+  const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
+  const [savingNiches, setSavingNiches]     = useState(false);
+  const [nichesSaved, setNichesSaved]       = useState(false);
   const [ratingJobId, setRatingJobId]   = useState<string | null>(null);
   const [ratingValue, setRatingValue]   = useState(0);
   const [ratingHover, setRatingHover]   = useState(0);
@@ -124,6 +135,7 @@ export default function DashboardPage() {
         if (!res.ok) return;
         const { user: userRecord } = await res.json();
         setProfile(userRecord);
+        setSelectedNiches(userRecord?.niches ?? []);
 
         // Set wallet input from saved record
         if (userRecord?.wallet_address && userRecord.wallet_address !== "pending") {
@@ -170,6 +182,31 @@ export default function DashboardPage() {
       setWalletError(`Error: ${msg}`);
     } finally {
       setSavingWallet(false);
+    }
+  }
+
+  function toggleNiche(niche: string) {
+    setSelectedNiches((prev) => {
+      if (prev.includes(niche)) return prev.filter((n) => n !== niche);
+      if (prev.length >= 3) return prev;
+      return [...prev, niche];
+    });
+  }
+
+  async function handleSaveNiches() {
+    setSavingNiches(true);
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle, niches: selectedNiches }),
+      });
+      if (res.ok) {
+        setNichesSaved(true);
+        setTimeout(() => setNichesSaved(false), 2000);
+      }
+    } finally {
+      setSavingNiches(false);
     }
   }
 
@@ -359,6 +396,47 @@ export default function DashboardPage() {
                 <AlertCircle className="w-3 h-3" /> {walletError}
               </p>
             )}
+          </div>
+        )}
+
+        {/* ── Niche selector ────────────────────────────────────── */}
+        {profile && (
+          <div className="card p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Your Niches</h3>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500">Pick up to 3. Shown on your creator card.</p>
+              </div>
+              <button
+                onClick={handleSaveNiches}
+                disabled={savingNiches}
+                className="btn-primary text-xs px-4 py-1.5 shrink-0"
+              >
+                {savingNiches ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : nichesSaved ? "Saved!" : <><Save className="w-3.5 h-3.5" /> Save</>}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ALL_NICHES.map((niche) => {
+                const active = selectedNiches.includes(niche);
+                const disabled = !active && selectedNiches.length >= 3;
+                return (
+                  <button
+                    key={niche}
+                    onClick={() => toggleNiche(niche)}
+                    disabled={disabled}
+                    className={`inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                      active
+                        ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600"
+                        : disabled
+                        ? "border-neutral-200 dark:border-neutral-800 text-neutral-300 dark:text-neutral-600 bg-transparent cursor-not-allowed"
+                        : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 bg-transparent hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 dark:hover:text-blue-400 cursor-pointer"
+                    }`}
+                  >
+                    {niche}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

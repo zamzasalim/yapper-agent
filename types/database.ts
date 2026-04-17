@@ -25,6 +25,7 @@ export type Database = {
           total_earned_usdc: number;
           jobs_completed: number;
           rating: number;
+          niches: string[];
         };
         Insert: {
           id: string;
@@ -43,6 +44,7 @@ export type Database = {
           total_earned_usdc?: number;
           jobs_completed?: number;
           rating?: number;
+          niches?: string[];
         };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
         Relationships: [];

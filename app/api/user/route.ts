@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { twitter_handle, twitter_id, display_name, privy_did, wallet_address, twitter_followers } = body;
+    const { twitter_handle, twitter_id, display_name, privy_did, wallet_address, twitter_followers, niches } = body;
 
     if (!twitter_handle) {
       return NextResponse.json({ error: "twitter_handle required" }, { status: 400 });
@@ -99,6 +99,7 @@ export async function PATCH(req: NextRequest) {
       .update({
         ...(wallet_address !== undefined && { wallet_address }),
         ...(twitter_followers !== undefined && { twitter_followers }),
+        ...(niches !== undefined && { niches }),
       })
       .eq("twitter_handle", twitter_handle)
       .select()
