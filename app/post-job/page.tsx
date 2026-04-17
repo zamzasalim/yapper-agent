@@ -32,12 +32,12 @@ const FIXED_PRICE: Partial<Record<JobType, number>> = {
   like_reply: 0.20,
 };
 
-// Tiers for content & campaign
+// Tiers for content & campaign — min is used as the S&K requirement automatically
 const CREATOR_TIERS = [
-  { label: "Nano",  sub: "0–1K followers",    value: "0-1000",      price: 5  },
-  { label: "Micro", sub: "1K–10K followers",  value: "1000-10000",  price: 10 },
-  { label: "Mid",   sub: "10K–50K followers", value: "10000-50000", price: 25 },
-  { label: "Macro", sub: "50K+ followers",    value: "50000-99999", price: -1 },
+  { label: "Nano",  sub: "0–1K followers",    value: "0-1000",      price: 5,  min: 0     },
+  { label: "Micro", sub: "1K–10K followers",  value: "1000-10000",  price: 10, min: 1000  },
+  { label: "Mid",   sub: "10K–50K followers", value: "10000-50000", price: 25, min: 10000 },
+  { label: "Macro", sub: "50K+ followers",    value: "50000-99999", price: -1, min: 50000 },
 ];
 
 // ─── Transaction Modal ───────────────────────────────────────────────────────
@@ -182,9 +182,13 @@ function PostJobForm() {
 
   // ── Save job ──
   async function saveJob() {
+    // For content/campaign: derive min followers from selected tier automatically
+    const effectiveMinFollowers =
+      showTier ? (selectedTier?.min ?? 0) : minFollowers;
+
     const reqParts: string[] = [];
-    if (requireCenblue)  reqParts.push("cenblue wajib");
-    if (minFollowers > 0) reqParts.push(`min. ${minFollowers.toLocaleString()} followers`);
+    if (requireCenblue)          reqParts.push("cenblue wajib");
+    if (effectiveMinFollowers > 0) reqParts.push(`min. ${effectiveMinFollowers.toLocaleString()} followers`);
     const reqPrefix = reqParts.length > 0 ? `[S&K: ${reqParts.join(", ")}]\n\n` : "";
 
     let finalDescription = description;
@@ -566,13 +570,23 @@ function PostJobForm() {
               </div>
               <Toggle on={requireCenblue} onToggle={() => setRequireCenblue((v) => !v)} />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                Minimum Followers <span className="font-normal text-neutral-400">(0 = no minimum)</span>
-              </label>
-              <input className="input-field" type="number" min="0" step="500" placeholder="0"
-                value={minFollowers || ""} onChange={(e) => setMinFollowers(Math.max(0, parseInt(e.target.value) || 0))} />
-            </div>
+            {/* Min followers — hidden for content/campaign (derived from tier) */}
+            {!showTier && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  Minimum Followers <span className="font-normal text-neutral-400">(0 = no minimum)</span>
+                </label>
+                <input className="input-field" type="number" min="0" step="500" placeholder="0"
+                  value={minFollowers || ""} onChange={(e) => setMinFollowers(Math.max(0, parseInt(e.target.value) || 0))} />
+              </div>
+            )}
+            {/* For content/campaign: show info that tier drives the min followers */}
+            {showTier && selectedTier && (
+              <div className="flex items-start gap-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                Creator tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label} ({selectedTier.sub})</strong> automatically sets the follower requirement. No separate input needed.
+              </div>
+            )}
           </div>
 
           {/* ── Budget ── */}
