@@ -608,7 +608,7 @@ function PostJobForm() {
                 <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3">
                   <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700 dark:text-amber-400">
-                    Custom jobs require admin review before going live. Our admins (<strong>@Autosultan_team</strong> / <strong>@0xhnfdm</strong>) will approve within 24 hours. No USDC required.
+                    Custom jobs require admin review before going live. Our admins will approve within 24 hours.
                   </p>
                 </div>
               </>

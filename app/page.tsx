@@ -337,7 +337,7 @@ export default function HomePage() {
                   src="/bitgetwallet.png"
                   alt="Bitget Wallet"
                   width={140}
-                  height={0}
+                  height={44}
                   style={{ height: "auto", maxHeight: "44px", width: "auto", maxWidth: "140px" }}
                   unoptimized
                 />
