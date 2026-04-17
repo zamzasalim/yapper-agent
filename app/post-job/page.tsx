@@ -5,78 +5,51 @@ import { Navbar } from "@/components/Navbar";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSearchParams } from "next/navigation";
 import {
-  FileText,
-  Repeat2,
-  Heart,
-  Flag,
-  Zap,
-  HelpCircle,
-  Info,
-  ArrowRight,
-  Bot,
-  Users,
-  X,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
+  FileText, Repeat2, Heart, Flag, HelpCircle,
+  Info, ArrowRight, Bot, Users, X, Loader2,
+  CheckCircle2, AlertCircle, Hash, Link2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
 import { buildUsdcTransfer, connection, PLATFORM_WALLET } from "@/lib/solana";
 import { PublicKey } from "@solana/web3.js";
+import { Zap } from "lucide-react";
 
 type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
 type TxPhase = "idle" | "loading" | "success" | "error";
 
 const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: string }[] = [
-  { type: "content",    icon: FileText,   label: "Content",    desc: "Write original tweets / threads" },
-  { type: "repost",     icon: Repeat2,    label: "Repost",     desc: "Retweet to your audience" },
-  { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on a tweet · $0.20 per creator" },
-  { type: "campaign",   icon: Flag,       label: "Campaign",   desc: "Challenge / event for multiple creators" },
-  { type: "custom",     icon: HelpCircle, label: "Custom",     desc: "Describe your own task" },
+  { type: "content",    icon: FileText,   label: "Content",      desc: "Original tweet / thread by creator" },
+  { type: "repost",     icon: Repeat2,    label: "Repost",       desc: "Retweet your tweet · $0.50/creator" },
+  { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on your tweet · $0.20/creator" },
+  { type: "campaign",   icon: Flag,       label: "Campaign",     desc: "Multi-creator hashtag challenge / event" },
+  { type: "custom",     icon: HelpCircle, label: "Custom",       desc: "Any other task — you define it" },
 ];
 
-const ACTION_PRICES: Record<string, number | null> = {
-  like_reply: 0.20,
+// Fixed price for simple actions
+const FIXED_PRICE: Partial<Record<JobType, number>> = {
   repost:     0.50,
-  content:    null,
-  campaign:   null,
-  custom:     null,
+  like_reply: 0.20,
 };
 
-const FOLLOWER_TIERS = [
-  { label: "Content — 0–1K followers",    value: "0-1000",      price: 5  },
-  { label: "Content — 1K–10K followers",  value: "1000-10000",  price: 10 },
-  { label: "Content — 10K–50K followers", value: "10000-50000", price: -1 },
-  { label: "Custom / Any",               value: "0-99999",     price: -1 },
+// Tiers for content & campaign
+const CREATOR_TIERS = [
+  { label: "Nano",  sub: "0–1K followers",    value: "0-1000",      price: 5  },
+  { label: "Micro", sub: "1K–10K followers",  value: "1000-10000",  price: 10 },
+  { label: "Mid",   sub: "10K–50K followers", value: "10000-50000", price: 25 },
+  { label: "Macro", sub: "50K+ followers",    value: "50000-99999", price: -1 },
 ];
 
-function relativeTime(iso: string) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
 // ─── Transaction Modal ───────────────────────────────────────────────────────
-
 interface ModalProps {
-  totalUsdc: number;
-  unitPrice: number;
-  numCreators: number;
-  jobType: JobType;
-  onConfirm: () => Promise<void>;
-  onClose: () => void;
-  phase: TxPhase;
-  error: string;
+  totalUsdc: number; unitPrice: number; numCreators: number; jobType: JobType;
+  onConfirm: () => Promise<void>; onClose: () => void; phase: TxPhase; error: string;
 }
 
 function TxModal({ totalUsdc, unitPrice, numCreators, jobType, onConfirm, onClose, phase, error }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="card p-6 max-w-sm w-full">
-        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-neutral-900 dark:text-white">Confirm & Lock USDC</h3>
           {phase !== "loading" && (
@@ -85,8 +58,6 @@ function TxModal({ totalUsdc, unitPrice, numCreators, jobType, onConfirm, onClos
             </button>
           )}
         </div>
-
-        {/* Amount */}
         <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-5 mb-4 text-center">
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Total locked in escrow</p>
           <p className="text-4xl font-extrabold text-neutral-900 dark:text-white">
@@ -99,57 +70,35 @@ function TxModal({ totalUsdc, unitPrice, numCreators, jobType, onConfirm, onClos
             </p>
           )}
         </div>
-
-        {/* Info */}
         <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-4">
           <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
           <p className="text-xs text-blue-700 dark:text-blue-400">
             USDC is sent to the platform escrow wallet via Phantom. Released to creators only after you approve their proof.
           </p>
         </div>
-
-        {/* Phantom hint */}
         <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-4 text-center">
           Phantom wallet required. Make sure it&apos;s installed and connected.
         </p>
-
-        {/* Error */}
         {phase === "error" && (
           <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
           </div>
         )}
-
-        {/* Success */}
         {phase === "success" && (
           <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 mb-4">
             <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
             <p className="text-xs text-green-700 dark:text-green-400">Transaction confirmed! Saving job…</p>
           </div>
         )}
-
-        {/* Buttons */}
         <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            disabled={phase === "loading" || phase === "success"}
-            className="btn-outline flex-1 text-sm"
-          >
+          <button onClick={onClose} disabled={phase === "loading" || phase === "success"} className="btn-outline flex-1 text-sm">
             Cancel
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={phase === "loading" || phase === "success"}
-            className="btn-primary flex-1 text-sm"
-          >
-            {phase === "loading" ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
-            ) : phase === "success" ? (
-              <><CheckCircle2 className="w-4 h-4" /> Done</>
-            ) : (
-              <>Confirm & Send <ArrowRight className="w-4 h-4" /></>
-            )}
+          <button onClick={onConfirm} disabled={phase === "loading" || phase === "success"} className="btn-primary flex-1 text-sm">
+            {phase === "loading" ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+              : phase === "success" ? <><CheckCircle2 className="w-4 h-4" /> Done</>
+              : <>Confirm & Send <ArrowRight className="w-4 h-4" /></>}
           </button>
         </div>
       </div>
@@ -157,121 +106,188 @@ function TxModal({ totalUsdc, unitPrice, numCreators, jobType, onConfirm, onClos
   );
 }
 
-// ─── Main Form ───────────────────────────────────────────────────────────────
+// ─── Toggle ──────────────────────────────────────────────────────────────────
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className="relative shrink-0"
+      style={{ width: "2.5rem", height: "1.25rem", borderRadius: "9999px",
+        backgroundColor: on ? "#3b82f6" : "#d1d5db", transition: "background-color 0.2s" }}>
+      <span className="absolute rounded-full bg-white shadow"
+        style={{ width: "1rem", height: "1rem", top: "0.125rem",
+          left: on ? "1.375rem" : "0.125rem", transition: "left 0.2s" }} />
+    </button>
+  );
+}
 
+// ─── Main Form ───────────────────────────────────────────────────────────────
 function PostJobForm() {
   const { authenticated, login, user } = usePrivy();
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
 
-  const [jobType, setJobType]           = useState<JobType>("content");
-  const [isAgentJob, setIsAgentJob]     = useState(false);
-  const [followerTier, setFollowerTier] = useState("1000-10000");
-  const [title, setTitle]               = useState("");
-  const [description, setDescription]   = useState("");
-  const [tweetUrl, setTweetUrl]         = useState("");
-  const [deadline, setDeadline]         = useState("24");
-  const [customPrice, setCustomPrice]   = useState("");
-  const [numCreators, setNumCreators]   = useState(1);
-  const [requireCenblue, setRequireCenblue] = useState(true);
-  const [minFollowers, setMinFollowers]     = useState(0);
-  const [submitted, setSubmitted]       = useState(false);
+  // Common
+  const [jobType, setJobType]         = useState<JobType>("content");
+  const [isAgentJob, setIsAgentJob]   = useState(false);
+  const [title, setTitle]             = useState("");
+  const [description, setDescription] = useState("");
+  const [deadline, setDeadline]       = useState("24");
+  const [numCreators, setNumCreators] = useState(1);
+  const [submitted, setSubmitted]     = useState(false);
 
-  // Modal state
+  // Repost / Like&Reply
+  const [tweetUrl, setTweetUrl] = useState("");
+
+  // Content specific
+  const [contentFormat, setContentFormat] = useState<"tweet" | "thread" | "quote_rt">("tweet");
+  const [language, setLanguage]           = useState<"id" | "en" | "both">("id");
+  const [referenceUrl, setReferenceUrl]   = useState("");
+
+  // Campaign specific
+  const [hashtag, setHashtag]                 = useState("");
+  const [campaignFormat, setCampaignFormat]   = useState<"tweet" | "thread" | "any">("tweet");
+  const [campaignDuration, setCampaignDuration] = useState("7");
+
+  // Custom specific
+  const [proofRequirement, setProofRequirement] = useState("");
+
+  // Budget (content / campaign / custom)
+  const [creatorTier, setCreatorTier]   = useState("1000-10000");
+  const [customPrice, setCustomPrice]   = useState("");
+  const [requireCenblue, setRequireCenblue] = useState(false);
+  const [minFollowers, setMinFollowers]     = useState(0);
+
+  // Modal
   const [showModal, setShowModal] = useState(false);
   const [txPhase, setTxPhase]     = useState<TxPhase>("idle");
   const [txError, setTxError]     = useState("");
 
-  const actionPrice   = ACTION_PRICES[jobType];
-  const selectedTier  = FOLLOWER_TIERS.find((t) => t.value === followerTier);
-  const unitPrice: number =
-    actionPrice !== null
-      ? actionPrice
-      : selectedTier?.price === -1
-        ? parseFloat(customPrice) || 0
-        : (selectedTier?.price ?? 0);
+  // ── Price calc ──
+  const fixedPrice   = FIXED_PRICE[jobType];
+  const selectedTier = CREATOR_TIERS.find((t) => t.value === creatorTier);
 
-  const totalUsdc = parseFloat((unitPrice * numCreators).toFixed(2));
+  const unitPrice: number = (() => {
+    if (fixedPrice !== undefined) return fixedPrice;
+    if (jobType === "custom") return parseFloat(customPrice) || 0;
+    // content / campaign
+    if (selectedTier?.price === -1) return parseFloat(customPrice) || 0;
+    return selectedTier?.price ?? 0;
+  })();
+
+  const effectiveCreators = jobType === "campaign" ? Math.max(2, numCreators) : numCreators;
+  const totalUsdc = parseFloat((unitPrice * effectiveCreators).toFixed(2));
 
   const twitterHandle = (user as any)?.twitter?.username ?? "";
-  const displayName   = (user as any)?.twitter?.name ?? twitterHandle;
+  const displayName   = (user as any)?.twitter?.name    ?? twitterHandle;
   const twitterId     = (user as any)?.twitter?.subject ?? twitterHandle;
 
-  // ── Save job to Supabase after USDC confirmed ──
+  // ── Save job ──
   async function saveJob() {
     const reqParts: string[] = [];
-    if (requireCenblue) reqParts.push("cenblue wajib");
+    if (requireCenblue)  reqParts.push("cenblue wajib");
     if (minFollowers > 0) reqParts.push(`min. ${minFollowers.toLocaleString()} followers`);
-    const reqPrefix      = reqParts.length > 0 ? `[S&K: ${reqParts.join(", ")}]\n\n` : "";
-    const campaignPrefix = numCreators > 1 ? `[Campaign: ${numCreators} creators]\n\n` : "";
-    const finalDescription = reqPrefix + campaignPrefix + description;
+    const reqPrefix = reqParts.length > 0 ? `[S&K: ${reqParts.join(", ")}]\n\n` : "";
 
-    const body = {
-      twitter_handle: twitterHandle,
-      display_name:   displayName,
-      twitter_id:     twitterId,
-      privy_did:      user?.id,
-      type:           jobType,
-      title,
-      description:    finalDescription,
-      price_usdc:    unitPrice,
-      tweet_url:     tweetUrl || null,
-      content_brief: null,
-      is_agent_job:  isAgentJob,
-      deadline_hours: parseInt(deadline),
-    };
+    let finalDescription = description;
 
-    const res  = await fetch("/api/jobs", {
-      method:  "POST",
+    if (jobType === "content") {
+      const formatLabel = { tweet: "Tweet", thread: "Thread", quote_rt: "Quote RT" }[contentFormat];
+      const langLabel   = { id: "Indonesian", en: "English", both: "Bilingual" }[language];
+      finalDescription  = [
+        reqPrefix + description,
+        `\n---`,
+        `Format: ${formatLabel}`,
+        `Language: ${langLabel}`,
+        referenceUrl ? `Reference: ${referenceUrl}` : "",
+      ].filter(Boolean).join("\n");
+    }
+
+    if (jobType === "campaign") {
+      const fmtLabel = { tweet: "Tweet", thread: "Thread", any: "Any format" }[campaignFormat];
+      finalDescription = [
+        reqPrefix + description,
+        `\n---`,
+        `Hashtag: #${hashtag.replace(/^#/, "")}`,
+        `Format: ${fmtLabel}`,
+        `Duration: ${campaignDuration} days`,
+        `Target creators: ${effectiveCreators}`,
+      ].filter(Boolean).join("\n");
+    }
+
+    if (jobType === "custom") {
+      finalDescription = [
+        reqPrefix + description,
+        `\n---`,
+        `Proof required: ${proofRequirement}`,
+      ].filter(Boolean).join("\n");
+    }
+
+    const res = await fetch("/api/jobs", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(body),
+      body: JSON.stringify({
+        twitter_handle: twitterHandle, display_name: displayName,
+        twitter_id: twitterId, privy_did: user?.id,
+        type: jobType, title,
+        description: finalDescription,
+        price_usdc: unitPrice,
+        tweet_url: tweetUrl || null,
+        content_brief: null,
+        is_agent_job: isAgentJob,
+        deadline_hours: jobType === "campaign"
+          ? parseInt(campaignDuration) * 24
+          : parseInt(deadline),
+      }),
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? "Failed to save job");
   }
 
-  // ── USDC transfer via Phantom then save ──
+  // ── Phantom payment ──
   async function handleConfirm() {
     setTxPhase("loading");
     setTxError("");
-
     try {
       const solana = (window as any).solana;
-      if (!solana?.isPhantom) {
-        throw new Error(
-          "Phantom wallet not detected. Please install the Phantom extension and try again."
-        );
-      }
-
+      if (!solana?.isPhantom) throw new Error("Phantom wallet not detected. Please install the Phantom extension.");
       await solana.connect();
       const senderPubkey = new PublicKey(solana.publicKey.toString());
-
-      const tx = await buildUsdcTransfer(senderPubkey, PLATFORM_WALLET, totalUsdc);
+      const tx     = await buildUsdcTransfer(senderPubkey, PLATFORM_WALLET, totalUsdc);
       const signed = await solana.signTransaction(tx);
       const sig    = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(sig, "confirmed");
-
       setTxPhase("success");
       await saveJob();
       setShowModal(false);
       setSubmitted(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Transaction failed";
-      setTxError(msg);
+      setTxError(err instanceof Error ? err.message : "Transaction failed");
       setTxPhase("error");
     }
   }
 
+  // ── Validation ──
+  const canSubmit = (() => {
+    if (!title.trim() || totalUsdc <= 0) return false;
+    switch (jobType) {
+      case "repost":
+      case "like_reply": return !!tweetUrl.trim();
+      case "content":    return !!description.trim();
+      case "campaign":   return !!description.trim() && !!hashtag.trim() && effectiveCreators >= 2;
+      case "custom":     return !!description.trim() && !!proofRequirement.trim() && parseFloat(customPrice) > 0;
+    }
+  })();
+
   function openModal() {
-    if (!title.trim() || !description.trim()) return;
-    if ((jobType === "repost" || jobType === "like_reply") && !tweetUrl.trim()) return;
-    if (totalUsdc <= 0) return;
-    setTxPhase("idle");
-    setTxError("");
-    setShowModal(true);
+    if (!canSubmit) return;
+    setTxPhase("idle"); setTxError(""); setShowModal(true);
   }
 
-  // ── Not authenticated ──
+  function resetForm() {
+    setSubmitted(false); setTitle(""); setDescription(""); setTweetUrl("");
+    setNumCreators(1); setHashtag(""); setProofRequirement(""); setCustomPrice(""); setReferenceUrl("");
+  }
+
+  // ── Auth guard ──
   if (!authenticated) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[60vh] grid-bg">
@@ -280,18 +296,14 @@ function PostJobForm() {
             <Zap className="w-6 h-6 text-blue-600" />
           </div>
           <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Connect to post a job</h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
-            Sign in with Twitter to post jobs and hire creators.
-          </p>
-          <button onClick={() => login()} className="btn-primary w-full">
-            Connect X
-          </button>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">Sign in with Twitter to post jobs and hire creators.</p>
+          <button onClick={() => login()} className="btn-primary w-full">Connect X</button>
         </div>
       </div>
     );
   }
 
-  // ── Submitted ──
+  // ── Success ──
   if (submitted) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[60vh]">
@@ -307,51 +319,37 @@ function PostJobForm() {
             Job has been broadcast to the Yapper Agent Telegram channel.
           </p>
           <div className="flex flex-col gap-2">
-            <button onClick={() => { setSubmitted(false); setTitle(""); setDescription(""); setTweetUrl(""); setNumCreators(1); }} className="btn-outline text-sm">
-              Post Another Job
-            </button>
-            <a href="/jobs" className="btn-primary text-sm">
-              View All Jobs <ArrowRight className="w-4 h-4" />
-            </a>
+            <button onClick={resetForm} className="btn-outline text-sm">Post Another Job</button>
+            <a href="/jobs" className="btn-primary text-sm">View All Jobs <ArrowRight className="w-4 h-4" /></a>
           </div>
         </div>
       </div>
     );
   }
 
-  const canSubmit =
-    title.trim() &&
-    description.trim() &&
-    totalUsdc > 0 &&
-    (["content", "campaign", "custom"].includes(jobType) || tweetUrl.trim() !== "");
+  // ── Shared: Tier selector for content/campaign ──
+  const showTier = jobType === "content" || jobType === "campaign";
 
   return (
     <>
       {showModal && (
-        <TxModal
-          totalUsdc={totalUsdc}
-          unitPrice={unitPrice}
-          numCreators={numCreators}
-          jobType={jobType}
-          onConfirm={handleConfirm}
+        <TxModal totalUsdc={totalUsdc} unitPrice={unitPrice} numCreators={effectiveCreators}
+          jobType={jobType} onConfirm={handleConfirm}
           onClose={() => { if (txPhase !== "loading") setShowModal(false); }}
-          phase={txPhase}
-          error={txError}
-        />
+          phase={txPhase} error={txError} />
       )}
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-1">
-            Post a Job
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-1">Post a Job</h1>
           <p className="text-neutral-500 dark:text-neutral-400 text-sm">
-            Hire verified blue-tick creators. Payment in USDC — locked on post, released on approval.
+            Hire verified creators. Payment in USDC — locked on post, released on approval.
           </p>
         </div>
 
         <div className="flex flex-col gap-6">
-          {/* Job Posted By */}
+
+          {/* ── Job Posted By ── */}
           <div className="card p-5">
             <label className="block text-sm font-semibold text-neutral-900 dark:text-white mb-3">Job Posted By</label>
             <div className="grid grid-cols-2 gap-3">
@@ -359,21 +357,14 @@ function PostJobForm() {
                 { val: false, icon: Users, label: "Human",    desc: "You're posting directly" },
                 { val: true,  icon: Bot,   label: "AI Agent", desc: "x402 / MPP agent flow"  },
               ].map((opt) => (
-                <button
-                  key={String(opt.val)}
-                  onClick={() => setIsAgentJob(opt.val)}
-                  className={cn(
-                    "flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
+                <button key={String(opt.val)} onClick={() => setIsAgentJob(opt.val)}
+                  className={cn("flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
                     isAgentJob === opt.val
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                      : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
-                  )}
-                >
+                      : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
                   <opt.icon className={cn("w-5 h-5", isAgentJob === opt.val ? "text-blue-600" : "text-neutral-400 dark:text-neutral-500")} />
                   <div>
-                    <p className={cn("text-sm font-semibold", isAgentJob === opt.val ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>
-                      {opt.label}
-                    </p>
+                    <p className={cn("text-sm font-semibold", isAgentJob === opt.val ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>{opt.label}</p>
                     <p className="text-xs text-neutral-400 dark:text-neutral-500">{opt.desc}</p>
                   </div>
                 </button>
@@ -381,34 +372,29 @@ function PostJobForm() {
             </div>
           </div>
 
-          {/* Job Type */}
+          {/* ── Job Type ── */}
           <div className="card p-5">
             <label className="block text-sm font-semibold text-neutral-900 dark:text-white mb-3">Job Type</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {JOB_TYPES.map((jt) => (
-                <button
-                  key={jt.type}
-                  onClick={() => setJobType(jt.type)}
-                  className={cn(
-                    "flex flex-col gap-1.5 p-3 rounded-xl border text-left transition-all",
+                <button key={jt.type} onClick={() => setJobType(jt.type)}
+                  className={cn("flex flex-col gap-1.5 p-3 rounded-xl border text-left transition-all",
                     jobType === jt.type
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                      : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
-                  )}
-                >
+                      : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
                   <jt.icon className={cn("w-4 h-4", jobType === jt.type ? "text-blue-600" : "text-neutral-400 dark:text-neutral-500")} />
-                  <p className={cn("text-xs font-semibold", jobType === jt.type ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>
-                    {jt.label}
-                  </p>
+                  <p className={cn("text-xs font-semibold", jobType === jt.type ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>{jt.label}</p>
                   <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{jt.desc}</p>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Job Details */}
+          {/* ── Job Details (dynamic per type) ── */}
           <div className="card p-5 flex flex-col gap-4">
-            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Job Details</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+              {jobType === "campaign" ? "Campaign Details" : jobType === "custom" ? "Task Details" : "Job Details"}
+            </h3>
 
             {prefilledCreator && (
               <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 text-sm text-blue-700 dark:text-blue-400">
@@ -417,178 +403,238 @@ function PostJobForm() {
               </div>
             )}
 
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Job Title *</label>
-              <input
-                className="input-field"
-                placeholder="e.g. Repost our Solana launch tweet"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-
+            {/* Title — always */}
             <div>
               <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                Description / Brief *
+                {jobType === "campaign" ? "Campaign Name *" : "Job Title *"}
               </label>
-              <textarea
-                className="input-field min-h-[100px] resize-none"
-                placeholder="Describe exactly what the creator should do. Be specific about tone, content, and any URLs."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <input className="input-field"
+                placeholder={
+                  jobType === "content"  ? "e.g. Write a thread about our DeFi protocol" :
+                  jobType === "campaign" ? "e.g. #YapperMay Challenge" :
+                  jobType === "custom"   ? "e.g. Translate our whitepaper to Bahasa" :
+                  "e.g. Repost our Solana launch tweet"}
+                value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
 
+            {/* Tweet URL — repost / like_reply */}
             {(jobType === "repost" || jobType === "like_reply") && (
               <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Tweet URL *
-                </label>
-                <input
-                  className="input-field"
-                  placeholder="https://x.com/username/status/..."
-                  value={tweetUrl}
-                  onChange={(e) => setTweetUrl(e.target.value)}
-                />
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Tweet URL *</label>
+                <input className="input-field" placeholder="https://x.com/username/status/..."
+                  value={tweetUrl} onChange={(e) => setTweetUrl(e.target.value)} />
               </div>
             )}
 
+            {/* Description */}
             <div>
-              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Deadline</label>
-              <select className="input-field" value={deadline} onChange={(e) => setDeadline(e.target.value)}>
-                <option value="3">3 hours</option>
-                <option value="6">6 hours</option>
-                <option value="12">12 hours</option>
-                <option value="24">24 hours</option>
-                <option value="48">48 hours</option>
-                <option value="72">72 hours</option>
-              </select>
+              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                {jobType === "content"  ? "Brief — what to write about *" :
+                 jobType === "campaign" ? "Campaign description & rules *" :
+                 jobType === "custom"   ? "Task description *" :
+                 "Additional instructions"}
+              </label>
+              <textarea className="input-field min-h-[100px] resize-none"
+                placeholder={
+                  jobType === "content"  ? "Explain the topic, key points to include, tone, and any specific info the creator needs." :
+                  jobType === "campaign" ? "What should creators post? What are the rules? What's the prize or reward structure?" :
+                  jobType === "custom"   ? "Describe the task in detail. What exactly needs to be done?" :
+                  "Any extra instructions for the creator."}
+                value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
+
+            {/* Content-specific: Format + Language + Reference */}
+            {jobType === "content" && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Content Format</label>
+                    <div className="flex flex-col gap-1.5">
+                      {([["tweet", "Single Tweet"], ["thread", "Thread"], ["quote_rt", "Quote RT"]] as const).map(([val, lbl]) => (
+                        <button key={val} onClick={() => setContentFormat(val)}
+                          className={cn("text-xs px-3 py-2 rounded-lg border text-left transition-all",
+                            contentFormat === val
+                              ? "border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 font-semibold"
+                              : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300")}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Language</label>
+                    <div className="flex flex-col gap-1.5">
+                      {([["id", "Indonesian"], ["en", "English"], ["both", "Bilingual"]] as const).map(([val, lbl]) => (
+                        <button key={val} onClick={() => setLanguage(val)}
+                          className={cn("text-xs px-3 py-2 rounded-lg border text-left transition-all",
+                            language === val
+                              ? "border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 font-semibold"
+                              : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300")}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    <span className="flex items-center gap-1"><Link2 className="w-3 h-3" /> Reference / Inspiration URL <span className="font-normal text-neutral-400">(optional)</span></span>
+                  </label>
+                  <input className="input-field" placeholder="https://x.com/... or any reference link"
+                    value={referenceUrl} onChange={(e) => setReferenceUrl(e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {/* Campaign-specific: Hashtag + Format + Duration */}
+            {jobType === "campaign" && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    <span className="flex items-center gap-1"><Hash className="w-3 h-3" /> Required Hashtag *</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">#</span>
+                    <input className="input-field" style={{ paddingLeft: "1.5rem" }}
+                      placeholder="YapperMay"
+                      value={hashtag.replace(/^#/, "")} onChange={(e) => setHashtag(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Content Format</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {([["tweet", "Tweet"], ["thread", "Thread"], ["any", "Any"]] as const).map(([val, lbl]) => (
+                      <button key={val} onClick={() => setCampaignFormat(val)}
+                        className={cn("text-xs px-4 py-2 rounded-lg border transition-all",
+                          campaignFormat === val
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 font-semibold"
+                            : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300")}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Campaign Duration</label>
+                  <select className="input-field" value={campaignDuration} onChange={(e) => setCampaignDuration(e.target.value)}>
+                    {["1","2","3","5","7","14","30"].map((d) => (
+                      <option key={d} value={d}>{d} day{+d > 1 ? "s" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Custom-specific: Proof requirement */}
+            {jobType === "custom" && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  Proof / Deliverable Required *
+                </label>
+                <input className="input-field"
+                  placeholder="e.g. Screenshot of posted tweet, Google Doc link, etc."
+                  value={proofRequirement} onChange={(e) => setProofRequirement(e.target.value)} />
+                <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5">
+                  What must the creator submit to prove the task is complete?
+                </p>
+              </div>
+            )}
+
+            {/* Deadline — not shown for campaign (uses duration instead) */}
+            {jobType !== "campaign" && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Deadline</label>
+                <select className="input-field" value={deadline} onChange={(e) => setDeadline(e.target.value)}>
+                  <option value="3">3 hours</option>
+                  <option value="6">6 hours</option>
+                  <option value="12">12 hours</option>
+                  <option value="24">24 hours</option>
+                  <option value="48">48 hours</option>
+                  <option value="72">72 hours</option>
+                </select>
+              </div>
+            )}
           </div>
 
-          {/* Creator Requirements (S&K) */}
+          {/* ── Creator Requirements ── */}
           <div className="card p-5 flex flex-col gap-4">
-            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Creator Requirements (S&K)</h3>
-
-            {/* Cenblue toggle */}
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Creator Requirements</h3>
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Wajib Verified Blue (Cenblue)</p>
                 <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">Creator harus memiliki centang biru Twitter</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setRequireCenblue((v) => !v)}
-                className="relative shrink-0"
-                style={{
-                  width: "2.5rem", height: "1.25rem", borderRadius: "9999px",
-                  backgroundColor: requireCenblue ? "#3b82f6" : "#d1d5db",
-                  transition: "background-color 0.2s",
-                }}
-                aria-label="Toggle require verified blue"
-              >
-                <span
-                  className="absolute rounded-full bg-white shadow"
-                  style={{
-                    width: "1rem", height: "1rem",
-                    top: "0.125rem",
-                    left: requireCenblue ? "1.375rem" : "0.125rem",
-                    transition: "left 0.2s",
-                  }}
-                />
-              </button>
+              <Toggle on={requireCenblue} onToggle={() => setRequireCenblue((v) => !v)} />
             </div>
-
-            {/* Min followers */}
             <div>
               <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                Minimum Followers <span className="font-normal text-neutral-400">(0 = tidak ada minimum)</span>
+                Minimum Followers <span className="font-normal text-neutral-400">(0 = no minimum)</span>
               </label>
-              <input
-                className="input-field"
-                type="number"
-                min="0"
-                step="100"
-                placeholder="0"
-                value={minFollowers || ""}
-                onChange={(e) => setMinFollowers(Math.max(0, parseInt(e.target.value) || 0))}
-              />
+              <input className="input-field" type="number" min="0" step="500" placeholder="0"
+                value={minFollowers || ""} onChange={(e) => setMinFollowers(Math.max(0, parseInt(e.target.value) || 0))} />
             </div>
           </div>
 
-          {/* Creator Tier & Budget */}
+          {/* ── Budget ── */}
           <div className="card p-5 flex flex-col gap-4">
-            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Creator Tier & Budget</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Budget</h3>
 
-            {actionPrice !== null ? (
+            {/* Fixed price */}
+            {fixedPrice !== undefined && (
               <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3">
                 <Info className="w-4 h-4 text-blue-500 shrink-0" />
                 <p className="text-sm text-blue-700 dark:text-blue-400">
-                  Fixed rate for <strong>{jobType}</strong>:{" "}
-                  <strong>${actionPrice.toFixed(2)} USDC</strong> per action per creator.
+                  Fixed rate: <strong>${fixedPrice.toFixed(2)} USDC</strong> per creator.
                 </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {FOLLOWER_TIERS.map((tier) => (
-                  <button
-                    key={tier.value}
-                    onClick={() => setFollowerTier(tier.value)}
-                    className={cn(
-                      "p-3 rounded-xl border text-left transition-all",
-                      followerTier === tier.value
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                        : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
-                    )}
-                  >
-                    <p className={cn("text-xs font-semibold", followerTier === tier.value ? "text-blue-700 dark:text-blue-400" : "text-neutral-700 dark:text-neutral-300")}>
-                      {tier.label}
-                    </p>
-                    <p className={cn("text-sm font-bold mt-0.5", followerTier === tier.value ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
-                      {tier.price === -1 ? "Custom price" : `$${tier.price} USDC`}
-                    </p>
-                  </button>
-                ))}
               </div>
             )}
 
-            {actionPrice === null && selectedTier?.price === -1 && (
+            {/* Tier selector — content & campaign */}
+            {showTier && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Creator Tier (by followers)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CREATOR_TIERS.map((tier) => (
+                    <button key={tier.value} onClick={() => setCreatorTier(tier.value)}
+                      className={cn("p-3 rounded-xl border text-left transition-all",
+                        creatorTier === tier.value
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                          : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
+                      <p className={cn("text-xs font-bold", creatorTier === tier.value ? "text-blue-700 dark:text-blue-400" : "text-neutral-800 dark:text-neutral-200")}>
+                        {tier.label}
+                      </p>
+                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{tier.sub}</p>
+                      <p className={cn("text-sm font-extrabold mt-1", creatorTier === tier.value ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
+                        {tier.price === -1 ? "Custom" : `$${tier.price}`}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom price input — custom type, or when tier is -1 */}
+            {(jobType === "custom" || (showTier && selectedTier?.price === -1)) && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Custom Price per Creator (USDC) *
+                  {jobType === "custom" ? "Budget per Creator (USDC) *" : "Custom Price per Creator (USDC) *"}
                 </label>
-                <input
-                  className="input-field"
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 25"
-                  value={customPrice}
-                  onChange={(e) => setCustomPrice(e.target.value)}
-                />
+                <input className="input-field" type="number" min="1" placeholder="e.g. 50"
+                  value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} />
               </div>
             )}
 
-            {/* Campaign size */}
+            {/* Number of creators */}
             <div>
               <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                Number of Creators for this Campaign
+                {jobType === "campaign" ? "Number of Creators (min. 2) *" : "Number of Creators"}
               </label>
-              <input
-                className="input-field"
-                type="number"
-                min="1"
-                max="10000"
-                value={numCreators}
-                onChange={(e) => setNumCreators(Math.max(1, parseInt(e.target.value) || 1))}
-              />
-              {numCreators > 1 && unitPrice > 0 && (
-                <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1.5">
-                  {numCreators} creators × ${unitPrice < 1 ? unitPrice.toFixed(2) : unitPrice} = ${totalUsdc} USDC total locked
-                </p>
-              )}
+              <input className="input-field" type="number" min={jobType === "campaign" ? "2" : "1"} max="10000"
+                value={jobType === "campaign" ? effectiveCreators : numCreators}
+                onChange={(e) => setNumCreators(Math.max(jobType === "campaign" ? 2 : 1, parseInt(e.target.value) || 1))} />
             </div>
 
-            {/* Summary */}
+            {/* Cost summary */}
             <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">You lock in escrow</p>
@@ -596,6 +642,11 @@ function PostJobForm() {
                   {totalUsdc ? `$${totalUsdc < 1 ? totalUsdc.toFixed(2) : totalUsdc}` : "—"}{" "}
                   <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500">USDC</span>
                 </p>
+                {effectiveCreators > 1 && unitPrice > 0 && (
+                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                    {effectiveCreators} creators × ${unitPrice < 1 ? unitPrice.toFixed(2) : unitPrice}
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">Per creator receives</p>
@@ -608,19 +659,14 @@ function PostJobForm() {
             </div>
           </div>
 
-          {/* Submit */}
-          <button
-            className={cn("btn-primary text-sm py-3 w-full", !canSubmit && "opacity-50 cursor-not-allowed")}
-            onClick={openModal}
-            disabled={!canSubmit}
-          >
+          {/* ── Submit ── */}
+          <button className={cn("btn-primary text-sm py-3 w-full", !canSubmit && "opacity-50 cursor-not-allowed")}
+            onClick={openModal} disabled={!canSubmit}>
             Post Job &amp; Lock ${totalUsdc || "—"} USDC
             <ArrowRight className="w-4 h-4" />
           </button>
-
           <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
             USDC is held in escrow via Phantom wallet and released when you approve the creator&apos;s proof.
-            Job will be broadcast to the Telegram channel instantly.
           </p>
         </div>
       </div>
