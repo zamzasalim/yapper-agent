@@ -340,13 +340,14 @@ function PostJobForm() {
   }
 
   // ── Validation ──
+  const macroCustomValid = selectedTier?.price !== -1 || parseFloat(customPrice) > 25;
   const canSubmit = (() => {
     if (!title.trim()) return false;
     switch (jobType) {
       case "repost":
       case "like_reply": return !!tweetUrl.trim() && totalUsdc > 0;
-      case "content":    return !!description.trim() && totalUsdc > 0;
-      case "campaign":   return !!description.trim() && !!hashtag.trim() && effectiveCreators >= 2 && totalUsdc > 0;
+      case "content":    return !!description.trim() && totalUsdc > 0 && macroCustomValid;
+      case "campaign":   return !!description.trim() && !!hashtag.trim() && effectiveCreators >= 2 && totalUsdc > 0 && macroCustomValid;
       case "custom":     return !!description.trim() && !!proofRequirement.trim();
     }
   })();
@@ -757,8 +758,13 @@ function PostJobForm() {
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                   Custom Price per Creator (USDC) *
                 </label>
-                <input className="input-field" type="number" min="1" placeholder="e.g. 50"
+                <input className="input-field" type="number" min="26" placeholder="min. $26"
                   value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} />
+                {customPrice && parseFloat(customPrice) <= 25 && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    Macro tier minimum is $26 USDC (above Mid tier at $25).
+                  </p>
+                )}
               </div>
             )}
 
