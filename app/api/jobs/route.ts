@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase";
 
 export async function GET() {
@@ -85,6 +86,10 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Invalidate ISR cache so /jobs shows the new job immediately
+    revalidatePath("/jobs");
+
     return NextResponse.json({ job });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
