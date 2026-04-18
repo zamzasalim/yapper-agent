@@ -116,10 +116,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    const tgUsername = message.from?.username ?? null;
+
     await db
       .from("users")
       .update({
         telegram_chat_id: String(chatId),
+        telegram_username: tgUsername,
         telegram_link_token: null,
         telegram_token_expires_at: null,
       })

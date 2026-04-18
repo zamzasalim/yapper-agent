@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/Navbar";
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import {
   Wallet,
@@ -44,6 +44,7 @@ interface UserRecord {
   avatar_url: string | null;
   niches: string[] | null;
   telegram_chat_id: string | null;
+  telegram_username: string | null;
 }
 
 interface JobRecord {
@@ -101,7 +102,8 @@ export default function DashboardPage() {
   const [copied, setCopied]             = useState(false);
 
   const [connectingTelegram, setConnectingTelegram] = useState(false);
-  const [telegramLink, setTelegramLink]             = useState<string | null>(null);
+  const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Derive twitter info from Privy
   const twitterAccount = (user?.linkedAccounts ?? []).find((a: any) => a.type === "twitter_oauth") as any;
@@ -162,6 +164,17 @@ export default function DashboardPage() {
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, twitterHandle]);
+
+  // ── Auto-sync Telegram username if connected but username not stored ────
+  useEffect(() => {
+    if (!profile?.telegram_chat_id || profile.telegram_username || !twitterHandle) return;
+    fetch(`/api/telegram/sync-username?handle=${encodeURIComponent(twitterHandle)}`)
+      .then((r) => r.json())
+      .then(({ username }) => {
+        if (username) setProfile((p) => p ? { ...p, telegram_username: username } : p);
+      })
+      .catch(() => {});
+  }, [profile?.telegram_chat_id, profile?.telegram_username, twitterHandle]);
 
   // ── Save wallet to Supabase ─────────────────────────────────────────────
   async function handleSaveWallet() {
@@ -246,7 +259,6 @@ export default function DashboardPage() {
   async function handleConnectTelegram() {
     if (!twitterHandle) return;
     setConnectingTelegram(true);
-    setTelegramLink(null);
     try {
       const res = await fetch("/api/telegram/connect", {
         method: "POST",
@@ -256,13 +268,38 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.already_connected) {
         setProfile((p) => p ? { ...p, telegram_chat_id: "connected" } : p);
-      } else if (data.link) {
-        setTelegramLink(data.link);
+        return;
       }
+      if (!data.link) return;
+      window.open(data.link, "_blank");
+
+      // Poll every 3s until bot confirms connection (max 2 min)
+      setAwaitingTelegram(true);
+      if (pollRef.current) clearInterval(pollRef.current);
+      const deadline = Date.now() + 120_000;
+      pollRef.current = setInterval(async () => {
+        if (Date.now() > deadline) {
+          clearInterval(pollRef.current!);
+          setAwaitingTelegram(false);
+          return;
+        }
+        try {
+          const r = await fetch(`/api/user?handle=${encodeURIComponent(twitterHandle)}`);
+          const { user } = await r.json();
+          if (user?.telegram_chat_id) {
+            setProfile((p) => p ? { ...p, telegram_chat_id: user.telegram_chat_id, telegram_username: user.telegram_username ?? null } : p);
+            clearInterval(pollRef.current!);
+            setAwaitingTelegram(false);
+          }
+        } catch { /* ignore */ }
+      }, 3000);
     } finally {
       setConnectingTelegram(false);
     }
   }
+
+  // Cleanup poll on unmount
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   async function handleDisconnectTelegram() {
     if (!twitterHandle) return;
@@ -273,8 +310,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ twitter_handle: twitterHandle }),
       });
-      setProfile((p) => p ? { ...p, telegram_chat_id: null } : p);
-      setTelegramLink(null);
+      setProfile((p) => p ? { ...p, telegram_chat_id: null, telegram_username: null } : p);
     } finally {
       setConnectingTelegram(false);
     }
@@ -357,36 +393,68 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Wallet status */}
-            {walletAddress ? (
-              <div className="flex items-center gap-2 text-xs text-neutral-400 dark:text-neutral-500">
-                <Wallet className="w-3.5 h-3.5" />
-                <span className="font-mono">{shortWallet}</span>
-                <button onClick={handleCopy} title="Copy" className="hover:text-blue-500 transition-colors">
-                  <Copy className="w-3 h-3" />
-                </button>
-                {copied && <span className="text-green-500">Copied!</span>}
-                <button
-                  onClick={() => { setEditingWallet(true); setWalletInput(walletAddress); }}
-                  className="text-blue-500 hover:underline"
-                >
-                  Edit
-                </button>
+            {/* Wallet + Telegram rows — consistent gap-1 */}
+            <div className="flex flex-col gap-1 mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+              {/* Wallet */}
+              {walletAddress ? (
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-3.5 h-3.5 shrink-0" />
+                  <span className="font-mono">{shortWallet}</span>
+                  <button onClick={handleCopy} title="Copy" className="hover:text-blue-500 transition-colors">
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  {copied && <span className="text-green-500">Copied!</span>}
+                  <button
+                    onClick={() => { setEditingWallet(true); setWalletInput(walletAddress); }}
+                    className="text-blue-500 hover:underline"
+                  >
+                    Edit
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="text-amber-500">Wallet not set</span>
+                  <button onClick={() => setEditingWallet(true)} className="text-blue-500 hover:underline font-medium">
+                    + Add Wallet
+                  </button>
+                </div>
+              )}
+
+              {/* Telegram */}
+              <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.504-1.356 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.782-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                {profile?.telegram_chat_id ? (
+                  <>
+                    <span className="font-mono">
+                      {profile.telegram_username ? `@${profile.telegram_username}` : "Connected"}
+                    </span>
+                    <button
+                      onClick={handleDisconnectTelegram}
+                      disabled={connectingTelegram}
+                      className="text-red-400 hover:text-red-600 hover:underline transition-colors"
+                    >
+                      {connectingTelegram ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Disconnect"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleConnectTelegram}
+                    disabled={connectingTelegram || awaitingTelegram}
+                    className="hover:text-blue-500 transition-colors flex items-center gap-1"
+                  >
+                    {awaitingTelegram
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Waiting for bot…</>
+                      : connectingTelegram
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : "Connect Telegram"
+                    }
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs text-amber-500 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  Wallet not set
-                </p>
-                <button
-                  onClick={() => setEditingWallet(true)}
-                  className="text-xs text-blue-500 hover:underline font-medium"
-                >
-                  + Add Wallet
-                </button>
-              </div>
-            )}
+            </div>
 
           </div>
 
@@ -515,68 +583,6 @@ export default function DashboardPage() {
             )}
           </div>
         )}
-
-        {/* ── Telegram connect ──────────────────────────────────── */}
-        <div className="card p-5 mb-6 flex flex-col gap-3 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.504-1.356 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.782-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-              </svg>
-            </div>
-            <div className="flex-1">
-              {profile?.telegram_chat_id ? (
-                <>
-                  <p className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Telegram terhubung
-                  </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-400">Kamu akan menerima notifikasi job baru via bot</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Connect your Telegram</p>
-                  <p className="text-xs text-blue-700 dark:text-blue-400">Terima notifikasi & apply job langsung dari bot</p>
-                </>
-              )}
-            </div>
-            {profile?.telegram_chat_id ? (
-              <button
-                onClick={handleDisconnectTelegram}
-                disabled={connectingTelegram}
-                className="btn-outline text-xs px-3 py-1.5 shrink-0 flex items-center gap-1.5 !text-red-500 !border-red-300 dark:!border-red-800"
-              >
-                {connectingTelegram ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                Disconnect
-              </button>
-            ) : (
-              <button
-                onClick={handleConnectTelegram}
-                disabled={connectingTelegram}
-                className="btn-primary text-xs px-4 py-2 shrink-0 flex items-center gap-1.5"
-              >
-                {connectingTelegram ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                {connectingTelegram ? "Loading..." : "Connect"}
-              </button>
-            )}
-          </div>
-
-          {/* Deep link shown after generating token */}
-          {telegramLink && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-100 dark:bg-blue-900/40">
-              <p className="text-xs text-blue-800 dark:text-blue-300 flex-1">
-                Klik link di bawah untuk menghubungkan akun (berlaku 15 menit):
-              </p>
-              <a
-                href={telegramLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary text-xs px-3 py-1.5 shrink-0"
-              >
-                Buka Bot ↗
-              </a>
-            </div>
-          )}
-        </div>
 
         {/* ── Loading skeleton ───────────────────────────────────── */}
         {loading && (
