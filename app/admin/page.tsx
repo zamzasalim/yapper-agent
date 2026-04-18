@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
   Zap, Download, ExternalLink, Users, Trash2, EyeOff, Eye,
+  ChevronDown, ChevronUp, Copy, Check,
 } from "lucide-react";
 
 const ADMINS = ["Autosultan_team", "0xhnfdm"];
@@ -40,6 +41,7 @@ interface CompletedJob {
   title: string;
   price_usdc: number;
   proof_url: string | null;
+  is_paid: boolean;
   client:  { twitter_handle: string; display_name: string } | null;
   creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
 }
@@ -57,35 +59,31 @@ const TYPE_LABEL: Record<string, string> = {
   campaign: "Campaign", custom: "Custom",
 };
 
-// ── Excel export (client-side via SheetJS) ─────────────────────────────────────
-async function downloadExcel(jobs: CompletedJob[]) {
+// ── Excel export per job ───────────────────────────────────────────────────────
+async function downloadJobExcel(job: CompletedJob) {
   const XLSX = await import("xlsx");
-  const rows = jobs.map((j) => ({
-    "Job ID":          j.id,
-    "Job Type":        TYPE_LABEL[j.type] ?? j.type,
-    "Job Title":       j.title,
-    "Amount (USDC)":   j.price_usdc,
-    "Creator Handle":  j.creator?.twitter_handle ?? "",
-    "Creator Name":    j.creator?.display_name   ?? "",
-    "SOL Wallet":      j.creator?.wallet_address  ?? "",
-    "Proof Link":      j.proof_url ?? "",
-    "Client Handle":   j.client?.twitter_handle  ?? "",
-    "Completed At":    new Date(j.created_at).toLocaleString(),
-  }));
+  const rows = [{
+    "Job ID":         job.id,
+    "Job Type":       TYPE_LABEL[job.type] ?? job.type,
+    "Job Title":      job.title,
+    "Amount (USDC)":  job.price_usdc,
+    "Creator Handle": job.creator?.twitter_handle ?? "",
+    "Creator Name":   job.creator?.display_name   ?? "",
+    "SOL Wallet":     job.creator?.wallet_address  ?? "",
+    "Proof Link":     job.proof_url ?? "",
+    "Client Handle":  job.client?.twitter_handle  ?? "",
+    "Completed At":   new Date(job.created_at).toLocaleString(),
+  }];
 
   const ws = XLSX.utils.json_to_sheet(rows);
-  // Column widths
   ws["!cols"] = [
     { wch: 38 }, { wch: 12 }, { wch: 30 }, { wch: 14 },
     { wch: 20 }, { wch: 22 }, { wch: 46 }, { wch: 55 },
     { wch: 20 }, { wch: 20 },
   ];
-
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Completed Jobs");
-
-  const date = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `yapper-payout-${date}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "Payout");
+  XLSX.writeFile(wb, `payout-${job.id.slice(0, 8)}.xlsx`);
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
@@ -108,6 +106,48 @@ export default function AdminPage() {
   const [acting, setActing]             = useState<string | null>(null);
   const [deleting, setDeleting]         = useState<string | null>(null);
   const [toggling, setToggling]         = useState<string | null>(null);
+  const [activeTypeFilter, setActiveTypeFilter] = useState("all");
+  const [expandedJobs, setExpandedJobs]         = useState<Set<string>>(new Set());
+  const [copiedWallet, setCopiedWallet]         = useState<string | null>(null);
+  const [markingPaid, setMarkingPaid]           = useState<string | null>(null);
+
+  function toggleExpand(id: string) {
+    setExpandedJobs((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function copyWallet(address: string, jobId: string) {
+    navigator.clipboard.writeText(address);
+    setCopiedWallet(jobId);
+    setTimeout(() => setCopiedWallet(null), 1500);
+  }
+
+  function copyAllWallets(jobId: string, wallet: string) {
+    navigator.clipboard.writeText(wallet);
+    setCopiedWallet(`all-${jobId}`);
+    setTimeout(() => setCopiedWallet(null), 1500);
+  }
+
+  async function handleTogglePaid(job: CompletedJob) {
+    setMarkingPaid(job.id);
+    try {
+      const res = await fetch(`/api/admin/jobs/${job.id}?admin_handle=${twitterHandle}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_paid: !job.is_paid }),
+      });
+      if (res.ok) {
+        setCompleted((prev) =>
+          prev.map((j) => j.id === job.id ? { ...j, is_paid: !job.is_paid } : j)
+        );
+      }
+    } finally {
+      setMarkingPaid(null);
+    }
+  }
 
   useEffect(() => {
     if (!isAdmin || !twitterHandle) return;
@@ -236,14 +276,6 @@ export default function AdminPage() {
             </p>
           </div>
 
-          {tab === "completed" && completed.length > 0 && (
-            <button
-              onClick={() => downloadExcel(completed)}
-              className="btn-primary text-sm flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" /> Download Excel
-            </button>
-          )}
         </div>
 
         {/* Tabs */}
@@ -372,6 +404,24 @@ export default function AdminPage() {
               </div>
             )}
             {!loadingActive && active.length > 0 && (
+              <>
+                {/* Type filter */}
+                <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 scrollbar-none">
+                  {["all", "repost", "like_reply", "content", "campaign", "custom"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setActiveTypeFilter(t)}
+                      className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+                        activeTypeFilter === t
+                          ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600"
+                          : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"
+                      }`}
+                    >
+                      {t === "all" ? "All" : TYPE_LABEL[t] ?? t}
+                    </button>
+                  ))}
+                </div>
+
               <div className="overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
                 <table className="w-full text-xs">
                   <thead>
@@ -384,7 +434,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                    {active.map((job) => (
+                    {active.filter((j) => activeTypeFilter === "all" || j.type === activeTypeFilter).map((job) => (
                       <tr key={job.id} className={`bg-white dark:bg-neutral-950 transition-colors ${job.is_hidden ? "opacity-50" : "hover:bg-neutral-50 dark:hover:bg-neutral-900"}`}>
                         <td className="px-4 py-3">
                           <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[200px]">{job.title}</p>
@@ -432,6 +482,7 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </>
         )}
@@ -452,83 +503,126 @@ export default function AdminPage() {
               </div>
             )}
             {!loadingCompleted && completed.length > 0 && (
-              <div className="overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
-                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Creator</th>
-                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Job</th>
-                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Amount</th>
-                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">SOL Wallet</th>
-                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Proof</th>
-                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Date</th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                    {completed.map((job) => (
-                      <tr key={job.id} className="bg-white dark:bg-neutral-950 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-neutral-900 dark:text-white">
-                            {job.creator?.display_name ?? "—"}
+              <>
+              <div className="flex flex-col gap-3">
+                {completed.map((job) => {
+                  const isOpen = expandedJobs.has(job.id);
+                  return (
+                    <div key={job.id} className="card overflow-hidden">
+                      {/* Job header */}
+                      <div className="flex items-center gap-3 px-5 py-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
+                            {job.is_paid && (
+                              <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
+                                Paid
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                            {TYPE_LABEL[job.type] ?? job.type} · ${job.price_usdc} USDC · @{job.client?.twitter_handle ?? "—"} · {timeAgo(job.created_at)}
                           </p>
-                          <p className="text-neutral-400 dark:text-neutral-500">
-                            @{job.creator?.twitter_handle ?? "—"}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[180px]">
-                            {job.title}
-                          </p>
-                          <p className="text-neutral-400 dark:text-neutral-500">
-                            {TYPE_LABEL[job.type] ?? job.type}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
-                          ${job.price_usdc} USDC
-                        </td>
-                        <td className="px-4 py-3">
-                          {job.creator?.wallet_address ? (
-                            <span className="font-mono text-[10px] text-neutral-600 dark:text-neutral-400 break-all">
-                              {job.creator.wallet_address}
-                            </span>
+                        </div>
+                        <button
+                          onClick={() => handleTogglePaid(job)}
+                          disabled={markingPaid === job.id}
+                          title={job.is_paid ? "Mark as Unpaid" : "Mark as Paid"}
+                          className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                            job.is_paid
+                              ? "text-green-500 hover:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                              : "text-neutral-300 dark:text-neutral-700 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950"
+                          }`}
+                        >
+                          {markingPaid === job.id
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <CheckCircle2 className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => job.creator?.wallet_address && copyAllWallets(job.id, job.creator.wallet_address)}
+                          disabled={!job.creator?.wallet_address}
+                          title="Copy Wallet"
+                          className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors shrink-0"
+                        >
+                          {copiedWallet === `all-${job.id}`
+                            ? <Check className="w-4 h-4 text-green-500" />
+                            : <Copy className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => downloadJobExcel(job)}
+                          title="Export Excel"
+                          className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950 transition-colors shrink-0"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(job.id)}
+                          disabled={deleting === job.id}
+                          title="Delete"
+                          className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40 shrink-0"
+                        >
+                          {deleting === job.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => toggleExpand(job.id)}
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
+                        >
+                          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      {/* Creator details (expanded) */}
+                      {isOpen && (
+                        <div className="border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+                          {job.creator ? (
+                            <>
+                              {/* Single row: creator · proof · wallet */}
+                              <div className="flex items-center gap-3 px-5 py-3 text-xs">
+                                <span className="font-medium text-neutral-800 dark:text-neutral-200 shrink-0">
+                                  @{job.creator.twitter_handle}
+                                </span>
+                                <span className="text-neutral-300 dark:text-neutral-700">·</span>
+                                {job.proof_url ? (
+                                  <a href={job.proof_url} target="_blank" rel="noopener noreferrer"
+                                    className="text-blue-500 hover:underline flex items-center gap-1 shrink-0">
+                                    <ExternalLink className="w-3 h-3" /> Proof
+                                  </a>
+                                ) : (
+                                  <span className="text-neutral-300 dark:text-neutral-700 shrink-0">No proof</span>
+                                )}
+                                <span className="text-neutral-300 dark:text-neutral-700">·</span>
+                                {job.creator.wallet_address ? (
+                                  <span className="flex items-center gap-1.5 font-mono text-[10px] text-neutral-600 dark:text-neutral-400 min-w-0">
+                                    <span className="truncate">{job.creator.wallet_address}</span>
+                                    <button
+                                      onClick={() => copyWallet(job.creator!.wallet_address, job.id)}
+                                      className="shrink-0 text-neutral-400 hover:text-blue-500 transition-colors"
+                                    >
+                                      {copiedWallet === job.id
+                                        ? <Check className="w-3 h-3 text-green-500" />
+                                        : <Copy className="w-3 h-3" />}
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <span className="text-neutral-300 dark:text-neutral-700 text-[10px]">No wallet</span>
+                                )}
+                              </div>
+                              {/* Total */}
+                              <div className="flex justify-end px-5 py-2 border-t border-neutral-100 dark:border-neutral-800">
+                                <span className="text-xs text-neutral-400 dark:text-neutral-500 mr-2">Total to pay</span>
+                                <span className="text-xs font-bold text-neutral-900 dark:text-white">${job.price_usdc} USDC</span>
+                              </div>
+                            </>
                           ) : (
-                            <span className="text-neutral-300 dark:text-neutral-700">—</span>
+                            <p className="px-5 py-3 text-xs text-neutral-400 dark:text-neutral-500">No creator data.</p>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {job.proof_url ? (
-                            <a
-                              href={job.proof_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3 shrink-0" />
-                              <span className="truncate max-w-[120px]">View</span>
-                            </a>
-                          ) : (
-                            <span className="text-neutral-300 dark:text-neutral-700">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-neutral-400 dark:text-neutral-500 whitespace-nowrap">
-                          {timeAgo(job.created_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleDelete(job.id)}
-                            disabled={deleting === job.id}
-                            className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40"
-                            title="Delete"
-                          >
-                            {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              </>
             )}
           </>
         )}

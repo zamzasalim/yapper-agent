@@ -19,11 +19,15 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
     }
 
-    const { hidden } = await req.json();
+    const body = await req.json();
     const db = createServerClient();
 
+    const patch: Record<string, unknown> = {};
+    if (typeof body.hidden  === "boolean") patch.is_hidden = body.hidden;
+    if (typeof body.is_paid === "boolean") patch.is_paid   = body.is_paid;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (db.from("jobs").update({ is_hidden: hidden } as any).eq("id", id).select().single());
+    const { data, error } = await (db.from("jobs").update(patch as any).eq("id", id).select().single());
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ job: data });
