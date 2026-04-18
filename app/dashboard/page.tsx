@@ -43,6 +43,7 @@ interface UserRecord {
   rating: number;
   avatar_url: string | null;
   niches: string[] | null;
+  telegram_chat_id: string | null;
 }
 
 interface JobRecord {
@@ -98,6 +99,9 @@ export default function DashboardPage() {
   const [savingWallet, setSavingWallet] = useState(false);
   const [editingWallet, setEditingWallet] = useState(false);
   const [copied, setCopied]             = useState(false);
+
+  const [connectingTelegram, setConnectingTelegram] = useState(false);
+  const [telegramLink, setTelegramLink]             = useState<string | null>(null);
 
   // Derive twitter info from Privy
   const twitterAccount = (user?.linkedAccounts ?? []).find((a: any) => a.type === "twitter_oauth") as any;
@@ -237,6 +241,43 @@ export default function DashboardPage() {
     navigator.clipboard.writeText(profile.wallet_address);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handleConnectTelegram() {
+    if (!twitterHandle) return;
+    setConnectingTelegram(true);
+    setTelegramLink(null);
+    try {
+      const res = await fetch("/api/telegram/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle }),
+      });
+      const data = await res.json();
+      if (data.already_connected) {
+        setProfile((p) => p ? { ...p, telegram_chat_id: "connected" } : p);
+      } else if (data.link) {
+        setTelegramLink(data.link);
+      }
+    } finally {
+      setConnectingTelegram(false);
+    }
+  }
+
+  async function handleDisconnectTelegram() {
+    if (!twitterHandle) return;
+    setConnectingTelegram(true);
+    try {
+      await fetch("/api/telegram/connect", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle }),
+      });
+      setProfile((p) => p ? { ...p, telegram_chat_id: null } : p);
+      setTelegramLink(null);
+    } finally {
+      setConnectingTelegram(false);
+    }
   }
 
   // ── Not authenticated ───────────────────────────────────────────────────
@@ -475,6 +516,68 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── Telegram connect ──────────────────────────────────── */}
+        <div className="card p-5 mb-6 flex flex-col gap-3 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.504-1.356 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.782-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              {profile?.telegram_chat_id ? (
+                <>
+                  <p className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Telegram terhubung
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Kamu akan menerima notifikasi job baru via bot</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Connect your Telegram</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Terima notifikasi & apply job langsung dari bot</p>
+                </>
+              )}
+            </div>
+            {profile?.telegram_chat_id ? (
+              <button
+                onClick={handleDisconnectTelegram}
+                disabled={connectingTelegram}
+                className="btn-outline text-xs px-3 py-1.5 shrink-0 flex items-center gap-1.5 !text-red-500 !border-red-300 dark:!border-red-800"
+              >
+                {connectingTelegram ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={handleConnectTelegram}
+                disabled={connectingTelegram}
+                className="btn-primary text-xs px-4 py-2 shrink-0 flex items-center gap-1.5"
+              >
+                {connectingTelegram ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                {connectingTelegram ? "Loading..." : "Connect"}
+              </button>
+            )}
+          </div>
+
+          {/* Deep link shown after generating token */}
+          {telegramLink && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-100 dark:bg-blue-900/40">
+              <p className="text-xs text-blue-800 dark:text-blue-300 flex-1">
+                Klik link di bawah untuk menghubungkan akun (berlaku 15 menit):
+              </p>
+              <a
+                href={telegramLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary text-xs px-3 py-1.5 shrink-0"
+              >
+                Buka Bot ↗
+              </a>
+            </div>
+          )}
+        </div>
+
         {/* ── Loading skeleton ───────────────────────────────────── */}
         {loading && (
           <div className="flex items-center justify-center py-16 text-neutral-400 dark:text-neutral-500">
@@ -631,26 +734,6 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ── Telegram ──────────────────────────────────────────── */}
-            <div className="card p-5 flex items-center gap-4 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.504-1.356 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.782-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Connect your Telegram</p>
-                <p className="text-xs text-blue-700 dark:text-blue-400">Get job alerts & accept tasks from the bot</p>
-              </div>
-              <a
-                href="https://t.me/yapperagentbot?start=connect"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary text-xs px-4 py-2 shrink-0"
-              >
-                Connect
-              </a>
-            </div>
           </>
         )}
       </div>

@@ -21,6 +21,9 @@ export type Database = {
           is_verified_blue: boolean;
           bio: string | null;
           telegram_chat_id: string | null;
+          telegram_link_token: string | null;
+          telegram_token_expires_at: string | null;
+          telegram_pending_job_id: string | null;
           role: UserRole;
           total_earned_usdc: number;
           jobs_completed: number;
@@ -40,6 +43,9 @@ export type Database = {
           is_verified_blue?: boolean;
           bio?: string | null;
           telegram_chat_id?: string | null;
+          telegram_link_token?: string | null;
+          telegram_token_expires_at?: string | null;
+          telegram_pending_job_id?: string | null;
           role: UserRole;
           total_earned_usdc?: number;
           jobs_completed?: number;

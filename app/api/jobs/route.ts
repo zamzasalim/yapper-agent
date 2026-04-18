@@ -96,7 +96,10 @@ export async function POST(req: NextRequest) {
     revalidatePath("/jobs");
 
     if (job.status === "open") {
-      await notifyNewJob(job);
+      const messageId = await notifyNewJob(job);
+      if (messageId) {
+        await db.from("jobs").update({ telegram_message_id: String(messageId) }).eq("id", job.id);
+      }
     }
 
     return NextResponse.json({ job });
