@@ -20,7 +20,11 @@ import {
   Briefcase,
   Loader2,
   Star,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
+const PAGE_SIZE = 5;
 
 type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
 
@@ -100,6 +104,11 @@ export default function DashboardPage() {
   const [savingWallet, setSavingWallet] = useState(false);
   const [editingWallet, setEditingWallet] = useState(false);
   const [copied, setCopied]             = useState(false);
+
+  const [jobsPage, setJobsPage]             = useState(0);
+  const [clientJobsPage, setClientJobsPage] = useState(0);
+  const [jobsFilter, setJobsFilter]                 = useState<JobStatus | null>(null);
+  const [clientJobsFilter, setClientJobsFilter]     = useState<JobStatus | null>(null);
 
   const [connectingTelegram, setConnectingTelegram] = useState(false);
   const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
@@ -515,20 +524,34 @@ export default function DashboardPage() {
         {/* ── Niche selector ────────────────────────────────────── */}
         {profile && (
           <div className="card p-5 mb-6 overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Your Niches</h3>
-                <p className="text-xs text-neutral-400 dark:text-neutral-500">Pick up to 3. Shown on your creator card.</p>
-              </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-white shrink-0">Your Niches</h3>
+
+              {/* Selected pills inline with title (view mode only) */}
+              {!editingNiches && (
+                selectedNiches.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedNiches.map((niche) => (
+                      <span key={niche} className="inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full border border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600">
+                        {niche}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-neutral-400 dark:text-neutral-500">No niches selected yet.</span>
+                )
+              )}
+
+              {/* Actions */}
               {!editingNiches ? (
                 <button
                   onClick={() => setEditingNiches(true)}
-                  className="btn-outline text-xs px-4 py-1.5 shrink-0"
+                  className="btn-outline text-xs px-4 py-1.5 shrink-0 ml-auto"
                 >
                   Edit
                 </button>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-auto">
                   <button
                     onClick={() => setEditingNiches(false)}
                     className="btn-outline text-xs px-3 py-1.5 shrink-0"
@@ -545,19 +568,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-
-            {/* Selected niches preview (collapsed state) */}
-            {!editingNiches && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {selectedNiches.length > 0 ? selectedNiches.map((niche) => (
-                  <span key={niche} className="inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-full border border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600">
-                    {niche}
-                  </span>
-                )) : (
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">No niches selected yet.</p>
-                )}
-              </div>
-            )}
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Pick up to 3. Shown on your creator card.</p>
 
             {/* Full picker (editing state) */}
             {editingNiches && (
@@ -618,130 +629,245 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Job history ───────────────────────────────────────── */}
-            <div className="card overflow-hidden mb-6">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
-                <h2 className="font-semibold text-neutral-900 dark:text-white">Your Jobs</h2>
-                <Link href="/jobs" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5">
-                  Browse open jobs <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
-
-              {jobs.length > 0 ? (
-                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {jobs.map((job) => (
-                    <div key={job.id} className="px-5 py-4 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-                          {job.title}
-                        </p>
-                        <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                          {job.type} · {new Date(job.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
-                        {job.status.replace("_", " ")}
-                      </span>
-                      <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
-                        ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
-                      </span>
-                      <button className="shrink-0 text-neutral-400 dark:text-neutral-500">
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-neutral-400 dark:text-neutral-500">
-                  <Briefcase className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No jobs yet.</p>
-                  <p className="text-xs mt-1">
-                    <Link href="/jobs" className="text-blue-500 hover:underline">Browse open jobs</Link> to start earning.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Jobs You Posted ───────────────────────────────────── */}
-            {clientJobs.length > 0 && (
-              <div className="card overflow-hidden mb-6">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
-                  <h2 className="font-semibold text-neutral-900 dark:text-white">Jobs You Posted</h2>
-                  <Link href="/post-job" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5">
-                    Post new <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
-                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {clientJobs.map((job) => (
-                    <div key={job.id} className="px-5 py-4 flex flex-col gap-2">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-                            {job.title}
-                          </p>
-                          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                            {job.type} · {new Date(job.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
-                          {job.status.replace("_", " ")}
-                        </span>
-                        <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
-                          ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
-                        </span>
-                      </div>
-
-                      {/* Rating section */}
-                      {job.status === "completed" && job.creator_id && (
-                        job.rating !== null ? (
-                          <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                            <span>Your rating:</span>
-                            {[1,2,3,4,5].map((s) => (
-                              <Star key={s} className={`w-3.5 h-3.5 ${s <= job.rating! ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
-                            ))}
-                          </div>
-                        ) : ratingJobId === job.id ? (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <div className="flex items-center gap-0.5">
-                              {[1,2,3,4,5].map((s) => (
-                                <button
-                                  key={s}
-                                  onMouseEnter={() => setRatingHover(s)}
-                                  onMouseLeave={() => setRatingHover(0)}
-                                  onClick={() => setRatingValue(s)}
-                                  className="p-0.5"
-                                >
-                                  <Star className={`w-5 h-5 transition-colors ${s <= (ratingHover || ratingValue) ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
-                                </button>
-                              ))}
-                            </div>
-                            <button
-                              onClick={() => handleSubmitRating(job.id)}
-                              disabled={!ratingValue || submittingRating}
-                              className="btn-primary text-xs px-3 py-1.5"
-                            >
-                              {submittingRating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Submit"}
-                            </button>
-                            <button
-                              onClick={() => { setRatingJobId(null); setRatingValue(0); setRatingHover(0); }}
-                              className="text-xs text-neutral-400 hover:text-neutral-600"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
+            {(() => {
+              const filtered = jobsFilter ? jobs.filter((j) => j.status === jobsFilter) : jobs;
+              const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+              const paged = filtered.slice(jobsPage * PAGE_SIZE, (jobsPage + 1) * PAGE_SIZE);
+              const statuses = Array.from(new Set(jobs.map((j) => j.status))) as JobStatus[];
+              return (
+                <div className="card overflow-hidden mb-6">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="font-semibold text-neutral-900 dark:text-white shrink-0">Your Jobs</h2>
+                      {jobs.length > 0 && statuses.length > 1 && (
+                        <>
                           <button
-                            onClick={() => { setRatingJobId(job.id); setRatingValue(0); setRatingHover(0); }}
-                            className="text-xs text-blue-500 hover:underline self-start flex items-center gap-1"
+                            onClick={() => { setJobsFilter(null); setJobsPage(0); }}
+                            className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!jobsFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
                           >
-                            <Star className="w-3 h-3" /> Rate this creator
+                            All
                           </button>
-                        )
+                          {statuses.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => { setJobsFilter(s); setJobsPage(0); }}
+                              className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${jobsFilter === s ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
+                            >
+                              {s.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                            </button>
+                          ))}
+                        </>
                       )}
                     </div>
-                  ))}
+                    <Link href="/jobs" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 shrink-0">
+                      Browse open jobs <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+
+                  {filtered.length > 0 ? (
+                    <>
+                      <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                        {paged.map((job) => (
+                          <div key={job.id} className="px-5 py-4 flex items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+                                {job.title}
+                              </p>
+                              <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                                {job.type} · {new Date(job.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
+                              {job.status.replace("_", " ")}
+                            </span>
+                            <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
+                              ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
+                            </span>
+                            <button className="shrink-0 text-neutral-400 dark:text-neutral-500">
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 dark:border-neutral-800">
+                          <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                            {jobsPage * PAGE_SIZE + 1}–{Math.min((jobsPage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setJobsPage((p) => p - 1)}
+                              disabled={jobsPage === 0}
+                              className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="text-xs text-neutral-500 px-1">{jobsPage + 1} / {totalPages}</span>
+                            <button
+                              onClick={() => setJobsPage((p) => p + 1)}
+                              disabled={jobsPage >= totalPages - 1}
+                              className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-neutral-400 dark:text-neutral-500">
+                      <Briefcase className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">{jobsFilter ? `No "${jobsFilter.replace("_", " ")}" jobs.` : "No jobs yet."}</p>
+                      {!jobsFilter && (
+                        <p className="text-xs mt-1">
+                          <Link href="/jobs" className="text-blue-500 hover:underline">Browse open jobs</Link> to start earning.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
+
+            {/* ── Jobs You Posted ───────────────────────────────────── */}
+            {clientJobs.length > 0 && (() => {
+              const filteredCJ = clientJobsFilter ? clientJobs.filter((j) => j.status === clientJobsFilter) : clientJobs;
+              const totalPages = Math.ceil(filteredCJ.length / PAGE_SIZE);
+              const paged = filteredCJ.slice(clientJobsPage * PAGE_SIZE, (clientJobsPage + 1) * PAGE_SIZE);
+              const statusesCJ = Array.from(new Set(clientJobs.map((j) => j.status))) as JobStatus[];
+              return (
+                <div className="card overflow-hidden mb-6">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="font-semibold text-neutral-900 dark:text-white shrink-0">Jobs You Posted</h2>
+                      {statusesCJ.length > 1 && (
+                        <>
+                          <button
+                            onClick={() => { setClientJobsFilter(null); setClientJobsPage(0); }}
+                            className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!clientJobsFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
+                          >
+                            All
+                          </button>
+                          {statusesCJ.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => { setClientJobsFilter(s); setClientJobsPage(0); }}
+                              className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${clientJobsFilter === s ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
+                            >
+                              {s.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    <Link href="/post-job" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 shrink-0">
+                      Post new <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+
+                  <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {paged.map((job) => (
+                      <div key={job.id} className="px-5 py-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
+                              {job.title}
+                            </p>
+                            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                              {job.type} · {new Date(job.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
+                            {job.status.replace("_", " ")}
+                          </span>
+                          <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
+                            ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
+                          </span>
+                        </div>
+
+                        {/* Rating section */}
+                        {job.status === "completed" && job.creator_id && (
+                          job.rating !== null ? (
+                            <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
+                              <span>Your rating:</span>
+                              {[1,2,3,4,5].map((s) => (
+                                <Star key={s} className={`w-3.5 h-3.5 ${s <= job.rating! ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
+                              ))}
+                            </div>
+                          ) : ratingJobId === job.id ? (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center gap-0.5">
+                                {[1,2,3,4,5].map((s) => (
+                                  <button
+                                    key={s}
+                                    onMouseEnter={() => setRatingHover(s)}
+                                    onMouseLeave={() => setRatingHover(0)}
+                                    onClick={() => setRatingValue(s)}
+                                    className="p-0.5"
+                                  >
+                                    <Star className={`w-5 h-5 transition-colors ${s <= (ratingHover || ratingValue) ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => handleSubmitRating(job.id)}
+                                disabled={!ratingValue || submittingRating}
+                                className="btn-primary text-xs px-3 py-1.5"
+                              >
+                                {submittingRating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Submit"}
+                              </button>
+                              <button
+                                onClick={() => { setRatingJobId(null); setRatingValue(0); setRatingHover(0); }}
+                                className="text-xs text-neutral-400 hover:text-neutral-600"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setRatingJobId(job.id); setRatingValue(0); setRatingHover(0); }}
+                              className="text-xs text-blue-500 hover:underline self-start flex items-center gap-1"
+                            >
+                              <Star className="w-3 h-3" /> Rate this creator
+                            </button>
+                          )
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {paged.length === 0 && (
+                    <div className="text-center py-10 text-neutral-400 dark:text-neutral-500">
+                      <Briefcase className="w-7 h-7 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">{clientJobsFilter ? `No "${clientJobsFilter.replace("_", " ")}" jobs.` : "No jobs posted."}</p>
+                    </div>
+                  )}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 dark:border-neutral-800">
+                      <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                        {clientJobsPage * PAGE_SIZE + 1}–{Math.min((clientJobsPage + 1) * PAGE_SIZE, filteredCJ.length)} of {filteredCJ.length}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setClientJobsPage((p) => p - 1)}
+                          disabled={clientJobsPage === 0}
+                          className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="text-xs text-neutral-500 px-1">{clientJobsPage + 1} / {totalPages}</span>
+                        <button
+                          onClick={() => setClientJobsPage((p) => p + 1)}
+                          disabled={clientJobsPage >= totalPages - 1}
+                          className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           </>
         )}

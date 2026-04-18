@@ -226,15 +226,15 @@ export default function HomePage() {
       </section>
 
       {/* Why Us? — ticker */}
-      <section className="border-y border-neutral-800 bg-neutral-950 overflow-hidden py-5">
+      <section className="border-y border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-950 overflow-hidden py-5">
         <div className="animate-ticker">
           {[...Array(6)].map((_, i) => (
-            <span key={i} className="flex items-center gap-4 px-8 whitespace-nowrap text-sm font-semibold text-white">
-              <span className="text-neutral-500">·</span>
-              <span className="text-neutral-300">Powered by <span className="text-blue-400">IndoYaps</span></span>
-              <span className="text-neutral-500">·</span>
-              <span className="text-neutral-300"><span className="text-blue-400"></span>Community Hub for Web3 Creators</span>
-              <span className="text-neutral-500">·</span>
+            <span key={i} className="flex items-center gap-4 px-8 whitespace-nowrap text-sm font-semibold text-neutral-900 dark:text-white">
+              <span className="text-neutral-400 dark:text-neutral-500">·</span>
+              <span className="text-neutral-600 dark:text-neutral-300">Powered by <span className="text-blue-600 dark:text-blue-400">IndoYaps</span></span>
+              <span className="text-neutral-400 dark:text-neutral-500">·</span>
+              <span className="text-neutral-600 dark:text-neutral-300"><span className="text-blue-600 dark:text-blue-400"></span>Community Hub for Web3 Creators</span>
+              <span className="text-neutral-400 dark:text-neutral-500">·</span>
             </span>
           ))}
         </div>
@@ -379,19 +379,19 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href="https://t.me/yapperagent"
+              href={`https://t.me/${(process.env.TELEGRAM_CHANNEL_ID ?? "@yapperagent").replace(/^@/, "")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-primary bg-white text-blue-600 hover:bg-blue-50 px-6 py-3 text-sm"
+              className="inline-flex items-center justify-center gap-1.5 bg-white text-blue-600 hover:bg-blue-50 font-semibold px-6 py-3 text-sm rounded-lg transition-colors"
             >
               Join Channel
               <ArrowRight className="w-4 h-4" />
             </a>
             <a
-              href="https://t.me/yapperagentbot"
+              href={`https://t.me/${process.env.TELEGRAM_BOT_USERNAME ?? "yapper_agent_bot"}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-outline border-white/30 text-white hover:bg-white/10 px-6 py-3 text-sm"
+              className="inline-flex items-center justify-center gap-1.5 bg-white text-blue-600 hover:bg-blue-50 font-semibold px-6 py-3 text-sm rounded-lg transition-colors"
             >
               Start Bot
             </a>
