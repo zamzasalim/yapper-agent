@@ -87,6 +87,7 @@ export default function DashboardPage() {
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
   const [savingNiches, setSavingNiches]     = useState(false);
   const [nichesSaved, setNichesSaved]       = useState(false);
+  const [editingNiches, setEditingNiches]   = useState(false);
   const [ratingJobId, setRatingJobId]   = useState<string | null>(null);
   const [ratingValue, setRatingValue]   = useState(0);
   const [ratingHover, setRatingHover]   = useState(0);
@@ -401,42 +402,76 @@ export default function DashboardPage() {
 
         {/* ── Niche selector ────────────────────────────────────── */}
         {profile && (
-          <div className="card p-5 mb-6">
-            <div className="flex items-center justify-between mb-3">
+          <div className="card p-5 mb-6 overflow-hidden">
+            <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Your Niches</h3>
                 <p className="text-xs text-neutral-400 dark:text-neutral-500">Pick up to 3. Shown on your creator card.</p>
               </div>
-              <button
-                onClick={handleSaveNiches}
-                disabled={savingNiches}
-                className="btn-primary text-xs px-4 py-1.5 shrink-0"
-              >
-                {savingNiches ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : nichesSaved ? "Saved!" : <><Save className="w-3.5 h-3.5" /> Save</>}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {ALL_NICHES.map((niche) => {
-                const active = selectedNiches.includes(niche);
-                const disabled = !active && selectedNiches.length >= 3;
-                return (
+              {!editingNiches ? (
+                <button
+                  onClick={() => setEditingNiches(true)}
+                  className="btn-outline text-xs px-4 py-1.5 shrink-0"
+                >
+                  Edit
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
                   <button
-                    key={niche}
-                    onClick={() => toggleNiche(niche)}
-                    disabled={disabled}
-                    className={`inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-                      active
-                        ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600"
-                        : disabled
-                        ? "border-neutral-200 dark:border-neutral-800 text-neutral-300 dark:text-neutral-600 bg-transparent cursor-not-allowed"
-                        : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 bg-transparent hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 dark:hover:text-blue-400 cursor-pointer"
-                    }`}
+                    onClick={() => setEditingNiches(false)}
+                    className="btn-outline text-xs px-3 py-1.5 shrink-0"
                   >
-                    {niche}
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                );
-              })}
+                  <button
+                    onClick={async () => { await handleSaveNiches(); setEditingNiches(false); }}
+                    disabled={savingNiches}
+                    className="btn-primary text-xs px-4 py-1.5 shrink-0"
+                  >
+                    {savingNiches ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : nichesSaved ? "Saved!" : <><Save className="w-3.5 h-3.5" /> Save</>}
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Selected niches preview (collapsed state) */}
+            {!editingNiches && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {selectedNiches.length > 0 ? selectedNiches.map((niche) => (
+                  <span key={niche} className="inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-full border border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600">
+                    {niche}
+                  </span>
+                )) : (
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">No niches selected yet.</p>
+                )}
+              </div>
+            )}
+
+            {/* Full picker (editing state) */}
+            {editingNiches && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3 w-full">
+                {ALL_NICHES.map((niche) => {
+                  const isActive = selectedNiches.includes(niche);
+                  const disabled = !isActive && selectedNiches.length >= 3;
+                  return (
+                    <button
+                      key={niche}
+                      onClick={() => toggleNiche(niche)}
+                      disabled={disabled}
+                      className={`w-full text-center text-xs font-medium px-2 py-1.5 rounded-full border transition-colors truncate ${
+                        isActive
+                          ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600"
+                          : disabled
+                          ? "border-neutral-200 dark:border-neutral-800 text-neutral-300 dark:text-neutral-600 bg-transparent cursor-not-allowed"
+                          : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 bg-transparent hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 dark:hover:text-blue-400 cursor-pointer"
+                      }`}
+                    >
+                      {niche}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -453,17 +488,19 @@ export default function DashboardPage() {
             {/* ── Stats ────────────────────────────────────────────── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {[
-                { label: "Total Earned",   value: `$${totalEarned.toFixed(2)} USDC`, icon: TrendingUp,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950"  },
-                { label: "Jobs Completed", value: completed.toString(),              icon: CheckCircle2, color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950"    },
-                { label: "Active Jobs",    value: active.toString(),                 icon: Clock,        color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950"  },
-                { label: "Platform Fee",   value: "0%",                              icon: Zap,          color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950" },
+                { label: "Total Earned",   value: `$${totalEarned.toFixed(2)} USDC`, icon: TrendingUp,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950"   },
+                { label: "Jobs Completed", value: completed.toString(),               icon: CheckCircle2, color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950"     },
+                { label: "Active Jobs",    value: active.toString(),                  icon: Clock,        color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950"   },
+                { label: "Platform Fee",   value: "0%",                               icon: Zap,          color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950"  },
               ].map((s) => (
-                <div key={s.label} className="card p-4 flex flex-col gap-2">
-                  <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center`}>
-                    <s.icon className={`w-4 h-4 ${s.color}`} />
+                <div key={s.label} className="card p-4 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
+                    <s.icon className={`w-5 h-5 ${s.color}`} />
                   </div>
-                  <p className="text-xl font-extrabold text-neutral-900 dark:text-white">{s.value}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500">{s.label}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-1.5">{s.label}</p>
+                    <p className="text-base font-bold text-neutral-900 dark:text-white leading-none truncate">{s.value}</p>
+                  </div>
                 </div>
               ))}
             </div>

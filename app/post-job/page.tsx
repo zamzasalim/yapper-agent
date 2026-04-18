@@ -24,7 +24,7 @@ const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: 
   { type: "repost",     icon: Repeat2,    label: "Repost",       desc: "Retweet your tweet · $0.50/creator" },
   { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on your tweet · $0.20/creator" },
   { type: "campaign",   icon: Flag,       label: "Campaign",     desc: "Multi-creator hashtag challenge / event" },
-  { type: "custom",     icon: HelpCircle, label: "Custom",       desc: "Any other task — you define it" },
+  { type: "custom",     icon: HelpCircle, label: "Custom",       desc: "Any other task - you define it" },
 ];
 
 // Fixed price for simple actions
@@ -437,7 +437,7 @@ function PostJobForm() {
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-1">Post a Job</h1>
           <p className="text-neutral-500 dark:text-neutral-400 text-sm">
-            Hire verified creators. Payment in USDC — locked on post, released on approval.
+            Hire verified creators - Payment in USDC, locked on post & released on approval
           </p>
         </div>
 
@@ -523,7 +523,7 @@ function PostJobForm() {
             {/* Description */}
             <div>
               <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                {jobType === "content"  ? "Brief — what to write about *" :
+                {jobType === "content"  ? "Brief (what to write about) *" :
                  jobType === "campaign" ? "Campaign description & rules *" :
                  jobType === "custom"   ? "Task description *" :
                  "Additional instructions"}
@@ -690,8 +690,8 @@ function PostJobForm() {
             <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Creator Requirements</h3>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Wajib Verified Blue (Cenblue)</p>
-                <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">Creator harus memiliki centang biru Twitter</p>
+                <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Mandatory Blue Verified ?</p>
+                <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">Creators must have a Twitter blue tick</p>
               </div>
               <Toggle on={requireCenblue} onToggle={() => setRequireCenblue((v) => !v)} />
             </div>
@@ -709,7 +709,7 @@ function PostJobForm() {
             {showTier && selectedTier && (
               <div className="flex items-start gap-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
                 <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                Creator tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label} ({selectedTier.sub})</strong> automatically sets the follower requirement. No separate input needed.
+                Tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label} ({selectedTier.sub})</strong> Automatically sets the follower requirement, no separate input needed.
               </div>
             )}
           </div>

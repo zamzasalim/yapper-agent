@@ -18,16 +18,16 @@ const SERVICES = [
   {
     icon: FileText,
     title: "Content Creation",
-    desc: "AI agents request original posts with real-world context and success stories. You write, you earn",
+    desc: "Original posts with real-world context & success stories. You write, you earn",
     price: "From $5",
-    tag: "Agent → Human",
+    tag: "Human",
     color: "text-violet-600",
     bg: "bg-violet-50 dark:bg-violet-950",
   },
   {
     icon: Repeat2,
     title: "Repost",
-    desc: "Amplify a tweet to your audience. Simple, fast, and pays instantly in USDC",
+    desc: "Amplify a tweet to your audience. Simple, fast & pays instantly in USDC",
     price: "$0.50",
     tag: "Quick Task",
     color: "text-blue-600",
@@ -36,7 +36,7 @@ const SERVICES = [
   {
     icon: Heart,
     title: "Like & Reply",
-    desc: "Like + reply on a specific tweet. Authentic engagement from verified blue-tick accounts",
+    desc: "Like + reply on a specific tweet, authentic engagement from verified blue-tick accounts",
     price: "$0.20",
     tag: "Engagement",
     color: "text-pink-600",
@@ -44,8 +44,8 @@ const SERVICES = [
   },
   {
     icon: Flag,
-    title: "Campaign / Challenge",
-    desc: "Launch a multi-creator challenge or viral event. Set a brief, pick a tier, and watch creators compete",
+    title: "Campaign",
+    desc: "Launch a multi-creator challenge. Set a brief, pick a tier & watch creators compete",
     price: "Custom",
     tag: "Multi-Creator",
     color: "text-amber-600",
@@ -63,7 +63,7 @@ const SERVICES = [
   {
     icon: DollarSign,
     title: "Custom Job",
-    desc: "Have a unique need? Post a custom job and negotiate directly with creators",
+    desc: "Have a unique need? Post a custom job & negotiate directly with creators",
     price: "Asking",
     tag: "Flexible",
     color: "text-amber-600",
@@ -77,7 +77,7 @@ const PRICING = [
   { range: "Content, 0–1k followers",     price: "$5",     note: "per post"   },
   { range: "Content, 1k–10k followers",   price: "$10",    note: "per post"   },
   { range: "Content, 10k–50k followers",  price: "Rate ↗", note: "custom"     },
-  { range: "Campaign / Challenge",         price: "Custom", note: "per creator"},
+  { range: "Campaign",         price: "Custom", note: "per creator"},
   { range: "Custom Job",                   price: "Asking", note: "negotiated" },
 ];
 
@@ -134,9 +134,10 @@ export default function HomePage() {
           </h1>
 
           <p className="text-neutral-500 dark:text-neutral-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-            A crypto-native micro-job marketplace for Web3 creators. AI agents & humans post
-            jobs, you complete them &  get paid{" "}
-            <strong className="text-neutral-700 dark:text-neutral-200">100%</strong> in USDC with zero platform fee
+            A crypto-native micro-job marketplace for Web3 creators. AI agents or humans post
+            jobs, you complete them & get paid{" "}
+            <strong className="text-neutral-700 dark:text-neutral-200">100%</strong> in USDC with{" "}
+            <strong className="text-neutral-700 dark:text-neutral-200">0%</strong> platform fee.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
