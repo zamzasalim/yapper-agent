@@ -376,8 +376,11 @@ export default function DashboardPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
-                @{twitterHandle}
+                {displayName || twitterHandle}
               </h1>
+              {twitterHandle && (
+                <span className="text-xs text-neutral-400 dark:text-neutral-500">@{twitterHandle}</span>
+              )}
               {profile?.is_verified_blue && (
                 <CheckCircle2 className="w-4 h-4 text-blue-500" />
               )}
@@ -428,8 +431,8 @@ export default function DashboardPage() {
                 </svg>
                 {profile?.telegram_chat_id ? (
                   <>
-                    <span className="font-mono">
-                      {profile.telegram_username ? `@${profile.telegram_username}` : "Connected"}
+                    <span>
+                      {profile.telegram_username ?? "Connected"}
                     </span>
                     <button
                       onClick={handleDisconnectTelegram}
