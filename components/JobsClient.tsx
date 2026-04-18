@@ -18,8 +18,8 @@ interface Job {
   status: JobStatus;
   isAgentJob: boolean;
   clientHandle: string;
+  requireBlue?: boolean;
   minFollowers?: number;
-  maxFollowers?: number;
   deadline: string;
   postedAt: string;
 }

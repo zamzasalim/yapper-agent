@@ -18,6 +18,8 @@ interface RawJob {
   tweet_url: string | null;
   is_agent_job: boolean;
   deadline_hours: number;
+  require_blue: boolean;
+  min_followers: number;
   client: { twitter_handle: string; display_name: string } | null;
 }
 
@@ -37,9 +39,11 @@ async function getJobs(): Promise<RawJob[] | null> {
       .select(
         `id, created_at, type, status, title, description,
          price_usdc, tweet_url, is_agent_job, deadline_hours,
+         require_blue, min_followers,
          client:users!client_id(twitter_handle, display_name)`
       )
       .in("status", ["open", "in_progress"])
+      .or("is_hidden.eq.false,is_hidden.is.null" as never)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -62,6 +66,8 @@ export default async function JobsPage() {
     status: j.status as "open",
     isAgentJob: j.is_agent_job,
     clientHandle: j.client?.twitter_handle ?? "unknown",
+    requireBlue: j.require_blue ?? false,
+    minFollowers: j.min_followers ?? 0,
     deadline: `${j.deadline_hours}h`,
     postedAt: timeAgo(j.created_at),
   }));

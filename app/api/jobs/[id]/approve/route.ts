@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { notifyNewJob } from "@/lib/telegram";
 
 const ADMINS = ["Autosultan_team", "0xhnfdm"];
 
@@ -56,6 +57,10 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (newStatus === "open") {
+      await notifyNewJob(updated);
     }
 
     return NextResponse.json({ job: updated, action: newStatus });

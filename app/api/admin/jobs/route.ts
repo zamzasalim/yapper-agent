@@ -23,15 +23,24 @@ export async function GET(req: NextRequest) {
 
     const db = createServerClient();
 
-    const { data, error } = await db
+    const statusFilter = req.nextUrl.searchParams.get("status") ?? "pending_approval";
+
+    let query = db
       .from("jobs")
       .select(
         `id, created_at, type, status, title, description, price_usdc,
-         is_agent_job, deadline_hours,
+         is_agent_job, is_hidden, deadline_hours,
          client:users!client_id(twitter_handle, display_name, avatar_url)`
       )
-      .eq("status", "pending_approval")
       .order("created_at", { ascending: false });
+
+    if (statusFilter === "active") {
+      query = query.in("status", ["open", "in_progress"]);
+    } else {
+      query = query.eq("status", statusFilter as "pending_approval");
+    }
+
+    const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

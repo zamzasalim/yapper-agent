@@ -21,10 +21,10 @@ type TxPhase = "idle" | "verifying" | "verified" | "error";
 
 const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: string }[] = [
   { type: "content",    icon: FileText,   label: "Content",      desc: "Original tweet / thread by creator" },
-  { type: "repost",     icon: Repeat2,    label: "Repost",       desc: "Retweet your tweet · $0.50/creator" },
-  { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on your tweet · $0.20/creator" },
-  { type: "campaign",   icon: Flag,       label: "Campaign",     desc: "Multi-creator hashtag challenge / event" },
-  { type: "custom",     icon: HelpCircle, label: "Custom",       desc: "Any other task - you define it" },
+  { type: "repost",     icon: Repeat2,    label: "Repost",       desc: "Retweet your tweet" },
+  { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on your tweet" },
+  { type: "campaign",   icon: Flag,       label: "Campaign",     desc: "Multi-creator campaign / challenge" },
+  { type: "custom",     icon: HelpCircle, label: "Custom",       desc: "Any other task, you define it" },
 ];
 
 // Fixed price for simple actions
@@ -233,7 +233,7 @@ function PostJobForm() {
       showTier ? (selectedTier?.min ?? 0) : minFollowers;
 
     const reqParts: string[] = [];
-    if (requireCenblue)          reqParts.push("cenblue wajib");
+    if (requireCenblue)          reqParts.push("verified only");
     if (effectiveMinFollowers > 0) reqParts.push(`min. ${effectiveMinFollowers.toLocaleString()} followers`);
     const reqPrefix = reqParts.length > 0 ? `[S&K: ${reqParts.join(", ")}]\n\n` : "";
 
@@ -287,6 +287,8 @@ function PostJobForm() {
         tweet_url: tweetUrl || null,
         content_brief: null,
         is_agent_job: isAgentJob,
+        require_blue: requireCenblue,
+        min_followers: effectiveMinFollowers,
         deadline_hours: jobType === "campaign"
           ? parseInt(campaignDuration) * 24
           : parseInt(deadline),

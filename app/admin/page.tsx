@@ -5,7 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Navbar } from "@/components/Navbar";
 import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
-  Zap, Download, ExternalLink, Users,
+  Zap, Download, ExternalLink, Users, Trash2, EyeOff, Eye,
 } from "lucide-react";
 
 const ADMINS = ["Autosultan_team", "0xhnfdm"];
@@ -20,6 +20,17 @@ interface PendingJob {
   is_agent_job: boolean;
   deadline_hours: number;
   client: { twitter_handle: string; display_name: string; avatar_url: string | null } | null;
+}
+
+interface ActiveJob {
+  id: string;
+  created_at: string;
+  type: string;
+  status: string;
+  title: string;
+  price_usdc: number;
+  is_hidden: boolean;
+  client: { twitter_handle: string; display_name: string } | null;
 }
 
 interface CompletedJob {
@@ -87,12 +98,16 @@ export default function AdminPage() {
 
   const isAdmin = ADMINS.some((a) => a.toLowerCase() === twitterHandle.toLowerCase());
 
-  const [tab, setTab]                   = useState<"pending" | "completed">("pending");
+  const [tab, setTab]                   = useState<"pending" | "active" | "completed">("pending");
   const [pending, setPending]           = useState<PendingJob[]>([]);
+  const [active, setActive]             = useState<ActiveJob[]>([]);
   const [completed, setCompleted]       = useState<CompletedJob[]>([]);
   const [loadingPending, setLoadingP]   = useState(false);
+  const [loadingActive, setLoadingA]    = useState(false);
   const [loadingCompleted, setLoadingC] = useState(false);
   const [acting, setActing]             = useState<string | null>(null);
+  const [deleting, setDeleting]         = useState<string | null>(null);
+  const [toggling, setToggling]         = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin || !twitterHandle) return;
@@ -104,6 +119,15 @@ export default function AdminPage() {
   }, [isAdmin, twitterHandle]);
 
   useEffect(() => {
+    if (!isAdmin || !twitterHandle || tab !== "active") return;
+    setLoadingA(true);
+    fetch(`/api/admin/jobs?admin_handle=${twitterHandle}&status=active`)
+      .then((r) => r.json())
+      .then((d) => setActive(d.jobs ?? []))
+      .finally(() => setLoadingA(false));
+  }, [isAdmin, twitterHandle, tab]);
+
+  useEffect(() => {
     if (!isAdmin || !twitterHandle || tab !== "completed") return;
     if (completed.length > 0) return; // already loaded
     setLoadingC(true);
@@ -112,6 +136,40 @@ export default function AdminPage() {
       .then((d) => setCompleted(d.jobs ?? []))
       .finally(() => setLoadingC(false));
   }, [isAdmin, twitterHandle, tab]);
+
+  async function handleToggleHidden(jobId: string, currentHidden: boolean) {
+    setToggling(jobId);
+    try {
+      const res = await fetch(`/api/admin/jobs/${jobId}?admin_handle=${twitterHandle}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hidden: !currentHidden }),
+      });
+      if (res.ok) {
+        setActive((prev) =>
+          prev.map((j) => j.id === jobId ? { ...j, is_hidden: !currentHidden } : j)
+        );
+      }
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  async function handleDelete(jobId: string) {
+    if (!confirm("Delete this job permanently?")) return;
+    setDeleting(jobId);
+    try {
+      const res = await fetch(`/api/admin/jobs/${jobId}?admin_handle=${twitterHandle}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setPending((prev) => prev.filter((j) => j.id !== jobId));
+        setCompleted((prev) => prev.filter((j) => j.id !== jobId));
+      }
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   async function handleAction(jobId: string, action: "approve" | "reject") {
     setActing(jobId);
@@ -206,6 +264,16 @@ export default function AdminPage() {
             )}
           </button>
           <button
+            onClick={() => setTab("active")}
+            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
+              tab === "active"
+                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
+                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
+            }`}
+          >
+            Active Jobs
+          </button>
+          <button
             onClick={() => setTab("completed")}
             className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
               tab === "completed"
@@ -271,10 +339,98 @@ export default function AdminPage() {
                           {acting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                           Reject
                         </button>
+                        <button
+                          onClick={() => handleDelete(job.id)}
+                          disabled={deleting === job.id}
+                          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950 text-neutral-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 border border-neutral-200 dark:border-neutral-700 transition-colors disabled:opacity-50"
+                        >
+                          {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── ACTIVE JOBS TAB ── */}
+        {tab === "active" && (
+          <>
+            {loadingActive && (
+              <div className="flex items-center justify-center py-20 text-neutral-400 dark:text-neutral-500">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span className="text-sm">Loading…</span>
+              </div>
+            )}
+            {!loadingActive && active.length === 0 && (
+              <div className="card p-12 text-center text-neutral-400 dark:text-neutral-500">
+                <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No active jobs.</p>
+              </div>
+            )}
+            {!loadingActive && active.length > 0 && (
+              <div className="overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Job</th>
+                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Client</th>
+                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Status</th>
+                      <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Amount</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {active.map((job) => (
+                      <tr key={job.id} className={`bg-white dark:bg-neutral-950 transition-colors ${job.is_hidden ? "opacity-50" : "hover:bg-neutral-50 dark:hover:bg-neutral-900"}`}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[200px]">{job.title}</p>
+                          <p className="text-neutral-400 dark:text-neutral-500">{TYPE_LABEL[job.type] ?? job.type}</p>
+                        </td>
+                        <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400">
+                          @{job.client?.twitter_handle ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                            job.is_hidden
+                              ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border-neutral-200 dark:border-neutral-700"
+                              : job.status === "in_progress"
+                              ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                              : "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
+                          }`}>
+                            {job.is_hidden ? <><EyeOff className="w-2.5 h-2.5" /> Hidden</> : job.status === "in_progress" ? "In Progress" : "Open"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-neutral-900 dark:text-white whitespace-nowrap">
+                          ${job.price_usdc} USDC
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => handleToggleHidden(job.id, job.is_hidden)}
+                              disabled={toggling === job.id}
+                              title={job.is_hidden ? "Show" : "Hide"}
+                              className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40"
+                            >
+                              {toggling === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : job.is_hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(job.id)}
+                              disabled={deleting === job.id}
+                              title="Delete"
+                              className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40"
+                            >
+                              {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </>
@@ -306,6 +462,7 @@ export default function AdminPage() {
                       <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">SOL Wallet</th>
                       <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Proof</th>
                       <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Date</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -356,6 +513,16 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3 text-neutral-400 dark:text-neutral-500 whitespace-nowrap">
                           {timeAgo(job.created_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleDelete(job.id)}
+                            disabled={deleting === job.id}
+                            className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40"
+                            title="Delete"
+                          >
+                            {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
                         </td>
                       </tr>
                     ))}

@@ -75,7 +75,7 @@ export async function PATCH(
 
     if (requireCenblue && !isBlueVerified) {
       return NextResponse.json(
-        { error: "This job requires a verified blue (cenblue) account." },
+        { error: "This job requires a verified (blue tick) account." },
         { status: 403 }
       );
     }
