@@ -69,10 +69,11 @@ const PROOF_PLACEHOLDER: Record<JobType, string> = {
   custom:     "https://x.com/yourhandle/status/...",
 };
 
-function formatFollowerRange(min: number, max: number) {
-  const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(0)}K` : n.toString());
-  if (max >= 99999) return `${fmt(min)}+`;
-  return `${fmt(min)} – ${fmt(max)}`;
+function deriveTierLabel(minFollowers: number): string {
+  if (minFollowers >= 50000) return "Macro";
+  if (minFollowers >= 10000) return "Mid";
+  if (minFollowers >= 1000)  return "Micro";
+  return "Nano";
 }
 
 // ─── Modal phases ─────────────────────────────────────────────────────────────
@@ -322,10 +323,11 @@ export function JobCard({ job }: { job: Job }) {
   }
 
   const isEngagementJob = job.type === "repost" || job.type === "like_reply";
-  const showFollowers   = !!job.minFollowers && job.minFollowers > 0;
+  const hasTierJob      = job.type === "content" || job.type === "campaign";
   const hasTweetBadge   = isEngagementJob && job.tweetUrl;
   const showRequireBlue = !!job.requireBlue;
-  const showEveryone    = !job.requireBlue && !showFollowers;
+  const showFollowers   = isEngagementJob && !!job.minFollowers && job.minFollowers > 0;
+  const tierLabel       = hasTierJob ? deriveTierLabel(job.minFollowers ?? 0) : null;
   const maxCreators     = job.maxCreators ?? 1;
   const slotsLeft       = Math.max(0, maxCreators - (job.slotsTaken ?? 0));
   const isMulti         = maxCreators > 1;
@@ -371,37 +373,46 @@ export function JobCard({ job }: { job: Job }) {
           </div>
         </div>
 
-        {/* Requirement badges */}
-        {(showRequireBlue || showEveryone || showFollowers || job.isAgentJob || isMulti) && (
-          <div className="flex items-center justify-between gap-1.5">
-            {job.isAgentJob && (
-              <span className="tag text-[10px] px-2 py-0.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 flex items-center gap-0.5">
-                <Bot className="w-3 h-3" /> Agent
-              </span>
-            )}
-            {showRequireBlue && (
-              <span className="tag text-[10px] px-2 py-0.5 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 flex items-center gap-0.5 font-semibold">
-                <CheckCircle2 className="w-3 h-3 text-blue-500" /> <span className="text-blue-600 dark:text-blue-400">Verified Only</span>
-              </span>
-            )}
-            {showEveryone && (
-              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-0.5">
-                <Users className="w-3 h-3" /> Everyone
-              </span>
-            )}
-            {showFollowers && (
-              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+
-              </span>
-            )}
-            {isMulti && (
-              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
-                <Layers className="w-3 h-3" /> {slotsLeft} Left
-              </span>
-            )}
-          </div>
-        )}
+        {/* Requirement badges — always 1 access badge + optional tier/followers + optional slots */}
+        <div className="flex items-center justify-between gap-1.5">
+          {/* Badge 1: access */}
+          {showRequireBlue ? (
+            <span className="tag text-[10px] px-2 py-0.5 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 flex items-center gap-1 font-semibold">
+              <CheckCircle2 className="w-3 h-3" /> Verified Only
+            </span>
+          ) : (
+            <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <Users className="w-3 h-3" /> Everyone
+            </span>
+          )}
+
+          {/* Badge 2: tier (content/campaign) or followers (engagement) */}
+          {tierLabel && (
+            <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <Zap className="w-3 h-3" /> {tierLabel}
+            </span>
+          )}
+          {showFollowers && (
+            <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+
+            </span>
+          )}
+
+          {/* Badge 3: slots left for multi-creator */}
+          {isMulti && (
+            <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <Layers className="w-3 h-3" /> {slotsLeft} Left
+            </span>
+          )}
+
+          {/* Agent badge — appended when applicable */}
+          {job.isAgentJob && (
+            <span className="tag text-[10px] px-2 py-0.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+              <Bot className="w-3 h-3" /> Agent
+            </span>
+          )}
+        </div>
 
         {/* Footer actions */}
         <div className="flex items-center gap-2 mt-auto">
