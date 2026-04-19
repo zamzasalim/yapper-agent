@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   Bot, Users, Clock, CheckCircle2, ArrowRight, Zap,
-  Loader2, ExternalLink, X, AlertCircle, Link, TrendingUp, Layers,
+  Loader2, ExternalLink, X, AlertCircle, Link, TrendingUp, Layers, DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -389,8 +389,8 @@ export function JobCard({ job }: { job: Job }) {
         {/* Stats */}
         <div className="flex items-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
           <div className="flex-1 text-center">
-            <p className="font-bold text-sm text-neutral-900 dark:text-white">
-              ${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
+            <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
+              <DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
             </p>
             <p className="text-[10px] text-neutral-400 dark:text-neutral-500">USDC</p>
           </div>
@@ -399,7 +399,7 @@ export function JobCard({ job }: { job: Job }) {
             <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
               <Clock className="w-3 h-3" /> {job.deadline}
             </p>
-            <p className="text-[10px] text-neutral-400 dark:text-neutral-500">deadline</p>
+            <p className="text-[10px] text-neutral-400 dark:text-neutral-500">Deadline</p>
           </div>
         </div>
 
