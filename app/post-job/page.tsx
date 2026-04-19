@@ -295,7 +295,7 @@ function PostJobForm() {
         twitter_id: twitterId, privy_did: user?.id,
         type: jobType, title,
         description: finalDescription,
-        price_usdc: jobType === "custom" ? 0 : unitPrice,
+        price_usdc: jobType === "custom" ? null : unitPrice,
         status: jobType === "custom" ? "pending_approval" : "open",
         tx_hash: txHashStr ?? null,
         tweet_url: tweetUrl || null,
