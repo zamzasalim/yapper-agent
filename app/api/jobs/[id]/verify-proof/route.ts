@@ -6,6 +6,16 @@ function extractTweetId(url: string): string | null {
   return url.match(/\/status\/(\d+)/)?.[1] ?? null;
 }
 
+/** Returns true if the proof URL belongs to the given twitter handle. */
+function proofUrlMatchesHandle(url: string, handle: string): boolean {
+  const u = url.toLowerCase().replace("https://", "").replace("http://", "");
+  const h = handle.toLowerCase();
+  return (
+    (u.startsWith("x.com/") || u.startsWith("twitter.com/")) &&
+    (u.startsWith(`x.com/${h}/`) || u.startsWith(`twitter.com/${h}/`))
+  );
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -29,7 +39,6 @@ export async function POST(
 
     const maxCreators = job.max_creators ?? 1;
 
-    // Status check differs for single vs multi-creator
     if (maxCreators === 1 && job.status !== "in_progress") {
       return NextResponse.json({ error: "Job is not in progress" }, { status: 409 });
     }
@@ -37,7 +46,6 @@ export async function POST(
       return NextResponse.json({ error: "Job is not accepting submissions" }, { status: 409 });
     }
 
-    // Look up creator
     const { data: creator } = await db
       .from("users")
       .select("id")
@@ -92,30 +100,39 @@ export async function POST(
       if (!proof_url?.trim()) {
         return NextResponse.json({ error: "proof_url required for this job type" }, { status: 400 });
       }
+      // Auto-verify: proof URL must belong to the creator's own account
+      if (!proofUrlMatchesHandle(proof_url.trim(), twitter_handle)) {
+        return NextResponse.json(
+          { error: `Proof URL must be a tweet from your own account (@${twitter_handle}). Example: https://x.com/${twitter_handle}/status/...` },
+          { status: 422 }
+        );
+      }
     }
 
-    // ── Save proof & update status ─────────────────────────────────────────
+    // ── Save & complete ────────────────────────────────────────────────────
     if (maxCreators === 1) {
-      // Single creator → pending_approval (admin must approve)
       const { data: updated, error } = await db
         .from("jobs")
-        .update({ status: "pending_approval", proof_url: finalProofUrl })
+        .update({ status: "completed", proof_url: finalProofUrl })
         .eq("id", id)
         .select()
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      // Update creator stats
+      await db.rpc("increment_creator_stats" as any, { user_id: creator.id, amount: job.price_usdc ?? 0 }).catch(() => {});
+
       return NextResponse.json({ job: updated });
     }
 
-    // Multi-creator: update this creator's completion record
+    // Multi-creator: mark this creator's slot as completed
     await db
       .from("job_completions")
       .update({ proof_url: finalProofUrl, status: "completed" })
       .eq("job_id", id)
       .eq("creator_id", creator.id);
 
-    // Check how many have now completed
     const { count } = await db
       .from("job_completions")
       .select("id", { count: "exact", head: true })
@@ -124,10 +141,7 @@ export async function POST(
 
     const allDone = (count ?? 0) >= maxCreators;
     if (allDone) {
-      await db
-        .from("jobs")
-        .update({ status: "pending_approval" })
-        .eq("id", id);
+      await db.from("jobs").update({ status: "completed" }).eq("id", id);
     }
 
     return NextResponse.json({ job: { id, type: job.type, proof_url: finalProofUrl } });

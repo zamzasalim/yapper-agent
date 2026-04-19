@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         const verifyData = await verifyRes.json();
 
         if (verifyRes.ok) {
-          await sendMessage(chatId, `🎉 Selesai! Job terverifikasi. Payment akan diproses oleh admin.`);
+          await sendMessage(chatId, `🎉 Repost terverifikasi! Job selesai. Payment segera dikirim ke wallet kamu.`);
         } else {
           await sendMessage(
             chatId,
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
     const verifyData = await verifyRes.json();
 
     if (verifyRes.ok) {
-      await sendMessage(chatId, `🎉 Proof diterima! Job selesai. Payment akan diproses oleh admin.`);
+      await sendMessage(chatId, `🎉 Proof diterima! Job selesai. Payment segera dikirim ke wallet kamu.`);
       await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
     } else {
       await sendMessage(chatId, `❌ Gagal: ${verifyData.error}`);
