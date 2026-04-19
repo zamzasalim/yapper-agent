@@ -85,7 +85,6 @@ export async function POST(req: NextRequest) {
       min_followers: body.min_followers ?? 0,
       max_creators: Math.max(1, parseInt(body.num_creators) || 1),
       slots_taken: 0,
-      is_hidden: body.is_hidden ?? false,
     };
 
     const { data: job, error } = await db
@@ -98,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     revalidatePath("/jobs");
 
-    if (job.status === "open" && !(body.is_hidden ?? false)) {
+    if (job.status === "open") {
       const messageId = await notifyNewJob(job);
       if (messageId) {
         await db.from("jobs").update({ telegram_message_id: String(messageId) }).eq("id", job.id);
