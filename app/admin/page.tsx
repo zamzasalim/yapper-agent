@@ -359,24 +359,17 @@ export default function AdminPage() {
                             @{job.client?.twitter_handle ?? "unknown"}
                           </span>
                         </div>
-                        <h3 className="font-semibold text-neutral-900 dark:text-white text-sm mb-2">{job.title}</h3>
                         {(() => {
                           const { brief, meta } = parseDesc(job.description);
+                          const reward = meta.find((m) => m.label === "Reward");
+                          const proof  = meta.find((m) => m.label === "Proof required");
                           return (
-                            <div className="text-xs leading-relaxed">
-                              <p className="text-neutral-600 dark:text-neutral-300 whitespace-pre-line">{brief}</p>
-                              {meta.length > 0 && (
-                                <>
-                                  <div className="my-2 border-t border-neutral-200 dark:border-neutral-700" />
-                                  <div className="flex flex-col gap-1">
-                                    {meta.map(({ label, value }) => (
-                                      <p key={label} className="text-neutral-500 dark:text-neutral-400">
-                                        <span className="font-medium text-neutral-700 dark:text-neutral-300">{label}:</span> {value}
-                                      </p>
-                                    ))}
-                                  </div>
-                                </>
-                              )}
+                            <div className="text-xs leading-relaxed text-neutral-500 dark:text-neutral-400 flex flex-col gap-1">
+                              <p>Title: <span className="text-neutral-700 dark:text-neutral-200">{job.title}</span></p>
+                              <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
+                              <p>Brief: <span className="text-neutral-700 dark:text-neutral-200">{brief}</span></p>
+                              {reward && <p>Reward: <span className="text-neutral-700 dark:text-neutral-200">{reward.value}</span></p>}
+                              {proof  && <p>Proof: <span className="text-neutral-700 dark:text-neutral-200">{proof.value}</span></p>}
                             </div>
                           );
                         })()}
