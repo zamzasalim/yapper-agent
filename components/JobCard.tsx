@@ -101,8 +101,23 @@ function parseJobDescription(description: string) {
   return { brief: brief.trim(), meta };
 }
 
+function parseProofExtras(description: string) {
+  const afterDash = (description ?? "").split(/\n\n?---\n/)[1] ?? "";
+  const proofLine = afterDash.split("\n").find((l) => l.startsWith("Proof required:"));
+  if (!proofLine) return { wallet: null as string | null, email: false, discord: false, telegram: false };
+  const parts = proofLine.replace("Proof required: ", "").split(", ");
+  const walletPart = parts.find((p) => p.startsWith("wallet address"));
+  const walletType = walletPart ? walletPart.match(/\(([^)]+)\)/)?.[1] ?? "crypto" : null;
+  return {
+    wallet:   walletType,
+    email:    parts.some((p) => p === "email address"),
+    discord:  parts.some((p) => p === "discord username"),
+    telegram: parts.some((p) => p === "telegram username"),
+  };
+}
+
 // ─── Modal phases ─────────────────────────────────────────────────────────────
-type ModalPhase = "confirm" | "proof" | "verifying" | "done" | "error_accept" | "error_proof";
+type ModalPhase = "confirm" | "proof" | "verifying" | "done" | "additional_info" | "error_accept" | "error_proof";
 
 interface AcceptModalProps {
   job: Job;
@@ -116,10 +131,16 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const [proofUrl, setProofUrl] = useState("");
+  const [extraWallet, setExtraWallet]   = useState("");
+  const [extraEmail, setExtraEmail]     = useState("");
+  const [extraDiscord, setExtraDiscord] = useState("");
+  const [extraTelegram, setExtraTelegram] = useState("");
 
   const hasTweet      = (job.type === "repost" || job.type === "like_reply") && job.tweetUrl;
   const isAutoVerify  = job.type === "repost";
   const parsedDesc    = !hasTweet ? parseJobDescription(job.description) : null;
+  const extras        = job.type === "custom" ? parseProofExtras(job.description) : null;
+  const hasExtras     = !!(extras?.wallet || extras?.email || extras?.discord || extras?.telegram);
 
   // Repost: accept + auto-verify in one shot, skip proof phase
   async function handleAccept() {
@@ -171,12 +192,36 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Verification failed");
-      setPhase("done");
-      onDone();
+      if (hasExtras) {
+        setPhase("additional_info");
+        onDone();
+      } else {
+        setPhase("done");
+        onDone();
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setPhase("error_proof");
     }
+  }
+
+  async function handleSubmitExtras() {
+    setLoading(true);
+    try {
+      await fetch(`/api/jobs/${job.id}/submit-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creator_handle: twitterHandle,
+          wallet:   extras?.wallet   ? extraWallet   : undefined,
+          email:    extras?.email    ? extraEmail     : undefined,
+          discord:  extras?.discord  ? extraDiscord   : undefined,
+          telegram: extras?.telegram ? extraTelegram  : undefined,
+        }),
+      });
+    } catch {}
+    setPhase("done");
+    setLoading(false);
   }
 
   const canClose = !loading && phase !== "verifying";
@@ -328,6 +373,60 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
           </div>
         )}
 
+        {/* ── ADDITIONAL INFO ── */}
+        {phase === "additional_info" && extras && (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-base text-neutral-900 dark:text-white">Additional Info</h3>
+              <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
+              Proof submitted! Please provide the following to receive your reward:
+            </p>
+            <div className="flex flex-col gap-3 mb-4">
+              {extras.wallet && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    Wallet Address ({extras.wallet.toUpperCase()}) *
+                  </label>
+                  <input className="input-field text-xs"
+                    placeholder={`Your ${extras.wallet.toUpperCase()} wallet address`}
+                    value={extraWallet} onChange={(e) => setExtraWallet(e.target.value)} />
+                </div>
+              )}
+              {extras.email && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Email Address *</label>
+                  <input className="input-field text-xs" type="email" placeholder="your@email.com"
+                    value={extraEmail} onChange={(e) => setExtraEmail(e.target.value)} />
+                </div>
+              )}
+              {extras.discord && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Discord Username *</label>
+                  <input className="input-field text-xs" placeholder="yourname"
+                    value={extraDiscord} onChange={(e) => setExtraDiscord(e.target.value)} />
+                </div>
+              )}
+              {extras.telegram && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Telegram Username *</label>
+                  <input className="input-field text-xs" placeholder="@yourhandle"
+                    value={extraTelegram} onChange={(e) => setExtraTelegram(e.target.value)} />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={onClose} disabled={loading} className="btn-outline flex-1 text-sm">Skip</button>
+              <button onClick={handleSubmitExtras} disabled={loading} className="btn-primary flex-1 text-sm">
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : <>Submit <ArrowRight className="w-3.5 h-3.5" /></>}
+              </button>
+            </div>
+          </>
+        )}
+
         {/* ── DONE ── */}
         {phase === "done" && (
           <div className="flex flex-col items-center py-8 gap-3">
@@ -408,7 +507,7 @@ export function JobCard({ job }: { job: Job }) {
           <div className="flex-1 text-center">
             <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
               {isCustom
-                ? <span className="text-emerald-600 dark:text-emerald-400">{rewardType ?? "Reward"}</span>
+                ? <>{rewardType ?? "Reward"}</>
                 : <><DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}</>}
             </p>
           </div>
