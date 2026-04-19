@@ -387,15 +387,16 @@ export function JobCard({ job }: { job: Job }) {
         </h3>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-2 text-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
-          <div>
+        <div className="flex items-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
+          <div className="flex-1 text-center">
             <p className="font-bold text-sm text-neutral-900 dark:text-white">
               ${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
             </p>
             <p className="text-[10px] text-neutral-400 dark:text-neutral-500">USDC</p>
           </div>
-          <div>
-            <p className="font-bold text-xs text-neutral-900 dark:text-white flex items-center justify-center gap-1">
+          <div className="w-px h-7 bg-neutral-200 dark:bg-neutral-700" />
+          <div className="flex-1 text-center">
+            <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
               <Clock className="w-3 h-3" /> {job.deadline}
             </p>
             <p className="text-[10px] text-neutral-400 dark:text-neutral-500">deadline</p>

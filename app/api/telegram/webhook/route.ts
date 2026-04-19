@@ -12,6 +12,17 @@ const TYPE_LABEL: Record<string, string> = {
   repost:     "Repost",
 };
 
+function formatJobBrief(description: string): string {
+  const cleaned = (description ?? "").replace(/^\[S&K:[^\]]+\]\n\n/, "").trim();
+  const [brief, metaRaw] = cleaned.split(/\n\n?---\n/);
+  const parts = [brief.trim()];
+  if (metaRaw) {
+    parts.push("");
+    metaRaw.split("\n").filter(Boolean).forEach((line) => parts.push(`• ${line}`));
+  }
+  return parts.join("\n");
+}
+
 export async function POST(req: NextRequest) {
   const update = await req.json();
   const db = createServerClient();
@@ -88,9 +99,10 @@ export async function POST(req: NextRequest) {
           await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
         }
       } else {
+        const brief = escapeHtml(formatJobBrief(job.description ?? ""));
         await sendMessage(
           chatId,
-          `✅ Job accepted!\n\n📌 <b>${escapeHtml(job.title)}</b>\nType: ${TYPE_LABEL[job.type] ?? job.type}\n\nSend the tweet URL as proof of your work:`
+          `✅ Job accepted!\n\n📌 <b>${escapeHtml(job.title)}</b>\nType: ${TYPE_LABEL[job.type] ?? job.type}\n\n${brief}\n\n✏️ Send the tweet URL as proof of your work:`
         );
         await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
       }

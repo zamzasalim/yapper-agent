@@ -710,9 +710,11 @@ function PostJobForm() {
             )}
             {/* For content/campaign: show info that tier drives the min followers */}
             {showTier && selectedTier && (
-              <div className="flex items-start gap-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
-                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                Tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label}</strong> automatically sets the follower requirement.
+              <div className="flex items-center justify-between gap-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
+                <Info className="w-3.5 h-3.5 shrink-0" />
+                <p className="text-right">
+                  Tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label}</strong> automatically sets the follower requirement.
+                </p>
               </div>
             )}
           </div>
