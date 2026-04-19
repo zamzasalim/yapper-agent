@@ -23,6 +23,8 @@ interface Job {
   clientHandle: string;
   requireBlue?: boolean;
   minFollowers?: number;
+  maxCreators?: number;
+  slotsTaken?: number;
   deadline: string;
   postedAt: string;
 }
@@ -311,6 +313,9 @@ export function JobCard({ job }: { job: Job }) {
   const hasTweetBadge   = isEngagementJob && job.tweetUrl;
   const showRequireBlue = isEngagementJob && job.requireBlue;
   const showEveryone    = isEngagementJob && !job.requireBlue;
+  const maxCreators     = job.maxCreators ?? 1;
+  const slotsLeft       = Math.max(0, maxCreators - (job.slotsTaken ?? 0));
+  const isMulti         = maxCreators > 1;
 
   return (
     <>
@@ -338,7 +343,7 @@ export function JobCard({ job }: { job: Job }) {
         </h3>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-2 text-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
+        <div className={`grid gap-2 text-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5 ${isMulti ? "grid-cols-3" : "grid-cols-2"}`}>
           <div>
             <p className="font-bold text-sm text-neutral-900 dark:text-white">
               ${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
@@ -351,6 +356,12 @@ export function JobCard({ job }: { job: Job }) {
             </p>
             <p className="text-[10px] text-neutral-400 dark:text-neutral-500">deadline</p>
           </div>
+          {isMulti && (
+            <div>
+              <p className="font-bold text-sm text-neutral-900 dark:text-white">{slotsLeft}</p>
+              <p className="text-[10px] text-neutral-400 dark:text-neutral-500">slots left</p>
+            </div>
+          )}
         </div>
 
         {/* Requirement badges */}
@@ -374,7 +385,7 @@ export function JobCard({ job }: { job: Job }) {
             {showFollowers && (
               <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-0.5">
                 <Users className="w-3 h-3" />
-                {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+ followers
+                {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+
               </span>
             )}
           </div>
