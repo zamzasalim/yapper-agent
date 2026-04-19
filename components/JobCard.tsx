@@ -392,14 +392,12 @@ export function JobCard({ job }: { job: Job }) {
             <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
               <DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
             </p>
-            <p className="text-[10px] text-neutral-400 dark:text-neutral-500">USDC</p>
           </div>
-          <div className="w-px h-7 bg-neutral-200 dark:bg-neutral-700" />
+          <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />
           <div className="flex-1 text-center">
             <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
               <Clock className="w-3 h-3" /> {job.deadline}
             </p>
-            <p className="text-[10px] text-neutral-400 dark:text-neutral-500">Deadline</p>
           </div>
         </div>
 
