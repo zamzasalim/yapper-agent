@@ -679,6 +679,19 @@ function PostJobForm() {
                   )}
                 </div>
 
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                    Number of Winners *
+                  </label>
+                  <input className="input-field" type="number" min="1"
+                    placeholder="1"
+                    value={numCreators}
+                    onChange={(e) => setNumCreators(Math.max(1, parseInt(e.target.value) || 1))} />
+                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5">
+                    How many creators will receive the reward?
+                  </p>
+                </div>
+
                 {/* Proof / Deliverable */}
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
@@ -739,19 +752,6 @@ function PostJobForm() {
                       <Toggle on={requireTelegram} onToggle={() => setRequireTelegram((v) => !v)} />
                     </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                    Number of Winners *
-                  </label>
-                  <input className="input-field" type="number" min="1"
-                    placeholder="1"
-                    value={numCreators}
-                    onChange={(e) => setNumCreators(Math.max(1, parseInt(e.target.value) || 1))} />
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5">
-                    How many creators will receive the reward?
-                  </p>
                 </div>
 
                 <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3">

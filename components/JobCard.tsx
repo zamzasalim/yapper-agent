@@ -206,7 +206,7 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
 
             <div className="flex items-center gap-2 mb-4">
               {job.type === "custom" ? (
-                <span className="text-[10px] px-2.5 py-1 font-semibold text-white bg-emerald-500 rounded-full">
+                <span className="tag text-[10px] px-2.5 py-1 font-semibold">
                   {parseRewardType(job.description) ?? "Reward"}
                 </span>
               ) : (
