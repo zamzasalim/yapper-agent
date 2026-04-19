@@ -188,11 +188,17 @@ function PostJobForm() {
   const [campaignDuration, setCampaignDuration] = useState("7");
 
   // Custom specific
-  const [proofRequirement, setProofRequirement] = useState("");
   const [rewardType, setRewardType] = useState<"whitelist" | "nft" | "code" | "other">("whitelist");
   const [rewardDescription, setRewardDescription] = useState("");
   const [submittingCustom, setSubmittingCustom] = useState(false);
   const [customError, setCustomError] = useState("");
+  // Custom proof options
+  const [requireWallet, setRequireWallet]       = useState(false);
+  const [walletType, setWalletType]             = useState<"ETH" | "SOL" | "other">("ETH");
+  const [walletTypeOther, setWalletTypeOther]   = useState("");
+  const [requireEmail, setRequireEmail]         = useState(false);
+  const [requireDiscord, setRequireDiscord]     = useState(false);
+  const [requireTelegram, setRequireTelegram]   = useState(false);
 
   // Budget (content / campaign)
   const [creatorTier, setCreatorTier]   = useState("1000-10000");
@@ -265,11 +271,19 @@ function PostJobForm() {
 
     if (jobType === "custom") {
       const rewardLabel = { whitelist: "Whitelist", nft: "NFT", code: "Access Code", other: "Other" }[rewardType];
+      const proofParts: string[] = ["URL of reply or post"];
+      if (requireWallet) {
+        const wt = walletType === "other" ? (walletTypeOther.trim() || "other") : walletType;
+        proofParts.push(`wallet address (${wt})`);
+      }
+      if (requireEmail)    proofParts.push("email address");
+      if (requireDiscord)  proofParts.push("discord username");
+      if (requireTelegram) proofParts.push("telegram username");
       finalDescription = [
         description,
         `\n---`,
         `Reward: ${rewardLabel}${rewardDescription ? ` — ${rewardDescription}` : ""}`,
-        `Proof required: ${proofRequirement}`,
+        `Proof required: ${proofParts.join(", ")}`,
       ].filter(Boolean).join("\n");
     }
 
@@ -351,7 +365,7 @@ function PostJobForm() {
       case "like_reply": return !!tweetUrl.trim() && totalUsdc > 0;
       case "content":    return !!description.trim() && totalUsdc > 0 && macroCustomValid;
       case "campaign":   return !!description.trim() && !!hashtag.trim() && effectiveCreators >= 2 && totalUsdc > 0 && macroCustomValid;
-      case "custom":     return !!description.trim() && !!proofRequirement.trim();
+      case "custom":     return !!description.trim() && (rewardType !== "other" || !!rewardDescription.trim());
     }
   })();
 
@@ -362,8 +376,10 @@ function PostJobForm() {
 
   function resetForm() {
     setSubmitted(false); setTitle(""); setDescription(""); setTweetUrl("");
-    setNumCreators(1); setHashtag(""); setProofRequirement(""); setCustomPrice("");
+    setNumCreators(1); setHashtag(""); setCustomPrice("");
     setReferenceUrl(""); setRewardDescription(""); setRewardType("whitelist"); setCustomError("");
+    setRequireWallet(false); setWalletType("ETH"); setWalletTypeOther("");
+    setRequireEmail(false); setRequireDiscord(false); setRequireTelegram(false);
   }
 
   // ── Auth guard ──
@@ -646,23 +662,85 @@ function PostJobForm() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                    Reward Description <span className="font-normal text-neutral-400">(optional)</span>
+                    Reward Description{" "}
+                    {rewardType === "other"
+                      ? <span className="text-red-500">*</span>
+                      : <span className="font-normal text-neutral-400">(optional)</span>}
                   </label>
                   <input className="input-field"
-                    placeholder="e.g. 1x OG Whitelist for MintProject, 1x NFT from collection XYZ"
+                    placeholder={
+                      rewardType === "other"
+                        ? "Required: describe exactly what the reward is"
+                        : "e.g. 1x OG Whitelist for MintProject, 1x NFT from collection XYZ"
+                    }
                     value={rewardDescription} onChange={(e) => setRewardDescription(e.target.value)} />
+                  {rewardType === "other" && !rewardDescription.trim() && (
+                    <p className="text-[10px] text-red-500 mt-1">Please specify the reward for "Other" type.</p>
+                  )}
                 </div>
+
+                {/* Proof / Deliverable */}
                 <div>
-                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                    Proof / Deliverable Required *
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                    Proof / Deliverable Required
                   </label>
-                  <input className="input-field"
-                    placeholder="e.g. Screenshot of posted tweet, Google Doc link, wallet address"
-                    value={proofRequirement} onChange={(e) => setProofRequirement(e.target.value)} />
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5">
-                    What must the creator submit as proof of completion?
-                  </p>
+                  {/* Always required: URL proof */}
+                  <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 mb-3">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Proof of Interaction</p>
+                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">Creator must submit a URL (e.g. reply or post link)</p>
+                    </div>
+                    <span className="text-[10px] font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-full px-2 py-0.5">Required</span>
+                  </div>
+                  {/* Optional extras */}
+                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mb-2">Additional info to collect <span className="italic">(optional)</span>:</p>
+                  <div className="flex flex-col gap-2">
+                    {/* Wallet */}
+                    <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Wallet Address</p>
+                        <Toggle on={requireWallet} onToggle={() => setRequireWallet((v) => !v)} />
+                      </div>
+                      {requireWallet && (
+                        <div className="mt-2.5 flex flex-col gap-2">
+                          <div className="flex gap-2">
+                            {(["ETH", "SOL", "other"] as const).map((wt) => (
+                              <button key={wt} onClick={() => setWalletType(wt)}
+                                className={cn("text-[11px] px-3 py-1.5 rounded-lg border transition-all font-medium",
+                                  walletType === wt
+                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400"
+                                    : "border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:border-neutral-300")}>
+                                {wt === "other" ? "Other" : wt}
+                              </button>
+                            ))}
+                          </div>
+                          {walletType === "other" && (
+                            <input className="input-field text-xs"
+                              placeholder="e.g. BTC, MATIC, TRX..."
+                              value={walletTypeOther} onChange={(e) => setWalletTypeOther(e.target.value)} />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Email */}
+                    <div className="flex items-center justify-between border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3">
+                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Email Address</p>
+                      <Toggle on={requireEmail} onToggle={() => setRequireEmail((v) => !v)} />
+                    </div>
+                    {/* Discord */}
+                    <div className="flex items-center justify-between border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3">
+                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Discord Username</p>
+                      <Toggle on={requireDiscord} onToggle={() => setRequireDiscord((v) => !v)} />
+                    </div>
+                    {/* Telegram */}
+                    <div className="flex items-center justify-between border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3">
+                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Telegram Username</p>
+                      <Toggle on={requireTelegram} onToggle={() => setRequireTelegram((v) => !v)} />
+                    </div>
+                  </div>
                 </div>
+
                 <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3">
                   <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700 dark:text-amber-400">
