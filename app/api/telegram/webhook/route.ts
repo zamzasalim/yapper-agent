@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (!param) {
       await sendMessage(
         chatId,
-        `👋 Halo! Saya <b>Yapper Agent Bot</b>.\n\nUntuk mulai, buka dashboard dan klik <b>Connect Telegram</b>.\n\n👉 ${APP_URL}/dashboard`
+        `👋 Hello! I'm <b>Yapper Agent Bot</b>.\n\nTo get started, open the dashboard and click <b>Connect Telegram</b>.\n\n👉 ${APP_URL}/dashboard`
       );
       return NextResponse.json({ ok: true });
     }
@@ -48,12 +48,12 @@ export async function POST(req: NextRequest) {
       if (!user) {
         await sendMessage(
           chatId,
-          `⚠️ Akun belum terhubung.\n\nBuka dashboard → Connect Telegram terlebih dahulu.\n👉 ${APP_URL}/dashboard`
+          `⚠️ Account not connected.\n\nGo to dashboard → Connect Telegram first.\n👉 ${APP_URL}/dashboard`
         );
         return NextResponse.json({ ok: true });
       }
 
-      await sendMessage(chatId, `⏳ Memproses lamaran...`);
+      await sendMessage(chatId, `⏳ Processing your application...`);
 
       const acceptRes = await fetch(`${APP_URL}/api/jobs/${jobId}/accept`, {
         method: "PATCH",
@@ -63,14 +63,14 @@ export async function POST(req: NextRequest) {
       const acceptData = await acceptRes.json();
 
       if (!acceptRes.ok) {
-        await sendMessage(chatId, `❌ Gagal accept job:\n${acceptData.error}`);
+        await sendMessage(chatId, `❌ Failed to accept job:\n${acceptData.error}`);
         return NextResponse.json({ ok: true });
       }
 
       const job = acceptData.job;
 
       if (job.type === "repost") {
-        await sendMessage(chatId, `✅ Job diterima! Sedang memverifikasi repost...`);
+        await sendMessage(chatId, `✅ Job accepted! Verifying repost...`);
         const verifyRes = await fetch(`${APP_URL}/api/jobs/${jobId}/verify-proof`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -79,18 +79,18 @@ export async function POST(req: NextRequest) {
         const verifyData = await verifyRes.json();
 
         if (verifyRes.ok) {
-          await sendMessage(chatId, `🎉 Repost terverifikasi! Job selesai. Payment segera dikirim ke wallet kamu.`);
+          await sendMessage(chatId, `🎉 Repost verified! Job completed. Payment will be sent to your wallet.`);
         } else {
           await sendMessage(
             chatId,
-            `⚠️ Job diterima, tapi repost belum terdeteksi.\n\n${verifyData.error}\n\nSetelah retweet, kirim:\n/verify ${jobId}`
+            `⚠️ Job accepted, but repost not detected yet.\n\n${verifyData.error}\n\nAfter retweeting, send:\n/verify ${jobId}`
           );
           await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
         }
       } else {
         await sendMessage(
           chatId,
-          `✅ Job diterima!\n\n📌 <b>${escapeHtml(job.title)}</b>\nTipe: ${TYPE_LABEL[job.type] ?? job.type}\n\nKirimkan URL tweet sebagai bukti pekerjaan kamu:`
+          `✅ Job accepted!\n\n📌 <b>${escapeHtml(job.title)}</b>\nType: ${TYPE_LABEL[job.type] ?? job.type}\n\nSend the tweet URL as proof of your work:`
         );
         await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
       }
@@ -107,12 +107,12 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!user) {
-      await sendMessage(chatId, `⚠️ Link tidak valid. Generate ulang dari dashboard.`);
+      await sendMessage(chatId, `⚠️ Invalid link. Please generate a new one from the dashboard.`);
       return NextResponse.json({ ok: true });
     }
 
     if (user.telegram_token_expires_at && user.telegram_token_expires_at < now) {
-      await sendMessage(chatId, `⏰ Link sudah expired. Generate link baru dari dashboard.`);
+      await sendMessage(chatId, `⏰ Link has expired. Generate a new link from the dashboard.`);
       return NextResponse.json({ ok: true });
     }
 
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
 
     await sendMessage(
       chatId,
-      `✅ Akun <b>@${escapeHtml(user.twitter_handle)}</b> berhasil terhubung!\n\nSekarang kamu bisa apply job langsung dari channel notifikasi. 🎉`
+      `✅ Account <b>@${escapeHtml(user.twitter_handle)}</b> connected successfully!\n\nYou can now apply for jobs directly from the notification channel. 🎉`
     );
     return NextResponse.json({ ok: true });
   }
@@ -150,11 +150,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!user) {
-      await sendMessage(chatId, `⚠️ Akun belum terhubung.`);
+      await sendMessage(chatId, `⚠️ Account not connected.`);
       return NextResponse.json({ ok: true });
     }
 
-    await sendMessage(chatId, `⏳ Mengecek repost...`);
+    await sendMessage(chatId, `⏳ Checking repost...`);
     const verifyRes = await fetch(`${APP_URL}/api/jobs/${jobId}/verify-proof`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -163,10 +163,10 @@ export async function POST(req: NextRequest) {
     const verifyData = await verifyRes.json();
 
     if (verifyRes.ok) {
-      await sendMessage(chatId, `🎉 Repost terverifikasi! Job selesai.`);
+      await sendMessage(chatId, `🎉 Repost verified! Job completed.`);
       await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
     } else {
-      await sendMessage(chatId, `❌ ${verifyData.error}\n\nCoba lagi setelah retweet.`);
+      await sendMessage(chatId, `❌ ${verifyData.error}\n\nTry again after retweeting.`);
     }
     return NextResponse.json({ ok: true });
   }
@@ -182,11 +182,11 @@ export async function POST(req: NextRequest) {
     if (!user?.telegram_pending_job_id) return NextResponse.json({ ok: true });
 
     if (!text.includes("twitter.com") && !text.includes("x.com")) {
-      await sendMessage(chatId, `⚠️ Kirim URL tweet yang valid (twitter.com atau x.com).`);
+      await sendMessage(chatId, `⚠️ Please send a valid tweet URL (twitter.com or x.com).`);
       return NextResponse.json({ ok: true });
     }
 
-    await sendMessage(chatId, `⏳ Memverifikasi proof...`);
+    await sendMessage(chatId, `⏳ Verifying proof...`);
     const verifyRes = await fetch(`${APP_URL}/api/jobs/${user.telegram_pending_job_id}/verify-proof`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -195,10 +195,10 @@ export async function POST(req: NextRequest) {
     const verifyData = await verifyRes.json();
 
     if (verifyRes.ok) {
-      await sendMessage(chatId, `🎉 Proof diterima! Job selesai. Payment segera dikirim ke wallet kamu.`);
+      await sendMessage(chatId, `🎉 Proof accepted! Job completed. Payment will be sent to your wallet.`);
       await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
     } else {
-      await sendMessage(chatId, `❌ Gagal: ${verifyData.error}`);
+      await sendMessage(chatId, `❌ Failed: ${verifyData.error}`);
     }
   }
 
