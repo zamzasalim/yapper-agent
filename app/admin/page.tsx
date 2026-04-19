@@ -36,6 +36,13 @@ interface ActiveJob {
   client: { twitter_handle: string; display_name: string } | null;
 }
 
+interface AdditionalInfo {
+  wallet?: string;
+  email?: string;
+  discord?: string;
+  telegram?: string;
+}
+
 interface CompletedJob {
   id: string;
   created_at: string;
@@ -44,6 +51,7 @@ interface CompletedJob {
   price_usdc: number;
   proof_url: string | null;
   is_paid: boolean;
+  additional_info: AdditionalInfo | null;
   client:  { twitter_handle: string; display_name: string } | null;
   creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
 }
@@ -74,6 +82,7 @@ const TYPE_LABEL: Record<string, string> = {
 // ── Excel export per job ───────────────────────────────────────────────────────
 async function downloadJobExcel(job: CompletedJob) {
   const XLSX = await import("xlsx");
+  const info = job.additional_info ?? {};
   const rows = [{
     "Job ID":         job.id,
     "Job Type":       TYPE_LABEL[job.type] ?? job.type,
@@ -85,6 +94,10 @@ async function downloadJobExcel(job: CompletedJob) {
     "Proof Link":     job.proof_url ?? "",
     "Client Handle":  job.client?.twitter_handle  ?? "",
     "Completed At":   new Date(job.created_at).toLocaleString(),
+    ...(info.wallet   ? { "Wallet (additional)": info.wallet }   : {}),
+    ...(info.email    ? { "Email":               info.email }    : {}),
+    ...(info.discord  ? { "Discord":             info.discord }  : {}),
+    ...(info.telegram ? { "Telegram":            info.telegram } : {}),
   }];
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -605,6 +618,15 @@ export default function AdminPage() {
                         <div className="border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
                           {job.creator ? (
                             <>
+                              {/* Additional info (wallet/email/discord/telegram) if present */}
+                              {job.additional_info && Object.keys(job.additional_info).length > 0 && (
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 px-5 py-2.5 text-xs border-b border-neutral-100 dark:border-neutral-800">
+                                  {job.additional_info.wallet   && <span className="text-neutral-500 dark:text-neutral-400">💳 <span className="font-mono text-neutral-700 dark:text-neutral-200">{job.additional_info.wallet}</span></span>}
+                                  {job.additional_info.email    && <span className="text-neutral-500 dark:text-neutral-400">📧 <span className="text-neutral-700 dark:text-neutral-200">{job.additional_info.email}</span></span>}
+                                  {job.additional_info.discord  && <span className="text-neutral-500 dark:text-neutral-400">🎮 <span className="text-neutral-700 dark:text-neutral-200">{job.additional_info.discord}</span></span>}
+                                  {job.additional_info.telegram && <span className="text-neutral-500 dark:text-neutral-400">✈️ <span className="text-neutral-700 dark:text-neutral-200">{job.additional_info.telegram}</span></span>}
+                                </div>
+                              )}
                               {/* Single row: creator · proof · wallet */}
                               <div className="flex items-center gap-3 px-5 py-3 text-xs">
                                 <span className="font-medium text-neutral-800 dark:text-neutral-200 shrink-0">

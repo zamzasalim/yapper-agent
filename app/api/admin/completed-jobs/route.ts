@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await db
       .from("jobs")
       .select(
-        `id, created_at, type, title, price_usdc, proof_url, is_paid,
+        `id, created_at, type, title, price_usdc, proof_url, is_paid, additional_info,
          client:users!client_id(twitter_handle, display_name),
          creator:users!creator_id(twitter_handle, display_name, wallet_address)`
       )
