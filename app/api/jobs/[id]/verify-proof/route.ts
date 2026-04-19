@@ -121,7 +121,7 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       // Update creator stats
-      await db.rpc("increment_creator_stats" as any, { user_id: creator.id, amount: job.price_usdc ?? 0 }).catch(() => {});
+      await (db as any).rpc("increment_creator_stats", { user_id: creator.id, amount: job.price_usdc ?? 0 }).catch(() => {});
 
       return NextResponse.json({ job: updated });
     }
