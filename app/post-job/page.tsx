@@ -406,11 +406,11 @@ function PostJobForm() {
           <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">🎉</span>
           </div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Job posted!</h2>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Job Posted</h2>
           {jobType === "custom" ? (
             <>
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
-                Your custom job is under review by our admins.
+                Your custom job is under review.
               </p>
               <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
                 Once approved by our admins, it will go live for creators to accept.

@@ -20,6 +20,8 @@ interface PendingJob {
   description: string;
   is_agent_job: boolean;
   deadline_hours: number;
+  require_blue: boolean;
+  min_followers: number;
   client: { twitter_handle: string; display_name: string; avatar_url: string | null } | null;
 }
 
@@ -113,7 +115,7 @@ export default function AdminPage() {
   const [loadingPending, setLoadingP]   = useState(false);
   const [loadingActive, setLoadingA]    = useState(false);
   const [loadingCompleted, setLoadingC] = useState(false);
-  const [acting, setActing]             = useState<string | null>(null);
+  const [acting, setActing]             = useState<{ id: string; action: "approve" | "reject" } | null>(null);
   const [deleting, setDeleting]         = useState<string | null>(null);
   const [toggling, setToggling]         = useState<string | null>(null);
   const [activeTypeFilter, setActiveTypeFilter] = useState("all");
@@ -222,7 +224,7 @@ export default function AdminPage() {
   }
 
   async function handleAction(jobId: string, action: "approve" | "reject") {
-    setActing(jobId);
+    setActing({ id: jobId, action });
     try {
       const res = await fetch(`/api/jobs/${jobId}/approve`, {
         method: "PATCH",
@@ -361,15 +363,22 @@ export default function AdminPage() {
                         </div>
                         {(() => {
                           const { brief, meta } = parseDesc(job.description);
-                          const reward = meta.find((m) => m.label === "Reward");
-                          const proof  = meta.find((m) => m.label === "Proof required");
+                          const reward    = meta.find((m) => m.label === "Reward");
+                          const proof     = meta.find((m) => m.label === "Proof required");
+                          const access    = job.require_blue ? "Blue Verified only" : "Everyone";
+                          const followers = job.min_followers > 0
+                            ? job.min_followers >= 1000
+                              ? `${(job.min_followers / 1000).toFixed(0)}K+ followers`
+                              : `${job.min_followers}+ followers`
+                            : null;
                           return (
                             <div className="text-xs leading-relaxed text-neutral-500 dark:text-neutral-400 flex flex-col gap-1">
                               <p>Title: <span className="text-neutral-700 dark:text-neutral-200">{job.title}</span></p>
                               <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
                               <p>Brief: <span className="text-neutral-700 dark:text-neutral-200">{brief}</span></p>
-                              {reward && <p>Reward: <span className="text-neutral-700 dark:text-neutral-200">{reward.value}</span></p>}
-                              {proof  && <p>Proof: <span className="text-neutral-700 dark:text-neutral-200">{proof.value}</span></p>}
+                              {reward  && <p>Reward: <span className="text-neutral-700 dark:text-neutral-200">{reward.value}</span></p>}
+                              {proof   && <p>Proof: <span className="text-neutral-700 dark:text-neutral-200">{proof.value}</span></p>}
+                              <p>Creator: <span className="text-neutral-700 dark:text-neutral-200">{access}{followers ? `, ${followers}` : ""}</span></p>
                             </div>
                           );
                         })()}
@@ -377,18 +386,18 @@ export default function AdminPage() {
                       <div className="flex flex-col gap-2 shrink-0">
                         <button
                           onClick={() => handleAction(job.id, "approve")}
-                          disabled={acting === job.id}
+                          disabled={acting?.id === job.id}
                           className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white transition-colors disabled:opacity-50"
                         >
-                          {acting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          {acting?.id === job.id && acting.action === "approve" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                           Approve
                         </button>
                         <button
                           onClick={() => handleAction(job.id, "reject")}
-                          disabled={acting === job.id}
+                          disabled={acting?.id === job.id}
                           className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 transition-colors disabled:opacity-50"
                         >
-                          {acting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                          {acting?.id === job.id && acting.action === "reject" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                           Reject
                         </button>
                         <button

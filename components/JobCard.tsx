@@ -76,6 +76,15 @@ function deriveTierLabel(minFollowers: number): string {
   return "Nano";
 }
 
+function parseRewardType(description: string): string | null {
+  const afterDash = (description ?? "").split(/\n\n?---\n/)[1] ?? "";
+  const line = afterDash.split("\n").find((l) => l.startsWith("Reward:"));
+  if (!line) return null;
+  const value = line.replace("Reward: ", "").trim();
+  if (value.startsWith("Other — ")) return value.slice("Other — ".length);
+  return value.split(" — ")[0].trim();
+}
+
 function parseJobDescription(description: string) {
   const cleaned = description.replace(/^\[S&K:[^\]]+\]\n\n/, "").trim();
   const [brief, metaRaw] = cleaned.split(/\n\n?---\n/);
@@ -351,6 +360,8 @@ export function JobCard({ job }: { job: Job }) {
     setShowModal(true);
   }
 
+  const isCustom        = job.type === "custom";
+  const rewardType      = isCustom ? parseRewardType(job.description) : null;
   const isEngagementJob = job.type === "repost" || job.type === "like_reply";
   const hasTierJob      = job.type === "content" || job.type === "campaign";
   const hasTweetBadge   = isEngagementJob && job.tweetUrl;
@@ -390,7 +401,9 @@ export function JobCard({ job }: { job: Job }) {
         <div className="flex items-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
           <div className="flex-1 text-center">
             <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
-              <DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
+              {isCustom
+                ? <span className="text-emerald-600 dark:text-emerald-400">{rewardType ?? "Reward"}</span>
+                : <><DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}</>}
             </p>
           </div>
           <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />
@@ -459,6 +472,10 @@ export function JobCard({ job }: { job: Job }) {
           {done ? (
             <div className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
               <CheckCircle2 className="w-3.5 h-3.5" /> Done!
+            </div>
+          ) : isCustom ? (
+            <div className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-xl py-2 bg-emerald-500 text-white cursor-default select-none">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Accept
             </div>
           ) : job.status === "in_progress" ? (
             <div className="btn-outline flex-1 text-xs !text-amber-500 !border-amber-400 dark:!border-amber-600 cursor-default">
