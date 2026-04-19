@@ -363,17 +363,19 @@ export default function AdminPage() {
                         {(() => {
                           const { brief, meta } = parseDesc(job.description);
                           return (
-                            <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-3 py-3">
-                              <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed whitespace-pre-line">{brief}</p>
+                            <div className="text-xs leading-relaxed">
+                              <p className="text-neutral-600 dark:text-neutral-300 whitespace-pre-line">{brief}</p>
                               {meta.length > 0 && (
-                                <div className="mt-2.5 pt-2.5 border-t border-neutral-200 dark:border-neutral-700 flex flex-col gap-1.5">
-                                  {meta.map(({ label, value }) => (
-                                    <div key={label} className="flex items-start gap-2 text-[11px]">
-                                      <span className="text-neutral-400 dark:text-neutral-500 shrink-0 w-20">{label}</span>
-                                      <span className="text-neutral-700 dark:text-neutral-300">{value}</span>
-                                    </div>
-                                  ))}
-                                </div>
+                                <>
+                                  <div className="my-2 border-t border-neutral-200 dark:border-neutral-700" />
+                                  <div className="flex flex-col gap-1">
+                                    {meta.map(({ label, value }) => (
+                                      <p key={label} className="text-neutral-500 dark:text-neutral-400">
+                                        <span className="font-medium text-neutral-700 dark:text-neutral-300">{label}:</span> {value}
+                                      </p>
+                                    ))}
+                                  </div>
+                                </>
                               )}
                             </div>
                           );
