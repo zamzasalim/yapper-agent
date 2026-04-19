@@ -46,6 +46,16 @@ interface CompletedJob {
   creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
 }
 
+function parseDesc(description: string) {
+  const cleaned = (description ?? "").replace(/^\[S&K:[^\]]+\]\n\n/, "").trim();
+  const [brief, metaRaw] = cleaned.split(/\n\n?---\n/);
+  const meta = (metaRaw ?? "").split("\n").filter(Boolean).map((line) => {
+    const idx = line.indexOf(": ");
+    return idx > -1 ? { label: line.slice(0, idx), value: line.slice(idx + 2) } : null;
+  }).filter(Boolean) as { label: string; value: string }[];
+  return { brief: brief?.trim() ?? "", meta };
+}
+
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return "just now";
@@ -349,10 +359,25 @@ export default function AdminPage() {
                             @{job.client?.twitter_handle ?? "unknown"}
                           </span>
                         </div>
-                        <h3 className="font-semibold text-neutral-900 dark:text-white text-sm mb-1">{job.title}</h3>
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap leading-relaxed">
-                          {job.description}
-                        </p>
+                        <h3 className="font-semibold text-neutral-900 dark:text-white text-sm mb-2">{job.title}</h3>
+                        {(() => {
+                          const { brief, meta } = parseDesc(job.description);
+                          return (
+                            <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-3 py-3">
+                              <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed whitespace-pre-line">{brief}</p>
+                              {meta.length > 0 && (
+                                <div className="mt-2.5 pt-2.5 border-t border-neutral-200 dark:border-neutral-700 flex flex-col gap-1.5">
+                                  {meta.map(({ label, value }) => (
+                                    <div key={label} className="flex items-start gap-2 text-[11px]">
+                                      <span className="text-neutral-400 dark:text-neutral-500 shrink-0 w-20">{label}</span>
+                                      <span className="text-neutral-700 dark:text-neutral-300">{value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex flex-col gap-2 shrink-0">
                         <button

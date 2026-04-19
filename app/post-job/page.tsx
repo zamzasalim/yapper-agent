@@ -413,7 +413,7 @@ function PostJobForm() {
                 Your custom job is under review by our admins.
               </p>
               <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
-                Once approved by <strong>@Autosultan_team</strong> or <strong>@0xhnfdm</strong>, it will go live for creators to accept.
+                Once approved by our admins, it will go live for creators to accept.
               </p>
             </>
           ) : (
