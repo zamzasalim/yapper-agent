@@ -31,7 +31,7 @@ export async function POST(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, type, status, tweet_url, creator_id, max_creators, slots_taken")
+      .select("id, type, status, tweet_url, creator_id, max_creators, slots_taken, price_usdc")
       .eq("id", id)
       .maybeSingle();
 
