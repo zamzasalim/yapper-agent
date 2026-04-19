@@ -13,12 +13,46 @@ export async function POST(
     const { creator_handle, wallet, email, discord, telegram } = await req.json();
 
     const db = createServerClient();
-    const { data: job } = await db
-      .from("jobs")
-      .select("title")
-      .eq("id", id)
+
+    const additionalInfo = {
+      ...(wallet   ? { wallet }   : {}),
+      ...(email    ? { email }    : {}),
+      ...(discord  ? { discord }  : {}),
+      ...(telegram ? { telegram } : {}),
+    };
+
+    // Resolve creator user id
+    const { data: creator } = await db
+      .from("users")
+      .select("id")
+      .eq("twitter_handle", creator_handle)
       .maybeSingle();
 
+    // 1. Try updating job_completions (multi-creator path)
+    if (creator) {
+      const { count } = await db
+        .from("job_completions")
+        .select("id", { count: "exact", head: true })
+        .eq("job_id", id)
+        .eq("creator_id", creator.id);
+
+      if ((count ?? 0) > 0) {
+        await (db as any)
+          .from("job_completions")
+          .update({ additional_info: additionalInfo })
+          .eq("job_id", id)
+          .eq("creator_id", creator.id);
+      } else {
+        // 2. Fallback: update jobs table (single-creator path)
+        await db
+          .from("jobs")
+          .update({ additional_info: additionalInfo } as any)
+          .eq("id", id);
+      }
+    }
+
+    // Notify admin via Telegram
+    const { data: job } = await db.from("jobs").select("title").eq("id", id).maybeSingle();
     const lines = [
       `📋 <b>Additional Info Submitted</b>`,
       ``,
@@ -30,7 +64,6 @@ export async function POST(
     if (email)    lines.push(`📧 Email: ${escapeHtml(email)}`);
     if (discord)  lines.push(`🎮 Discord: ${escapeHtml(discord)}`);
     if (telegram) lines.push(`✈️ Telegram: ${escapeHtml(telegram)}`);
-
     await sendMessage(CHANNEL_ID, lines.join("\n"));
 
     return NextResponse.json({ ok: true });
