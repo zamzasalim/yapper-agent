@@ -23,6 +23,12 @@ function formatJobBrief(description: string): string {
   return parts.join("\n");
 }
 
+function extractProofRequired(description: string): string {
+  const afterDash = (description ?? "").split(/\n\n?---\n/)[1] ?? "";
+  const line = afterDash.split("\n").find((l) => l.startsWith("Proof required:"));
+  return line ? line.replace("Proof required: ", "").trim() : "URL of reply or post";
+}
+
 export async function POST(req: NextRequest) {
   const update = await req.json();
   const db = createServerClient();
@@ -100,9 +106,25 @@ export async function POST(req: NextRequest) {
         }
       } else {
         const brief = escapeHtml(formatJobBrief(job.description ?? ""));
+        const proofRequired = extractProofRequired(job.description ?? "");
+
+        let proofPrompt: string;
+        if (job.type === "custom") {
+          const extras = proofRequired
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s && s !== "URL of reply or post");
+          proofPrompt = `✏️ Send the URL (your reply or post) as proof.`;
+          if (extras.length > 0) {
+            proofPrompt += `\n\n📋 <b>Also required:</b> ${escapeHtml(extras.join(", "))}\n<i>Admin will contact you for additional info after your submission.</i>`;
+          }
+        } else {
+          proofPrompt = `✏️ Send the tweet URL as proof of your work:`;
+        }
+
         await sendMessage(
           chatId,
-          `✅ Job accepted!\n\n📌 <b>${escapeHtml(job.title)}</b>\nType: ${TYPE_LABEL[job.type] ?? job.type}\n\n${brief}\n\n✏️ Send the tweet URL as proof of your work:`
+          `✅ Job accepted!\n\n📌 <b>${escapeHtml(job.title)}</b>\nType: ${TYPE_LABEL[job.type] ?? job.type}\n\n${brief}\n\n${proofPrompt}`
         );
         await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
       }
