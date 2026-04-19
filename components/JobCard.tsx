@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   Bot, Users, Clock, CheckCircle2, ArrowRight, Zap,
-  Loader2, ExternalLink, X, AlertCircle, Link,
+  Loader2, ExternalLink, X, AlertCircle, Link, TrendingUp, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -377,14 +377,14 @@ export function JobCard({ job }: { job: Job }) {
               </span>
             )}
             {showFollowers && (
-              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-0.5">
-                <Users className="w-3 h-3" />
+              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
                 {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+
               </span>
             )}
             {isMulti && (
-              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-0.5">
-                {slotsLeft} slots left
+              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+                <Layers className="w-3 h-3" /> {slotsLeft} Left
               </span>
             )}
           </div>
