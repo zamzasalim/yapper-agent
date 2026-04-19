@@ -26,7 +26,7 @@ import {
 
 const PAGE_SIZE = 5;
 
-type JobStatus = "open" | "in_progress" | "completed" | "cancelled";
+type JobStatus = "open" | "in_progress" | "completed" | "cancelled" | "pending_approval";
 
 const ALL_NICHES = [
   "Crypto", "Web3", "DeFi", "NFT", "Airdrop", "Trading", "Blockchain", "GameFi",
@@ -72,10 +72,11 @@ interface ClientJobRecord {
 }
 
 const STATUS_STYLE: Record<string, string> = {
-  completed:   "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400",
-  in_progress: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400",
-  open:        "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400",
-  cancelled:   "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400",
+  completed:        "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400",
+  in_progress:      "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400",
+  open:             "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400",
+  cancelled:        "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400",
+  pending_approval: "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400",
 };
 
 function isValidSolanaAddress(addr: string): boolean {

@@ -289,6 +289,7 @@ function PostJobForm() {
         is_agent_job: isAgentJob,
         require_blue: requireCenblue,
         min_followers: effectiveMinFollowers,
+        num_creators: effectiveCreators,
         deadline_hours: jobType === "campaign"
           ? parseInt(campaignDuration) * 24
           : parseInt(deadline),

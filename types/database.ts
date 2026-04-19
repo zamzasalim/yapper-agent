@@ -76,6 +76,8 @@ export type Database = {
           telegram_message_id: string | null;
           rating: number | null;
           tx_hash: string | null;
+          max_creators: number;
+          slots_taken: number;
         };
         Insert: {
           id?: string;
@@ -95,8 +97,30 @@ export type Database = {
           telegram_message_id?: string | null;
           rating?: number | null;
           tx_hash?: string | null;
+          max_creators?: number;
+          slots_taken?: number;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
+        Relationships: [];
+      };
+      job_completions: {
+        Row: {
+          id: string;
+          created_at: string;
+          job_id: string;
+          creator_id: string;
+          proof_url: string | null;
+          status: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          job_id: string;
+          creator_id: string;
+          proof_url?: string | null;
+          status?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["job_completions"]["Insert"]>;
         Relationships: [];
       };
       transactions: {

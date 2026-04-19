@@ -83,6 +83,8 @@ export async function POST(req: NextRequest) {
       tx_hash: body.tx_hash ?? null,
       require_blue: body.require_blue ?? false,
       min_followers: body.min_followers ?? 0,
+      max_creators: Math.max(1, parseInt(body.num_creators) || 1),
+      slots_taken: 0,
     };
 
     const { data: job, error } = await db

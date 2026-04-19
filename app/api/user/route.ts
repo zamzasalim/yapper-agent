@@ -167,13 +167,29 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!user) return NextResponse.json({ user: null });
 
-    // Fetch their accepted/completed jobs (as creator)
-    const { data: jobs } = await db
+    // Fetch their accepted/completed jobs (as creator — single-creator jobs)
+    const { data: singleJobs } = await db
       .from("jobs")
       .select("id, created_at, type, title, price_usdc, status, client_id")
       .eq("creator_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
+
+    // Fetch multi-creator jobs they've accepted via job_completions
+    const { data: completions } = await db
+      .from("job_completions")
+      .select("job_id, status, jobs(id, created_at, type, title, price_usdc, status)")
+      .eq("creator_id", user.id)
+      .limit(50);
+
+    const multiJobs = (completions ?? [])
+      .map((c: any) => c.jobs)
+      .filter(Boolean)
+      .filter((j: any) => !(singleJobs ?? []).some((s: any) => s.id === j.id));
+
+    const jobs = [...(singleJobs ?? []), ...multiJobs]
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 50);
 
     // Fetch jobs they posted (as client)
     const { data: clientJobs } = await db

@@ -2,18 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { fetchTwitterUserStats, parseJobRequirements } from "@/lib/scrapebadger";
 
-/**
- * PATCH /api/jobs/[id]/accept
- * Accept an open job as a creator.
- * Body: { twitter_handle: string }
- *
- * Flow:
- *  1. Look up creator in DB → get current stats
- *  2. Refresh stats from ScrapeBadger and persist to DB
- *  3. Parse S&K requirements from job description
- *  4. Validate creator meets requirements (cenblue, min followers)
- *  5. Accept the job
- */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,7 +37,6 @@ export async function PATCH(
     if (fresh) {
       followers      = fresh.followers;
       isBlueVerified = fresh.is_verified_blue;
-      // persist updated stats (non-blocking path — ignore error)
       await db
         .from("users")
         .update({ twitter_followers: followers, is_verified_blue: isBlueVerified })
@@ -59,7 +46,7 @@ export async function PATCH(
     // ── 3. Fetch job ───────────────────────────────────────────────────────
     const { data: job } = await db
       .from("jobs")
-      .select("id, status, description")
+      .select("id, status, description, max_creators, slots_taken")
       .eq("id", id)
       .maybeSingle();
 
@@ -68,6 +55,13 @@ export async function PATCH(
     }
     if (job.status !== "open") {
       return NextResponse.json({ error: "This job is no longer available." }, { status: 409 });
+    }
+
+    const maxCreators  = job.max_creators  ?? 1;
+    const slotsTaken   = job.slots_taken   ?? 0;
+
+    if (slotsTaken >= maxCreators) {
+      return NextResponse.json({ error: "All slots for this job are taken." }, { status: 409 });
     }
 
     // ── 4. Validate S&K requirements ──────────────────────────────────────
@@ -81,25 +75,54 @@ export async function PATCH(
     }
     if (minFollowers > 0 && followers < minFollowers) {
       return NextResponse.json(
-        {
-          error: `This job requires at least ${minFollowers.toLocaleString()} followers. Your account has ${followers.toLocaleString()}.`,
-        },
+        { error: `This job requires at least ${minFollowers.toLocaleString()} followers. Your account has ${followers.toLocaleString()}.` },
         { status: 403 }
       );
     }
 
     // ── 5. Accept the job ──────────────────────────────────────────────────
-    const { data: updated, error } = await db
-      .from("jobs")
-      .update({ status: "in_progress", creator_id: creator.id })
-      .eq("id", id)
-      .select()
-      .single();
+    const newSlotsTaken = slotsTaken + 1;
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (maxCreators === 1) {
+      // Single-creator: lock job to this creator
+      const { data: updated, error } = await db
+        .from("jobs")
+        .update({ status: "in_progress", creator_id: creator.id, slots_taken: 1 })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ job: updated });
     }
 
+    // Multi-creator: check if already applied
+    const { data: existing } = await db
+      .from("job_completions")
+      .select("id")
+      .eq("job_id", id)
+      .eq("creator_id", creator.id)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ error: "You have already accepted this job." }, { status: 409 });
+    }
+
+    // Insert per-creator completion record
+    await db.from("job_completions").insert({
+      job_id: id,
+      creator_id: creator.id,
+      status: "accepted",
+    });
+
+    // Increment slots; mark in_progress only when all slots filled
+    const newStatus = newSlotsTaken >= maxCreators ? "in_progress" : "open";
+    await db
+      .from("jobs")
+      .update({ slots_taken: newSlotsTaken, status: newStatus })
+      .eq("id", id);
+
+    const { data: updated } = await db.from("jobs").select().eq("id", id).single();
     return NextResponse.json({ job: updated });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
