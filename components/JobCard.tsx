@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   Bot, Users, Clock, CheckCircle2, ArrowRight, Zap,
-  Loader2, ExternalLink, X, AlertCircle, Link, TrendingUp, Layers, DollarSign,
+  Loader2, ExternalLink, X, AlertCircle, Link, TrendingUp, Layers, DollarSign, Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -205,9 +205,15 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
             </h3>
 
             <div className="flex items-center gap-2 mb-4">
-              <span className="tag text-[10px] px-2.5 py-1 font-semibold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                ${price} USDC
-              </span>
+              {job.type === "custom" ? (
+                <span className="text-[10px] px-2.5 py-1 font-semibold text-white bg-emerald-500 rounded-full">
+                  {parseRewardType(job.description) ?? "Reward"}
+                </span>
+              ) : (
+                <span className="tag text-[10px] px-2.5 py-1 font-semibold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                  ${price} USDC
+                </span>
+              )}
               <span className="tag text-[10px] px-2.5 py-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" /> {job.deadline}
               </span>
@@ -366,7 +372,7 @@ export function JobCard({ job }: { job: Job }) {
   const hasTierJob      = job.type === "content" || job.type === "campaign";
   const hasTweetBadge   = isEngagementJob && job.tweetUrl;
   const showRequireBlue = !!job.requireBlue;
-  const showFollowers   = isEngagementJob && !!job.minFollowers && job.minFollowers > 0;
+  const showFollowers   = (isEngagementJob || isCustom) && !!job.minFollowers && job.minFollowers > 0;
   const tierLabel       = hasTierJob ? deriveTierLabel(job.minFollowers ?? 0) : null;
   const maxCreators     = job.maxCreators ?? 1;
   const slotsLeft       = Math.max(0, maxCreators - (job.slotsTaken ?? 0));
@@ -441,12 +447,16 @@ export function JobCard({ job }: { job: Job }) {
             </span>
           )}
 
-          {/* Badge 3: slots left for multi-creator */}
-          {isMulti && (
+          {/* Badge 3: slots left (multi-creator) or winners count (custom) */}
+          {isCustom ? (
+            <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <Trophy className="w-3 h-3" /> {maxCreators} {maxCreators === 1 ? "Winner" : "Winners"}
+            </span>
+          ) : isMulti ? (
             <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
               <Layers className="w-3 h-3" /> {slotsLeft} Left
             </span>
-          )}
+          ) : null}
 
           {/* Agent badge — appended when applicable */}
           {job.isAgentJob && (
@@ -474,9 +484,9 @@ export function JobCard({ job }: { job: Job }) {
               <CheckCircle2 className="w-3.5 h-3.5" /> Done!
             </div>
           ) : isCustom ? (
-            <div className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-xl py-2 bg-emerald-500 text-white cursor-default select-none">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Accept
-            </div>
+            <button onClick={handleOpenModal} className="btn-primary text-xs px-3 py-2 flex-1 !bg-emerald-500 hover:!bg-emerald-600 !border-emerald-500 hover:!border-emerald-600">
+              Accept <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           ) : job.status === "in_progress" ? (
             <div className="btn-outline flex-1 text-xs !text-amber-500 !border-amber-400 dark:!border-amber-600 cursor-default">
               In Progress
