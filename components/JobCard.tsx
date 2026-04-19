@@ -157,37 +157,34 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="card p-6 max-w-sm w-full">
-
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mb-0.5">
-              {phase === "confirm" || phase === "error_accept" ? TYPE_LABEL[job.type] : ""}
-              {phase === "proof"   || phase === "error_proof"  ? "Submit Proof" : ""}
-              {phase === "verifying" ? "Please wait…" : ""}
-              {phase === "done"      ? "All done!" : ""}
-            </p>
-            <h3 className="font-bold text-neutral-900 dark:text-white text-sm leading-snug">
-              {(phase === "confirm" || phase === "error_accept") && job.title}
-              {(phase === "proof"   || phase === "error_proof")  && "Paste your proof link"}
-              {phase === "verifying" && (isAutoVerify ? "Verifying repost…" : "Submitting proof…")}
-              {phase === "done"      && (isAutoVerify ? "Repost verified!" : "Proof submitted!")}
-            </h3>
-          </div>
-          {canClose && (
-            <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 shrink-0 ml-3 mt-0.5">
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+      <div className="card p-5 max-w-sm w-full">
 
         {/* ── CONFIRM ── */}
         {(phase === "confirm" || phase === "error_accept") && (
           <>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-              ${price} USDC · {job.deadline} deadline
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <span className={cn("tag text-[10px] px-2 py-0.5", TYPE_COLOR[job.type])}>
+                {TYPE_ICON[job.type]} {TYPE_LABEL[job.type]}
+              </span>
+              {canClose && (
+                <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <h3 className="font-bold text-base text-neutral-900 dark:text-white leading-snug mb-3">
+              {job.title}
+            </h3>
+
+            <div className="flex items-center gap-2 mb-4">
+              <span className="tag text-[10px] px-2.5 py-1 font-semibold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                ${price} USDC
+              </span>
+              <span className="tag text-[10px] px-2.5 py-1 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> {job.deadline}
+              </span>
+            </div>
 
             {hasTweet ? (
               <a
@@ -225,10 +222,19 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
           </>
         )}
 
-        {/* ── PROOF (non-repost only) ── */}
+        {/* ── PROOF ── */}
         {(phase === "proof" || phase === "error_proof") && (
           <>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-base text-neutral-900 dark:text-white">Submit Proof</h3>
+              {canClose && (
+                <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
               {TYPE_TASK[job.type]}
               {hasTweet && (
                 <a href={job.tweetUrl!} target="_blank" rel="noopener noreferrer"
@@ -238,6 +244,9 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
               )}
             </p>
 
+            <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+              Your tweet link
+            </label>
             <div className="flex items-center gap-2 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 py-2.5 bg-white dark:bg-neutral-900 focus-within:ring-2 focus-within:ring-blue-400 mb-4">
               <Link className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
               <input
@@ -265,22 +274,26 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
 
         {/* ── VERIFYING ── */}
         {phase === "verifying" && (
-          <div className="flex flex-col items-center py-8 gap-3">
-            <Loader2 className="w-7 h-7 animate-spin text-blue-500" />
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {isAutoVerify ? "Checking your repost on Twitter…" : "Submitting…"}
+          <div className="flex flex-col items-center py-10 gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              {isAutoVerify ? "Verifying your repost…" : "Submitting proof…"}
             </p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">This may take a few seconds</p>
           </div>
         )}
 
         {/* ── DONE ── */}
         {phase === "done" && (
-          <div className="flex flex-col items-center py-6 gap-3">
-            <div className="w-11 h-11 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+          <div className="flex flex-col items-center py-8 gap-3">
+            <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+              <CheckCircle2 className="w-7 h-7 text-green-600 dark:text-green-400" />
             </div>
+            <p className="text-base font-bold text-neutral-900 dark:text-white">
+              {isAutoVerify ? "Repost verified!" : "Proof submitted!"}
+            </p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
-              {isAutoVerify ? "Payment will be processed shortly." : "Our team will review and process payment shortly."}
+              Payment will be processed shortly.
             </p>
             <button onClick={onClose} className="btn-primary w-full text-sm mt-1">Close</button>
           </div>
@@ -309,10 +322,10 @@ export function JobCard({ job }: { job: Job }) {
   }
 
   const isEngagementJob = job.type === "repost" || job.type === "like_reply";
-  const showFollowers   = isEngagementJob && !!job.minFollowers && job.minFollowers > 0;
+  const showFollowers   = !!job.minFollowers && job.minFollowers > 0;
   const hasTweetBadge   = isEngagementJob && job.tweetUrl;
-  const showRequireBlue = isEngagementJob && job.requireBlue;
-  const showEveryone    = isEngagementJob && !job.requireBlue;
+  const showRequireBlue = !!job.requireBlue;
+  const showEveryone    = !job.requireBlue && !showFollowers;
   const maxCreators     = job.maxCreators ?? 1;
   const slotsLeft       = Math.max(0, maxCreators - (job.slotsTaken ?? 0));
   const isMulti         = maxCreators > 1;
