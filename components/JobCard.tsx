@@ -343,7 +343,7 @@ export function JobCard({ job }: { job: Job }) {
         </h3>
 
         {/* Stats */}
-        <div className={`grid gap-2 text-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5 ${isMulti ? "grid-cols-3" : "grid-cols-2"}`}>
+        <div className="grid grid-cols-2 gap-2 text-center bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5">
           <div>
             <p className="font-bold text-sm text-neutral-900 dark:text-white">
               ${job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}
@@ -356,17 +356,11 @@ export function JobCard({ job }: { job: Job }) {
             </p>
             <p className="text-[10px] text-neutral-400 dark:text-neutral-500">deadline</p>
           </div>
-          {isMulti && (
-            <div>
-              <p className="font-bold text-sm text-neutral-900 dark:text-white">{slotsLeft}</p>
-              <p className="text-[10px] text-neutral-400 dark:text-neutral-500">slots left</p>
-            </div>
-          )}
         </div>
 
         {/* Requirement badges */}
-        {(showRequireBlue || showEveryone || showFollowers || job.isAgentJob) && (
-          <div className="flex flex-wrap gap-1.5">
+        {(showRequireBlue || showEveryone || showFollowers || job.isAgentJob || isMulti) && (
+          <div className="flex items-center justify-between gap-1.5">
             {job.isAgentJob && (
               <span className="tag text-[10px] px-2 py-0.5 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 flex items-center gap-0.5">
                 <Bot className="w-3 h-3" /> Agent
@@ -386,6 +380,11 @@ export function JobCard({ job }: { job: Job }) {
               <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-0.5">
                 <Users className="w-3 h-3" />
                 {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+
+              </span>
+            )}
+            {isMulti && (
+              <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-0.5">
+                {slotsLeft} slots left
               </span>
             )}
           </div>
