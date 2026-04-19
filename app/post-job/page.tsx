@@ -712,7 +712,7 @@ function PostJobForm() {
             {showTier && selectedTier && (
               <div className="flex items-start gap-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
                 <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                Tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label} ({selectedTier.sub})</strong> Automatically sets the follower requirement, no separate input needed.
+                Tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label}</strong> automatically sets the follower requirement.
               </div>
             )}
           </div>
@@ -745,7 +745,6 @@ function PostJobForm() {
                       <p className={cn("text-xs font-bold", creatorTier === tier.value ? "text-blue-700 dark:text-blue-400" : "text-neutral-800 dark:text-neutral-200")}>
                         {tier.label}
                       </p>
-                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{tier.sub}</p>
                       <p className={cn("text-sm font-extrabold mt-1", creatorTier === tier.value ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
                         {tier.price === -1 ? "Custom" : `$${tier.price}`}
                       </p>
