@@ -76,6 +76,22 @@ function deriveTierLabel(minFollowers: number): string {
   return "Nano";
 }
 
+function parseJobDescription(description: string) {
+  const cleaned = description.replace(/^\[S&K:[^\]]+\]\n\n/, "").trim();
+  const [brief, metaRaw] = cleaned.split(/\n\n?---\n/);
+  const meta = (metaRaw ?? "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.indexOf(": ");
+      return idx > -1
+        ? { label: line.slice(0, idx), value: line.slice(idx + 2) }
+        : null;
+    })
+    .filter(Boolean) as { label: string; value: string }[];
+  return { brief: brief.trim(), meta };
+}
+
 // ─── Modal phases ─────────────────────────────────────────────────────────────
 type ModalPhase = "confirm" | "proof" | "verifying" | "done" | "error_accept" | "error_proof";
 
@@ -92,8 +108,9 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
   const [error, setError]       = useState("");
   const [proofUrl, setProofUrl] = useState("");
 
-  const hasTweet     = (job.type === "repost" || job.type === "like_reply") && job.tweetUrl;
-  const isAutoVerify = job.type === "repost";
+  const hasTweet      = (job.type === "repost" || job.type === "like_reply") && job.tweetUrl;
+  const isAutoVerify  = job.type === "repost";
+  const parsedDesc    = !hasTweet ? parseJobDescription(job.description) : null;
 
   // Repost: accept + auto-verify in one shot, skip proof phase
   async function handleAccept() {
@@ -197,10 +214,22 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
                 <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate flex-1">{job.tweetUrl}</span>
               </a>
-            ) : (
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 rounded-xl px-3 py-2.5 mb-4 line-clamp-3 leading-relaxed">
-                {job.description}
-              </p>
+            ) : parsedDesc && (
+              <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-3 py-3 mb-4 max-h-44 overflow-y-auto">
+                <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed whitespace-pre-line">
+                  {parsedDesc.brief}
+                </p>
+                {parsedDesc.meta.length > 0 && (
+                  <div className="mt-2.5 pt-2.5 border-t border-neutral-200 dark:border-neutral-700 flex flex-col gap-1.5">
+                    {parsedDesc.meta.map(({ label, value }) => (
+                      <div key={label} className="flex items-start gap-2 text-[11px]">
+                        <span className="text-neutral-400 dark:text-neutral-500 shrink-0 w-16">{label}</span>
+                        <span className="text-neutral-600 dark:text-neutral-300">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {error && (
@@ -377,8 +406,9 @@ export function JobCard({ job }: { job: Job }) {
         <div className="flex items-center justify-between gap-1.5">
           {/* Badge 1: access */}
           {showRequireBlue ? (
-            <span className="tag text-[10px] px-2 py-0.5 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 flex items-center gap-1 font-semibold">
-              <CheckCircle2 className="w-3 h-3" /> Verified Only
+            <span className="tag text-[10px] px-2 py-0.5 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950 flex items-center gap-1 font-semibold">
+              <CheckCircle2 className="w-3 h-3 text-blue-500" />
+              <span className="!text-blue-600 dark:!text-blue-400">Verified Only</span>
             </span>
           ) : (
             <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
