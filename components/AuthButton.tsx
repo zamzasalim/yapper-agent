@@ -2,23 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { cn } from "@/lib/cn";
+import { useEffect, useState } from "react";
 
 export function AuthButton() {
   const pathname = usePathname();
-  const { ready, authenticated, login, user } = usePrivy();
+  const { open } = useAppKit();
+  const { isConnected, embeddedWalletInfo, status } = useAppKitAccount();
 
-  const twitterHandle = (user?.linkedAccounts ?? []).find(
-    (a) => a.type === "twitter_oauth"
-    // @ts-ignore
-  )?.username ?? user?.twitter?.username;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  if (!ready) {
-    return <div className="skeleton w-24 h-8 rounded-lg" />;
+  const twitterHandle = embeddedWalletInfo?.user?.username ?? null;
+  const isRestoring   = status === "connecting" || status === "reconnecting";
+
+  if (!mounted || isRestoring) {
+    return <div className="hidden sm:block w-24 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />;
   }
 
-  if (authenticated) {
+  if (isConnected) {
     return (
       <Link
         href="/dashboard"
@@ -42,7 +45,7 @@ export function AuthButton() {
   }
 
   return (
-    <button onClick={() => login()} className="btn-primary text-xs px-4 py-2">
+    <button onClick={() => open()} className="btn-primary text-xs px-4 py-2">
       Connect X
     </button>
   );

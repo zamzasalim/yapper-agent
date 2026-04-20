@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import {
   Bot, Users, Clock, CheckCircle2, ArrowRight, Zap,
   Loader2, ExternalLink, X, AlertCircle, Link, TrendingUp, Layers, DollarSign, Trophy,
@@ -456,18 +456,16 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
 
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 export function JobCard({ job }: { job: Job }) {
-  const { authenticated, login, user } = usePrivy();
+  const { open } = useAppKit();
+  const { isConnected, embeddedWalletInfo } = useAppKitAccount();
+  const authenticated = isConnected && embeddedWalletInfo?.authProvider === "x";
+  const twitterHandle = embeddedWalletInfo?.user?.username ?? "";
 
   const [showModal, setShowModal] = useState(false);
   const [done, setDone]           = useState(false);
 
-  const twitterHandle =
-    ((user?.linkedAccounts ?? []).find((a) => a.type === "twitter_oauth") as any)?.username ??
-    (user as any)?.twitter?.username ??
-    "";
-
   function handleOpenModal() {
-    if (!authenticated) { login(); return; }
+    if (!authenticated) { open(); return; }
     setShowModal(true);
   }
 

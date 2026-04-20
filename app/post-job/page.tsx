@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useSearchParams } from "next/navigation";
 import {
   FileText, Repeat2, Heart, Flag, HelpCircle,
@@ -161,7 +161,9 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 
 // ─── Main Form ───────────────────────────────────────────────────────────────
 function PostJobForm() {
-  const { authenticated, login, user } = usePrivy();
+  const { open } = useAppKit();
+  const { isConnected, embeddedWalletInfo } = useAppKitAccount();
+  const authenticated = isConnected && embeddedWalletInfo?.authProvider === "x";
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
 
@@ -228,9 +230,9 @@ function PostJobForm() {
   const effectiveCreators = jobType === "campaign" ? Math.max(2, numCreators) : numCreators;
   const totalUsdc = parseFloat((unitPrice * effectiveCreators).toFixed(2));
 
-  const twitterHandle = (user as any)?.twitter?.username ?? "";
-  const displayName   = (user as any)?.twitter?.name    ?? twitterHandle;
-  const twitterId     = (user as any)?.twitter?.subject ?? twitterHandle;
+  const twitterHandle = embeddedWalletInfo?.user?.username ?? "";
+  const displayName   = twitterHandle;
+  const twitterId     = twitterHandle;
 
   // ── Save job ──
   async function saveJob(txHashStr?: string) {
@@ -292,7 +294,7 @@ function PostJobForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         twitter_handle: twitterHandle, display_name: displayName,
-        twitter_id: twitterId, privy_did: user?.id,
+        twitter_id: twitterId,
         type: jobType, title,
         description: finalDescription,
         price_usdc: jobType === "custom" ? 0 : unitPrice,
@@ -392,7 +394,7 @@ function PostJobForm() {
           </div>
           <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Connect to post a job</h2>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">Sign in with Twitter to post jobs and hire creators.</p>
-          <button onClick={() => login()} className="btn-primary w-full">Connect X</button>
+          <button onClick={() => open()} className="btn-primary w-full">Connect X</button>
         </div>
       </div>
     );

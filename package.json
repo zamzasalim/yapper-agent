@@ -9,7 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@privy-io/react-auth": "^3.21.2",
+    "@reown/appkit": "^1.8.19",
+    "@reown/appkit-adapter-solana": "^1.8.19",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.103.0",

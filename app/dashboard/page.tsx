@@ -1,10 +1,9 @@
 "use client";
 
 import { Navbar } from "@/components/Navbar";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAppKit, useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { PublicKey } from "@solana/web3.js";
 import {
   Wallet,
   CheckCircle2,
@@ -79,13 +78,13 @@ const STATUS_STYLE: Record<string, string> = {
   pending_approval: "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400",
 };
 
-function isValidSolanaAddress(addr: string): boolean {
-  try { new PublicKey(addr); return true; } catch { return false; }
-}
 
 export default function DashboardPage() {
-  const { authenticated, login, logout, user } = usePrivy();
+  const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
+  const { isConnected, embeddedWalletInfo, address: reownAddress, status } = useAppKitAccount();
 
+  const [mounted, setMounted]           = useState(false);
   const [profile, setProfile]           = useState<UserRecord | null>(null);
   const [jobs, setJobs]                 = useState<JobRecord[]>([]);
   const [clientJobs, setClientJobs]     = useState<ClientJobRecord[]>([]);
@@ -100,10 +99,6 @@ export default function DashboardPage() {
   const [ratingHover, setRatingHover]   = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
 
-  const [walletInput, setWalletInput]   = useState("");
-  const [walletError, setWalletError]   = useState("");
-  const [savingWallet, setSavingWallet] = useState(false);
-  const [editingWallet, setEditingWallet] = useState(false);
   const [copied, setCopied]             = useState(false);
 
   const [jobsPage, setJobsPage]             = useState(0);
@@ -115,37 +110,45 @@ export default function DashboardPage() {
   const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Derive twitter info from Privy
-  const twitterAccount = (user?.linkedAccounts ?? []).find((a: any) => a.type === "twitter_oauth") as any;
-  const twitterHandle = (user as any)?.twitter?.username
-    ?? twitterAccount?.username
-    ?? twitterAccount?.handle
-    ?? "";
-  const displayName = (user as any)?.twitter?.name ?? twitterHandle;
-  const twitterId   = (user as any)?.twitter?.subject ?? twitterHandle;
-  // Profile picture URL from Privy Twitter OAuth
-  const privyAvatarUrl: string | null =
-    (user as any)?.twitter?.profilePictureUrl
-    ?? twitterAccount?.profilePictureUrl
-    ?? null;
-  // Use higher-res version (replace _normal with _bigger)
-  const avatarUrl = privyAvatarUrl
-    ? privyAvatarUrl.replace("_normal", "_bigger")
-    : (profile?.avatar_url ?? null);
+  // Derive twitter info from Reown social login
+  const reownHandle   = embeddedWalletInfo?.user?.username ?? "";
+  const isTwitterAuth = embeddedWalletInfo?.authProvider === "x";
+  // After profile loads, use DB as source of truth so handle persists even if wallet connect changes the active connection
+  const twitterHandle  = profile?.twitter_handle ?? reownHandle;
+  const authenticated  = isConnected;
+  const isRestoring    = status === "connecting" || status === "reconnecting";
+  // Display name and avatar come from DB profile (user sets manually)
+  const avatarUrl = profile?.avatar_url ?? null;
 
   // ── Auto-register + load profile on login ──────────────────────────────
+  useEffect(() => { setMounted(true); }, []);
+
+  // Auto-save embedded wallet address from Reown whenever it differs from DB
   useEffect(() => {
-    if (!authenticated || !twitterHandle) return;
+    if (!reownAddress || !profile?.twitter_handle) return;
+    if (reownAddress === profile.wallet_address) return;
+    fetch("/api/user", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ twitter_handle: profile.twitter_handle, wallet_address: reownAddress }),
+    })
+      .then((r) => r.json())
+      .then(({ user }) => { if (user) setProfile(user); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reownAddress, profile?.twitter_handle, profile?.wallet_address]);
+
+  useEffect(() => {
+    if (!isConnected || !reownHandle) return;
 
     async function init() {
       setLoading(true);
       try {
-        // Upsert user (creates record if first login, returns existing if not)
         setRegistering(true);
         const res = await fetch("/api/user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ twitter_handle: twitterHandle, twitter_id: twitterId, display_name: displayName, privy_did: user?.id, avatar_url: privyAvatarUrl?.replace("_normal", "_bigger") ?? null }),
+          body: JSON.stringify({ twitter_handle: reownHandle }),
         });
         setRegistering(false);
 
@@ -173,7 +176,7 @@ export default function DashboardPage() {
 
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, twitterHandle]);
+  }, [isConnected, reownHandle]);
 
   // ── Auto-sync Telegram username if connected but username not stored ────
   useEffect(() => {
@@ -185,33 +188,6 @@ export default function DashboardPage() {
       })
       .catch(() => {});
   }, [profile?.telegram_chat_id, profile?.telegram_username, twitterHandle]);
-
-  // ── Save wallet to Supabase ─────────────────────────────────────────────
-  async function handleSaveWallet() {
-    const trimmed = walletInput.trim();
-    if (!trimmed) { setWalletError("Please enter a wallet address."); return; }
-    if (!isValidSolanaAddress(trimmed)) { setWalletError("Invalid Solana address."); return; }
-
-    setSavingWallet(true);
-    setWalletError("");
-    try {
-      const res = await fetch("/api/user", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ twitter_handle: twitterHandle, wallet_address: trimmed, privy_did: user?.id }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? "Failed to save");
-      setProfile(json.user);
-      setWalletInput("");
-      setEditingWallet(false);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setWalletError(`Error: ${msg}`);
-    } finally {
-      setSavingWallet(false);
-    }
-  }
 
   function toggleNiche(niche: string) {
     setSelectedNiches((prev) => {
@@ -326,6 +302,18 @@ export default function DashboardPage() {
     }
   }
 
+  // ── Not mounted yet or restoring session ──────────────────────────────
+  if (!mounted || isRestoring) {
+    return (
+      <>
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+        </div>
+      </>
+    );
+  }
+
   // ── Not authenticated ───────────────────────────────────────────────────
   if (!authenticated) {
     return (
@@ -342,7 +330,7 @@ export default function DashboardPage() {
             <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
               Sign in with your X account to manage jobs and track earnings.
             </p>
-            <button onClick={() => login()} className="btn-primary w-full">
+            <button onClick={() => open()} className="btn-primary w-full">
               Connect X
             </button>
           </div>
@@ -351,9 +339,7 @@ export default function DashboardPage() {
     );
   }
 
-  const walletAddress = profile?.wallet_address && profile.wallet_address !== "pending"
-    ? profile.wallet_address
-    : null;
+  const walletAddress = profile?.wallet_address || reownAddress || null;
   const shortWallet = walletAddress
     ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}`
     : null;
@@ -384,53 +370,56 @@ export default function DashboardPage() {
           )}
 
           <div className="flex-1 min-w-0">
+            {/* Row 1: Display name + role badges */}
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
-                {displayName || twitterHandle}
+                {profile?.display_name || twitterHandle}
               </h1>
-              {twitterHandle && (
-                <span className="text-xs text-neutral-400 dark:text-neutral-500">@{twitterHandle}</span>
-              )}
-              {profile?.is_verified_blue && (
-                <CheckCircle2 className="w-4 h-4 text-blue-500" />
-              )}
               {registering && (
                 <span className="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" /> Registering…
                 </span>
               )}
               {profile && !registering && (
-                <span className="text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
                   Creator
                 </span>
               )}
+              {clientJobs.length > 0 && (
+                <span className="text-xs bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-full font-medium">
+                  Client
+                </span>
+              )}
             </div>
+            {/* Row 2: Twitter icon + @handle + blue tick */}
+            {/* Row 2: X icon + @handle + blue tick */}
+            <div className="flex flex-col gap-1.5 mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+              {twitterHandle && (
+                <div className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.254 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  <span>@{twitterHandle}</span>
+                  {profile?.is_verified_blue && (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  )}
+                </div>
+              )}
 
-            {/* Wallet + Telegram rows — consistent gap-1 */}
-            <div className="flex flex-col gap-1 mt-1 text-xs text-neutral-400 dark:text-neutral-500">
               {/* Wallet */}
               {walletAddress ? (
                 <div className="flex items-center gap-2">
                   <Wallet className="w-3.5 h-3.5 shrink-0" />
                   <span className="font-mono">{shortWallet}</span>
                   <button onClick={handleCopy} title="Copy" className="hover:text-blue-500 transition-colors">
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-3.5 h-3.5" />
                   </button>
                   {copied && <span className="text-green-500">Copied!</span>}
-                  <button
-                    onClick={() => { setEditingWallet(true); setWalletInput(walletAddress); }}
-                    className="text-blue-500 hover:underline"
-                  >
-                    Edit
-                  </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="text-amber-500">Wallet not set</span>
-                  <button onClick={() => setEditingWallet(true)} className="text-blue-500 hover:underline font-medium">
-                    + Add Wallet
-                  </button>
+                  <span className="text-amber-500">Syncing wallet…</span>
                 </div>
               )}
 
@@ -441,29 +430,29 @@ export default function DashboardPage() {
                 </svg>
                 {profile?.telegram_chat_id ? (
                   <>
-                    <span>
-                      {profile.telegram_username ?? "Connected"}
-                    </span>
+                    <span>{profile.telegram_username ?? "Connected"}</span>
                     <button
                       onClick={handleDisconnectTelegram}
                       disabled={connectingTelegram}
-                      className="text-red-400 hover:text-red-600 hover:underline transition-colors"
+                      title="Disconnect Telegram"
+                      className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
                     >
-                      {connectingTelegram ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Disconnect"}
+                      {connectingTelegram
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <X className="w-3.5 h-3.5" />}
                     </button>
                   </>
                 ) : (
                   <button
                     onClick={handleConnectTelegram}
                     disabled={connectingTelegram || awaitingTelegram}
-                    className="hover:text-blue-500 transition-colors flex items-center gap-1"
+                    className="hover:text-blue-500 transition-colors flex items-center gap-1.5"
                   >
                     {awaitingTelegram
-                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Waiting for bot…</>
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Waiting for bot…</>
                       : connectingTelegram
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : "Connect Telegram"
-                    }
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : "Connect Telegram"}
                   </button>
                 )}
               </div>
@@ -471,56 +460,22 @@ export default function DashboardPage() {
 
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-2">
             <button
-              onClick={() => logout()}
+              onClick={() => open()}
               className="btn-outline text-xs px-4 py-2"
+            >
+              Wallet
+            </button>
+            <button
+              onClick={() => disconnect()}
+              className="btn-outline text-xs px-4 py-2"
+              style={{ color: "rgb(239 68 68)" }}
             >
               Disconnect
             </button>
           </div>
         </div>
-
-        {/* ── Wallet input card ──────────────────────────────────── */}
-        {(!walletAddress || editingWallet) && authenticated && (
-          <div className="card p-5 mb-6 border-amber-200 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/20">
-            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">
-              {editingWallet ? "Update Solana Wallet" : "Add Your Solana Wallet"}
-            </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-              Enter your Solana wallet address. All USDC earnings will be sent here (0% fee). Saved permanently to your account.
-            </p>
-            <div className="flex gap-2">
-              <input
-                className="input-field font-mono text-xs"
-                placeholder="e.g. 7xKX...9mZD"
-                value={walletInput}
-                onChange={(e) => { setWalletInput(e.target.value); setWalletError(""); }}
-              />
-              <button
-                onClick={handleSaveWallet}
-                disabled={savingWallet}
-                className="btn-primary text-xs px-4 shrink-0"
-              >
-                {savingWallet ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                {savingWallet ? "Saving…" : "Save"}
-              </button>
-              {editingWallet && (
-                <button
-                  onClick={() => { setEditingWallet(false); setWalletError(""); }}
-                  className="btn-outline text-xs px-3 shrink-0"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            {walletError && (
-              <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" /> {walletError}
-              </p>
-            )}
-          </div>
-        )}
 
         {/* ── Niche selector ────────────────────────────────────── */}
         {profile && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { Navbar } from "@/components/Navbar";
 import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
@@ -113,11 +113,10 @@ async function downloadJobExcel(job: CompletedJob) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { authenticated, login, user } = usePrivy();
-
-  const twitterHandle =
-    ((user?.linkedAccounts ?? []).find((a: any) => a.type === "twitter_oauth") as any)?.username ??
-    (user as any)?.twitter?.username ?? "";
+  const { open } = useAppKit();
+  const { isConnected, embeddedWalletInfo } = useAppKitAccount();
+  const authenticated = isConnected && embeddedWalletInfo?.authProvider === "x";
+  const twitterHandle = embeddedWalletInfo?.user?.username ?? "";
 
   const isAdmin = ADMINS.some((a) => a.toLowerCase() === twitterHandle.toLowerCase());
 
@@ -261,7 +260,7 @@ export default function AdminPage() {
               <Zap className="w-6 h-6 text-blue-600" />
             </div>
             <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Admin Login Required</h2>
-            <button onClick={() => login()} className="btn-primary w-full">Connect X</button>
+            <button onClick={() => open()} className="btn-primary w-full">Connect X</button>
           </div>
         </div>
       </>
