@@ -65,8 +65,8 @@ export async function PATCH(
     }
 
     // ── 4. Validate requirements from DB columns ───────────────────────────
-    const requireCenblue = (job as any).require_blue ?? false;
-    const minFollowers   = (job as any).min_followers ?? 0;
+    const requireCenblue = job.require_blue ?? false;
+    const minFollowers   = job.min_followers ?? 0;
 
     if (requireCenblue && !isBlueVerified) {
       return NextResponse.json(

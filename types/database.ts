@@ -78,6 +78,8 @@ export type Database = {
           tx_hash: string | null;
           max_creators: number;
           slots_taken: number;
+          require_blue: boolean;
+          min_followers: number;
         };
         Insert: {
           id?: string;
@@ -99,6 +101,8 @@ export type Database = {
           tx_hash?: string | null;
           max_creators?: number;
           slots_taken?: number;
+          require_blue?: boolean;
+          min_followers?: number;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];
