@@ -83,6 +83,8 @@ export type Database = {
           additional_info: Record<string, string> | null;
           is_hidden: boolean;
           is_paid: boolean;
+          completed_at: string | null;
+          cancel_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -109,6 +111,8 @@ export type Database = {
           additional_info?: Record<string, string> | null;
           is_hidden?: boolean;
           is_paid?: boolean;
+          completed_at?: string | null;
+          cancel_reason?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];

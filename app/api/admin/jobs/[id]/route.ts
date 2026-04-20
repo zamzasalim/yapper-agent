@@ -23,8 +23,10 @@ export async function PATCH(
     const db = createServerClient();
 
     const patch: Record<string, unknown> = {};
-    if (typeof body.hidden  === "boolean") patch.is_hidden = body.hidden;
-    if (typeof body.is_paid === "boolean") patch.is_paid   = body.is_paid;
+    if (typeof body.hidden        === "boolean") patch.is_hidden     = body.hidden;
+    if (typeof body.is_paid       === "boolean") patch.is_paid       = body.is_paid;
+    if (typeof body.status        === "string")  patch.status        = body.status;
+    if (typeof body.cancel_reason === "string")  patch.cancel_reason = body.cancel_reason;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (db.from("jobs").update(patch as any).eq("id", id).select().single());

@@ -7,6 +7,7 @@ flowchart TD
     classDef telegram fill:#cffafe,stroke:#06b6d4,color:#164e63
     classDef done fill:#f0fdf4,stroke:#16a34a,color:#14532d
     classDef err fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    classDef cancelled fill:#fafafa,stroke:#a3a3a3,color:#525252
 
     A1([Connect X]) --> A2[Reown AppKit Twitter OAuth]
     A2 --> A3[Embedded Solana wallet created]
@@ -30,9 +31,10 @@ flowchart TD
 
     CL8 --> TGNOTIFY[Broadcast to Telegram channel]
 
-    CL9 --> AD1[Admin - Pending tab]
-    AD1 --> AD2{Decision}
-    AD2 -->|Reject| AD3([status: cancelled])
+    CL9 --> AD1[Admin - Pending tab\nSearch + type filter + table]
+    AD1 --> AD1D[View Details modal\nbrief description\nreward proof creator access]
+    AD1D --> AD2{Decision}
+    AD2 -->|Reject| AD3([status: cancelled\ncancel_reason: admin_rejected])
     AD2 -->|Approve| AD4[status: open]
     AD4 --> TGNOTIFY
 
@@ -58,11 +60,11 @@ flowchart TD
     CR14 -->|Wrong account| PROOFERR
     CR13 & CR14 -->|Verified| CR15{Single or Multi?}
 
-    CR15 -->|Single| CR16[job: completed\nStats incremented]
+    CR15 -->|Single| CR16[job: completed\ncompleted_at set\nStats incremented]
     CR15 -->|Multi| CR17[completion: completed]
     CR17 --> CR18{All slots done?}
     CR18 -->|No| CR19[Waiting for others]
-    CR18 -->|Yes| CR20[job: completed]
+    CR18 -->|Yes| CR20[job: completed\ncompleted_at set]
 
     CR16 & CR20 --> JOBDONE[[Job Completed]]
 
@@ -76,9 +78,26 @@ flowchart TD
     RV1 --> RV2[View creators\nproof links + additional info\nExport CSV]
     RV2 --> RV3[Rate creator 1-5 stars\nPOST /api/jobs/:id/rate\nAvg rating recalculated]
 
-    JOBDONE --> AD5[Admin - Completed tab]
-    AD5 --> AD6[View proof and wallets\nMark Paid - Export Excel]
+    JOBDONE --> AD5[Admin - Completed tab\nSearch + type + paid filter\nPagination 20 per page]
+    AD5 --> AD6[View Details modal\ncreator handle + proof + wallet\nMark Paid - Copy Wallet\nExport Excel per job or bulk]
     AD6 --> AD7([Manual USDC payout to creator wallet])
+
+    AD_ACT[Admin - Active tab\nSearch + type + status filter\nPagination 20 per page]
+    AD_ACT --> EXPIRE[POST /api/admin/expire-jobs\nauto-run on tab load]
+    EXPIRE -->|open + deadline passed| AUTOCANCEL([status: cancelled\ncancel_reason: expired_no_creator])
+    EXPIRE -->|in_progress + deadline passed| AUTOCOMPLETE([status: completed\ncompleted_at set])
+    AD_ACT --> ADMHIDE[Hide / Show job\nPATCH is_hidden]
+    AD_ACT --> ADMCANCEL[Cancel job\nPATCH status: cancelled\ncancel_reason: admin_rejected]
+    ADMCANCEL --> AD_CAN
+
+    AD_CAN[Admin - Cancelled tab\nSearch + type filter\nPagination 20 per page]
+    AD_CAN --> CANREASON{cancel_reason}
+    CANREASON -->|expired_no_creator| CANEXP[Expired - No Creator]
+    CANREASON -->|admin_rejected| CANADM[Admin Rejected]
+    CANREASON -->|client_cancelled| CANCLI[Client Cancelled]
+    AD_CAN --> CANVIEW[View Details modal\nclient brief + meta]
+    AD_CAN --> RESTORE[Restore to open\nPATCH status: open]
+    AD_CAN --> CANDEL[Delete permanently]
 
     subgraph TG["Telegram Bot"]
         direction TB
@@ -104,14 +123,32 @@ flowchart TD
         ID6["Agent jobs: RA LA CA EA XA"]
     end
 
+    subgraph CANCEL_REASONS["Cancel Reasons"]
+        direction LR
+        CR_1["expired_no_creator: open job, deadline passed, no creator accepted"]
+        CR_2["admin_rejected: rejected from Pending OR cancelled from Active by admin"]
+        CR_3["client_cancelled: reserved for future client-side cancellation"]
+    end
+
+    subgraph DB_FIELDS["New DB Fields on jobs"]
+        direction LR
+        DB1["completed_at: timestamptz — set on status→completed"]
+        DB2["cancel_reason: text — set on status→cancelled"]
+    end
+
     A7 -.->|Connect flow| TG1
     TGNOTIFY -.->|Inline button| TG5
+    A7 -.->|Admin only| AD1
+    A7 -.->|Admin only| AD_ACT
+    A7 -.->|Admin only| AD5
+    A7 -.->|Admin only| AD_CAN
 
     class A1,A2,A3,A4,A5,A6,A7 auth
     class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,RV3 client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
-    class AD1,AD2,AD3,AD4,AD5,AD6,AD7 admin
+    class AD1,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI admin
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY telegram
     class JOBDONE done
     class CRERR,PROOFERR err
+    class AUTOCANCEL,ADMCANCEL,AD3,AUTOCOMPLETE cancelled
 ```

@@ -113,7 +113,7 @@ export async function POST(
     if (maxCreators === 1) {
       const { data: updated, error } = await db
         .from("jobs")
-        .update({ status: "completed", proof_url: finalProofUrl })
+        .update({ status: "completed", proof_url: finalProofUrl, completed_at: new Date().toISOString() })
         .eq("id", id)
         .select()
         .single();
@@ -141,7 +141,7 @@ export async function POST(
 
     const allDone = (count ?? 0) >= maxCreators;
     if (allDone) {
-      await db.from("jobs").update({ status: "completed" }).eq("id", id);
+      await db.from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", id);
     }
 
     return NextResponse.json({ job: { id, type: job.type, proof_url: finalProofUrl } });

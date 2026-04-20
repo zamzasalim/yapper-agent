@@ -50,7 +50,8 @@ export async function PATCH(
 
     const { data: updated, error } = await db
       .from("jobs")
-      .update({ status: newStatus })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(newStatus === "cancelled" ? { status: newStatus, cancel_reason: "admin_rejected" } as any : { status: newStatus })
       .eq("id", id)
       .select()
       .single();
