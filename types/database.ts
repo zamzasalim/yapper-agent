@@ -80,6 +80,9 @@ export type Database = {
           slots_taken: number;
           require_blue: boolean;
           min_followers: number;
+          additional_info: Record<string, string> | null;
+          is_hidden: boolean;
+          is_paid: boolean;
         };
         Insert: {
           id?: string;
@@ -103,6 +106,9 @@ export type Database = {
           slots_taken?: number;
           require_blue?: boolean;
           min_followers?: number;
+          additional_info?: Record<string, string> | null;
+          is_hidden?: boolean;
+          is_paid?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];
