@@ -115,6 +115,7 @@ export type Database = {
           creator_id: string;
           proof_url: string | null;
           status: string;
+          additional_info: Record<string, string> | null;
         };
         Insert: {
           id?: string;
@@ -123,6 +124,7 @@ export type Database = {
           creator_id: string;
           proof_url?: string | null;
           status?: string;
+          additional_info?: Record<string, string> | null;
         };
         Update: Partial<Database["public"]["Tables"]["job_completions"]["Insert"]>;
         Relationships: [];
