@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { fetchTwitterUserStats, parseJobRequirements } from "@/lib/scrapebadger";
+import { fetchTwitterUserStats } from "@/lib/scrapebadger";
 
 export async function PATCH(
   req: NextRequest,
@@ -46,7 +46,7 @@ export async function PATCH(
     // ── 3. Fetch job ───────────────────────────────────────────────────────
     const { data: job } = await db
       .from("jobs")
-      .select("id, status, description, max_creators, slots_taken")
+      .select("id, status, description, max_creators, slots_taken, require_blue, min_followers, type")
       .eq("id", id)
       .maybeSingle();
 
@@ -64,8 +64,9 @@ export async function PATCH(
       return NextResponse.json({ error: "All slots for this job are taken." }, { status: 409 });
     }
 
-    // ── 4. Validate S&K requirements ──────────────────────────────────────
-    const { requireCenblue, minFollowers } = parseJobRequirements(job.description ?? "");
+    // ── 4. Validate requirements from DB columns ───────────────────────────
+    const requireCenblue = (job as any).require_blue ?? false;
+    const minFollowers   = (job as any).min_followers ?? 0;
 
     if (requireCenblue && !isBlueVerified) {
       return NextResponse.json(

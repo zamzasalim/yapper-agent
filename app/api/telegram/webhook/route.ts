@@ -29,6 +29,54 @@ function extractProofRequired(description: string): string {
   return line ? line.replace("Proof required: ", "").trim() : "URL of reply or post";
 }
 
+interface CustomExtras {
+  wallet: boolean;
+  walletType: string | null;
+  email: boolean;
+  discord: boolean;
+  telegram: boolean;
+}
+
+function extractCustomExtras(description: string): CustomExtras {
+  const proofStr = extractProofRequired(description);
+  const parts = proofStr.split(",").map((s) => s.trim().toLowerCase());
+  const walletPart = parts.find((p) => p.includes("wallet address"));
+  const walletTypeMatch = walletPart?.match(/\(([^)]+)\)/);
+  return {
+    wallet:     !!walletPart,
+    walletType: walletTypeMatch ? walletTypeMatch[1] : null,
+    email:      parts.some((p) => p.includes("email")),
+    discord:    parts.some((p) => p.includes("discord")),
+    telegram:   parts.some((p) => p.includes("telegram")),
+  };
+}
+
+function hasCustomExtras(extras: CustomExtras): boolean {
+  return extras.wallet || extras.email || extras.discord || extras.telegram;
+}
+
+function buildInfoPrompt(extras: CustomExtras): string {
+  const fields: string[] = [];
+  if (extras.wallet)   fields.push(`wallet: your_${extras.walletType ?? "crypto"}_address`);
+  if (extras.email)    fields.push(`email: your@email.com`);
+  if (extras.discord)  fields.push(`discord: YourUsername`);
+  if (extras.telegram) fields.push(`telegram: @yourusername`);
+  return `📋 <b>Additional Info Required</b>\n\nPlease reply with your info in this format:\n\n<code>${fields.join("\n")}</code>`;
+}
+
+function parseInfoResponse(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const allowed = new Set(["wallet", "email", "discord", "telegram"]);
+  for (const line of text.split("\n")) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx < 1) continue;
+    const key   = line.slice(0, colonIdx).trim().toLowerCase();
+    const value = line.slice(colonIdx + 1).trim();
+    if (key && value && allowed.has(key)) result[key] = value;
+  }
+  return result;
+}
+
 export async function POST(req: NextRequest) {
   const update = await req.json();
   const db = createServerClient();
@@ -110,14 +158,7 @@ export async function POST(req: NextRequest) {
 
         let proofPrompt: string;
         if (job.type === "custom") {
-          const extras = proofRequired
-            .split(",")
-            .map((s) => s.trim())
-            .filter((s) => s && s !== "URL of reply or post");
           proofPrompt = `✏️ Send the URL (your reply or post) as proof.`;
-          if (extras.length > 0) {
-            proofPrompt += `\n\n📋 <b>Also required:</b> ${escapeHtml(extras.join(", "))}\n<i>Admin will contact you for additional info after your submission.</i>`;
-          }
         } else {
           proofPrompt = `✏️ Send the tweet URL as proof of your work:`;
         }
@@ -205,7 +246,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ── Regular text — treat as proof URL if user has a pending job ─────────────
+  // ── Regular text — proof URL or additional info collection ────────────────
   if (text && !text.startsWith("/")) {
     const { data: user } = await db
       .from("users")
@@ -215,13 +256,44 @@ export async function POST(req: NextRequest) {
 
     if (!user?.telegram_pending_job_id) return NextResponse.json({ ok: true });
 
+    const pendingId = user.telegram_pending_job_id;
+
+    // ── Additional info collection phase ──────────────────────────────────
+    if (pendingId.endsWith("__info")) {
+      const jobId  = pendingId.slice(0, -6); // remove "__info"
+      const parsed = parseInfoResponse(text);
+
+      if (Object.keys(parsed).length === 0) {
+        await sendMessage(
+          chatId,
+          `⚠️ Could not read your info. Please reply in key: value format.\n\nExample:\n<code>wallet: 0xAbc123...\nemail: me@example.com</code>`
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      const submitRes = await fetch(`${APP_URL}/api/jobs/${jobId}/submit-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creator_handle: user.twitter_handle, ...parsed }),
+      });
+
+      if (submitRes.ok) {
+        await sendMessage(chatId, `✅ Info saved! Your job is fully complete. 🎉`);
+        await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
+      } else {
+        await sendMessage(chatId, `❌ Failed to save info. Please try again.`);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // ── Proof URL submission ───────────────────────────────────────────────
     if (!text.includes("twitter.com") && !text.includes("x.com")) {
       await sendMessage(chatId, `⚠️ Please send a valid tweet URL (twitter.com or x.com).`);
       return NextResponse.json({ ok: true });
     }
 
     await sendMessage(chatId, `⏳ Verifying proof...`);
-    const verifyRes = await fetch(`${APP_URL}/api/jobs/${user.telegram_pending_job_id}/verify-proof`, {
+    const verifyRes = await fetch(`${APP_URL}/api/jobs/${pendingId}/verify-proof`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ twitter_handle: user.twitter_handle, proof_url: text }),
@@ -229,6 +301,22 @@ export async function POST(req: NextRequest) {
     const verifyData = await verifyRes.json();
 
     if (verifyRes.ok) {
+      // For custom jobs: check if additional info is needed
+      const { data: jobData } = await db
+        .from("jobs")
+        .select("type, description")
+        .eq("id", pendingId)
+        .maybeSingle();
+
+      if (jobData?.type === "custom") {
+        const extras = extractCustomExtras(jobData.description ?? "");
+        if (hasCustomExtras(extras)) {
+          await db.from("users").update({ telegram_pending_job_id: `${pendingId}__info` }).eq("id", user.id);
+          await sendMessage(chatId, `🎉 Proof accepted!\n\n${buildInfoPrompt(extras)}`);
+          return NextResponse.json({ ok: true });
+        }
+      }
+
       await sendMessage(chatId, `🎉 Proof accepted! Job completed. Payment will be sent to your wallet.`);
       await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
     } else {

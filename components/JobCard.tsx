@@ -131,6 +131,7 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const [proofUrl, setProofUrl] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [extraWallet, setExtraWallet]   = useState("");
   const [extraEmail, setExtraEmail]     = useState("");
   const [extraDiscord, setExtraDiscord] = useState("");
@@ -147,13 +148,16 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/jobs/${job.id}/accept`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ twitter_handle: twitterHandle }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
+      if (!accepted) {
+        const res = await fetch(`/api/jobs/${job.id}/accept`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ twitter_handle: twitterHandle }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
+        setAccepted(true);
+      }
 
       if (isAutoVerify) {
         setPhase("verifying");
@@ -303,10 +307,12 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
               <button onClick={onClose} disabled={loading} className="btn-outline flex-1 text-sm">Cancel</button>
               <button onClick={handleAccept} disabled={loading} className="btn-primary flex-1 text-sm">
                 {loading
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Accepting…</>
-                  : isAutoVerify
-                    ? <>Accept & Verify <ArrowRight className="w-3.5 h-3.5" /></>
-                    : <>Accept <ArrowRight className="w-3.5 h-3.5" /></>}
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> {accepted ? "Verifying…" : "Accepting…"}</>
+                  : accepted && isAutoVerify
+                    ? <>Retry Verify <ArrowRight className="w-3.5 h-3.5" /></>
+                    : isAutoVerify
+                      ? <>Accept & Verify <ArrowRight className="w-3.5 h-3.5" /></>
+                      : <>Accept <ArrowRight className="w-3.5 h-3.5" /></>}
               </button>
             </div>
           </>
