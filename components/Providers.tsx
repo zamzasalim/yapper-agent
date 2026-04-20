@@ -10,7 +10,18 @@ const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID ?? "";
 
 const solanaAdapter = new SolanaAdapter();
 
+if (typeof window !== "undefined") {
+  // Suppress Lit dev-mode warning from Reown's internal components
+  (globalThis as Record<string, unknown>).litIssuedWarnings ??= new Set();
+  ((globalThis as Record<string, unknown>).litIssuedWarnings as Set<string>).add("dev-mode");
+}
+
 if (projectId) {
+  const appUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent.vercel.app");
+
   createAppKit({
     adapters: [solanaAdapter],
     networks: [solana],
@@ -19,7 +30,7 @@ if (projectId) {
     metadata: {
       name: "Yapper Agent",
       description: "Earn USDC with your X account",
-      url: process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent.vercel.app",
+      url: appUrl,
       icons: ["/logo.png"],
     },
   });

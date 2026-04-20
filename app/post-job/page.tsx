@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useSearchParams } from "next/navigation";
@@ -162,8 +162,11 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 // ─── Main Form ───────────────────────────────────────────────────────────────
 function PostJobForm() {
   const { open } = useAppKit();
-  const { isConnected, embeddedWalletInfo } = useAppKitAccount();
-  const authenticated = isConnected && embeddedWalletInfo?.authProvider === "x";
+  const { isConnected, embeddedWalletInfo, status } = useAppKitAccount();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const isRestoring  = status === "connecting" || status === "reconnecting";
+  const authenticated = isConnected;
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
 
@@ -385,6 +388,14 @@ function PostJobForm() {
   }
 
   // ── Auth guard ──
+  if (!mounted || isRestoring) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+      </div>
+    );
+  }
+
   if (!authenticated) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[60vh] grid-bg">

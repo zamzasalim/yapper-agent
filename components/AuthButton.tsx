@@ -28,8 +28,8 @@ export function AuthButton() {
         className={cn(
           "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
           pathname === "/dashboard"
-            ? "bg-blue-50 text-blue-600"
-            : "text-neutral-600 hover:bg-neutral-100"
+            ? "bg-blue-50 dark:bg-blue-950 text-blue-600"
+            : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--surface-2)]"
         )}
       >
         {twitterHandle ? (

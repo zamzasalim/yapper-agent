@@ -59,6 +59,16 @@ interface JobRecord {
   status: JobStatus;
 }
 
+interface ApplicantRecord {
+  twitter_handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_verified_blue: boolean;
+  status: string;
+  proof_url: string | null;
+  additional_info: { wallet?: string; email?: string; discord?: string; telegram?: string } | null;
+}
+
 interface ClientJobRecord {
   id: string;
   created_at: string;
@@ -70,6 +80,27 @@ interface ClientJobRecord {
   rating: number | null;
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  repost:     "Repost",
+  like_reply: "Like & Reply",
+  content:    "Content",
+  custom:     "Custom",
+  campaign:   "Campaign",
+};
+function fmtType(t: string) { return TYPE_LABEL[t] ?? t.charAt(0).toUpperCase() + t.slice(1); }
+
+const TYPE_PREFIX: Record<string, string> = {
+  custom:     "X",
+  like_reply: "L",
+  repost:     "R",
+  content:    "C",
+  campaign:   "E",
+};
+function fmtJobId(type: string, id: string) {
+  const prefix = TYPE_PREFIX[type] ?? "X";
+  return `${prefix}H${id.slice(0, 8).toUpperCase()}`;
+}
+
 const STATUS_STYLE: Record<string, string> = {
   completed:        "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400",
   in_progress:      "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400",
@@ -77,6 +108,22 @@ const STATUS_STYLE: Record<string, string> = {
   cancelled:        "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400",
   pending_approval: "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400",
 };
+
+const STATUS_TEXT: Record<string, string> = {
+  completed:        "text-green-600 dark:text-green-400",
+  in_progress:      "text-blue-600 dark:text-blue-400",
+  open:             "text-amber-600 dark:text-amber-400",
+  cancelled:        "text-red-600 dark:text-red-400",
+  pending_approval: "text-violet-600 dark:text-violet-400",
+};
+const STATUS_LABEL: Record<string, string> = {
+  completed:        "Completed",
+  in_progress:      "In Progress",
+  open:             "Open",
+  cancelled:        "Cancelled",
+  pending_approval: "Pending Approval",
+};
+function fmtStatus(s: string) { return STATUS_LABEL[s] ?? s; }
 
 
 export default function DashboardPage() {
@@ -94,9 +141,9 @@ export default function DashboardPage() {
   const [savingNiches, setSavingNiches]     = useState(false);
   const [nichesSaved, setNichesSaved]       = useState(false);
   const [editingNiches, setEditingNiches]   = useState(false);
-  const [ratingJobId, setRatingJobId]   = useState<string | null>(null);
-  const [ratingValue, setRatingValue]   = useState(0);
-  const [ratingHover, setRatingHover]   = useState(0);
+  const [ratingHandle, setRatingHandle]         = useState<string | null>(null);
+  const [ratingValue, setRatingValue]           = useState(0);
+  const [ratingHover, setRatingHover]           = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const [copied, setCopied]             = useState(false);
@@ -104,11 +151,19 @@ export default function DashboardPage() {
   const [jobsPage, setJobsPage]             = useState(0);
   const [clientJobsPage, setClientJobsPage] = useState(0);
   const [jobsFilter, setJobsFilter]                 = useState<JobStatus | null>(null);
+  const [jobsTypeFilter, setJobsTypeFilter]         = useState<string | null>(null);
   const [clientJobsFilter, setClientJobsFilter]     = useState<JobStatus | null>(null);
+  const [clientJobsTypeFilter, setClientJobsTypeFilter] = useState<string | null>(null);
 
   const [connectingTelegram, setConnectingTelegram] = useState(false);
   const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [applicantsModal, setApplicantsModal]     = useState<{ jobId: string; jobTitle: string; jobType: string; jobStatus: JobStatus; jobRating: number | null } | null>(null);
+  const [applicants, setApplicants]               = useState<ApplicantRecord[]>([]);
+  const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [applicantsPage, setApplicantsPage]       = useState(0);
+  const APPL_PAGE_SIZE = 10;
 
   // Derive twitter info from Reown social login
   const reownHandle   = embeddedWalletInfo?.user?.username ?? "";
@@ -214,20 +269,21 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleSubmitRating(jobId: string) {
-    if (!ratingValue) return;
+  async function handleSubmitRating() {
+    if (!ratingValue || !applicantsModal) return;
     setSubmittingRating(true);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/rate`, {
+      const res = await fetch(`/api/jobs/${applicantsModal.jobId}/rate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_handle: twitterHandle, rating: ratingValue }),
       });
       if (res.ok) {
         setClientJobs((prev) =>
-          prev.map((j) => (j.id === jobId ? { ...j, rating: ratingValue } : j))
+          prev.map((j) => (j.id === applicantsModal.jobId ? { ...j, rating: ratingValue } : j))
         );
-        setRatingJobId(null);
+        setApplicantsModal((m) => m ? { ...m, jobRating: ratingValue } : m);
+        setRatingHandle(null);
         setRatingValue(0);
       }
     } finally {
@@ -282,6 +338,48 @@ export default function DashboardPage() {
     } finally {
       setConnectingTelegram(false);
     }
+  }
+
+  async function handleOpenApplicants(job: ClientJobRecord) {
+    setApplicantsModal({ jobId: job.id, jobTitle: job.title, jobType: job.type, jobStatus: job.status, jobRating: job.rating ?? null });
+    setApplicants([]);
+    setApplicantsPage(0);
+    setRatingHandle(null);
+    setRatingValue(0);
+    setLoadingApplicants(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/applicants`);
+      const { applicants: data } = await res.json();
+      setApplicants(data ?? []);
+    } finally {
+      setLoadingApplicants(false);
+    }
+  }
+
+  function handleExportApplicants() {
+    if (!applicants.length) return;
+    const rows = [
+      ["handle", "display_name", "verified", "status", "proof_url", "wallet", "email", "discord", "telegram"],
+      ...applicants.map((a) => [
+        a.twitter_handle,
+        a.display_name ?? "",
+        a.is_verified_blue ? "yes" : "no",
+        a.status,
+        a.proof_url ?? "",
+        a.additional_info?.wallet ?? "",
+        a.additional_info?.email ?? "",
+        a.additional_info?.discord ?? "",
+        a.additional_info?.telegram ?? "",
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `creators-${applicantsModal?.jobId ?? "job"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // Cleanup poll on unmount
@@ -370,11 +468,16 @@ export default function DashboardPage() {
           )}
 
           <div className="flex-1 min-w-0">
-            {/* Row 1: Display name + role badges */}
+            {/* Row 1: Display name + blue tick + role badges */}
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
-                {profile?.display_name || twitterHandle}
-              </h1>
+              {profile?.display_name && (
+                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
+                  {profile.display_name}
+                </h1>
+              )}
+              {profile?.is_verified_blue && (
+                <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+              )}
               {registering && (
                 <span className="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" /> Registering…
@@ -394,17 +497,6 @@ export default function DashboardPage() {
             {/* Row 2: Twitter icon + @handle + blue tick */}
             {/* Row 2: X icon + @handle + blue tick */}
             <div className="flex flex-col gap-1.5 mt-1 text-xs text-neutral-400 dark:text-neutral-500">
-              {twitterHandle && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.254 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                  <span>@{twitterHandle}</span>
-                  {profile?.is_verified_blue && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                  )}
-                </div>
-              )}
 
               {/* Wallet */}
               {walletAddress ? (
@@ -567,7 +659,7 @@ export default function DashboardPage() {
             {/* ── Stats ────────────────────────────────────────────── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {[
-                { label: "Total Earned",   value: `$${totalEarned.toFixed(2)} USDC`, icon: TrendingUp,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950"   },
+                { label: "Total Earned",   value: `$${totalEarned.toFixed(1)} USDC`, icon: TrendingUp,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950"   },
                 { label: "Jobs Completed", value: completed.toString(),               icon: CheckCircle2, color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950"     },
                 { label: "Active Jobs",    value: active.toString(),                  icon: Clock,        color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950"   },
                 { label: "Platform Fee",   value: "0%",                               icon: Zap,          color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950"  },
@@ -586,38 +678,46 @@ export default function DashboardPage() {
 
             {/* ── Job history ───────────────────────────────────────── */}
             {(() => {
-              const filtered = jobsFilter ? jobs.filter((j) => j.status === jobsFilter) : jobs;
+              const filtered = jobs.filter((j) =>
+                (!jobsFilter || j.status === jobsFilter) &&
+                (!jobsTypeFilter || j.type === jobsTypeFilter)
+              );
               const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
               const paged = filtered.slice(jobsPage * PAGE_SIZE, (jobsPage + 1) * PAGE_SIZE);
               const statuses = Array.from(new Set(jobs.map((j) => j.status))) as JobStatus[];
+              const types    = Array.from(new Set(jobs.map((j) => j.type)));
               return (
                 <div className="card overflow-hidden mb-6">
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-semibold text-neutral-900 dark:text-white shrink-0">Your Jobs</h2>
-                      {jobs.length > 0 && statuses.length > 1 && (
-                        <>
-                          <button
-                            onClick={() => { setJobsFilter(null); setJobsPage(0); }}
-                            className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!jobsFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
-                          >
-                            All
-                          </button>
-                          {statuses.map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => { setJobsFilter(s); setJobsPage(0); }}
-                              className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${jobsFilter === s ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
-                            >
-                              {s.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
-                            </button>
-                          ))}
-                        </>
-                      )}
+                  <div className="flex flex-col px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 gap-2">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-semibold text-neutral-900 dark:text-white">Your Jobs</h2>
+                      <Link href="/jobs" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 shrink-0">
+                        Browse open jobs <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </div>
-                    <Link href="/jobs" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 shrink-0">
-                      Browse open jobs <ArrowRight className="w-3 h-3" />
-                    </Link>
+                    {jobs.length > 0 && (statuses.length > 1 || types.length > 1) && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {statuses.length > 1 && (
+                          <>
+                            <button onClick={() => { setJobsFilter(null); setJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!jobsFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>All</button>
+                            {statuses.map((s) => (
+                              <button key={s} onClick={() => { setJobsFilter(s); setJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${jobsFilter === s ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>{fmtStatus(s)}</button>
+                            ))}
+                          </>
+                        )}
+                        {statuses.length > 1 && types.length > 1 && (
+                          <span className="text-neutral-300 dark:text-neutral-700 select-none">|</span>
+                        )}
+                        {types.length > 1 && (
+                          <>
+                            <button onClick={() => { setJobsTypeFilter(null); setJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!jobsTypeFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>All</button>
+                            {types.map((t) => (
+                              <button key={t} onClick={() => { setJobsTypeFilter(t); setJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${jobsTypeFilter === t ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>{fmtType(t)}</button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {filtered.length > 0 ? (
@@ -630,18 +730,12 @@ export default function DashboardPage() {
                                 {job.title}
                               </p>
                               <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                                {job.type} · {new Date(job.created_at).toLocaleDateString()}
+                                <span className="font-mono">{fmtJobId(job.type, job.id)}</span> · {fmtType(job.type)} · <span className={STATUS_TEXT[job.status]}>{fmtStatus(job.status)}</span> · {new Date(job.created_at).toLocaleDateString()}
                               </p>
                             </div>
-                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
-                              {job.status.replace("_", " ")}
-                            </span>
                             <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
-                              ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
+                              ${job.price_usdc.toFixed(1)}
                             </span>
-                            <button className="shrink-0 text-neutral-400 dark:text-neutral-500">
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         ))}
                       </div>
@@ -673,7 +767,7 @@ export default function DashboardPage() {
                   ) : (
                     <div className="text-center py-12 text-neutral-400 dark:text-neutral-500">
                       <Briefcase className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">{jobsFilter ? `No "${jobsFilter.replace("_", " ")}" jobs.` : "No jobs yet."}</p>
+                      <p className="text-sm">{jobsFilter ? `No "${fmtStatus(jobsFilter)}" jobs.` : "No jobs yet."}</p>
                       {!jobsFilter && (
                         <p className="text-xs mt-1">
                           <Link href="/jobs" className="text-blue-500 hover:underline">Browse open jobs</Link> to start earning.
@@ -687,38 +781,46 @@ export default function DashboardPage() {
 
             {/* ── Jobs You Posted ───────────────────────────────────── */}
             {clientJobs.length > 0 && (() => {
-              const filteredCJ = clientJobsFilter ? clientJobs.filter((j) => j.status === clientJobsFilter) : clientJobs;
+              const filteredCJ = clientJobs.filter((j) =>
+                (!clientJobsFilter || j.status === clientJobsFilter) &&
+                (!clientJobsTypeFilter || j.type === clientJobsTypeFilter)
+              );
               const totalPages = Math.ceil(filteredCJ.length / PAGE_SIZE);
               const paged = filteredCJ.slice(clientJobsPage * PAGE_SIZE, (clientJobsPage + 1) * PAGE_SIZE);
               const statusesCJ = Array.from(new Set(clientJobs.map((j) => j.status))) as JobStatus[];
+              const typesCJ    = Array.from(new Set(clientJobs.map((j) => j.type)));
               return (
                 <div className="card overflow-hidden mb-6">
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-semibold text-neutral-900 dark:text-white shrink-0">Jobs You Posted</h2>
-                      {statusesCJ.length > 1 && (
-                        <>
-                          <button
-                            onClick={() => { setClientJobsFilter(null); setClientJobsPage(0); }}
-                            className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!clientJobsFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
-                          >
-                            All
-                          </button>
-                          {statusesCJ.map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => { setClientJobsFilter(s); setClientJobsPage(0); }}
-                              className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${clientJobsFilter === s ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}
-                            >
-                              {s.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
-                            </button>
-                          ))}
-                        </>
-                      )}
+                  <div className="flex flex-col px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 gap-2">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-semibold text-neutral-900 dark:text-white">Jobs You Posted</h2>
+                      <Link href="/post-job" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 shrink-0">
+                        Post new <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </div>
-                    <Link href="/post-job" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 shrink-0">
-                      Post new <ArrowRight className="w-3 h-3" />
-                    </Link>
+                    {(statusesCJ.length > 1 || typesCJ.length > 1) && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {statusesCJ.length > 1 && (
+                          <>
+                            <button onClick={() => { setClientJobsFilter(null); setClientJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!clientJobsFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>All</button>
+                            {statusesCJ.map((s) => (
+                              <button key={s} onClick={() => { setClientJobsFilter(s); setClientJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${clientJobsFilter === s ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>{fmtStatus(s)}</button>
+                            ))}
+                          </>
+                        )}
+                        {statusesCJ.length > 1 && typesCJ.length > 1 && (
+                          <span className="text-neutral-300 dark:text-neutral-700 select-none">|</span>
+                        )}
+                        {typesCJ.length > 1 && (
+                          <>
+                            <button onClick={() => { setClientJobsTypeFilter(null); setClientJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${!clientJobsTypeFilter ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>All</button>
+                            {typesCJ.map((t) => (
+                              <button key={t} onClick={() => { setClientJobsTypeFilter(t); setClientJobsPage(0); }} className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${clientJobsTypeFilter === t ? "border-blue-400 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300"}`}>{fmtType(t)}</button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -730,64 +832,20 @@ export default function DashboardPage() {
                               {job.title}
                             </p>
                             <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                              {job.type} · {new Date(job.created_at).toLocaleDateString()}
+                              <span className="font-mono">{fmtJobId(job.type, job.id)}</span> · {fmtType(job.type)} · <span className={STATUS_TEXT[job.status]}>{fmtStatus(job.status)}</span> · {new Date(job.created_at).toLocaleDateString()}
                             </p>
                           </div>
-                          <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLE[job.status]}`}>
-                            {job.status.replace("_", " ")}
-                          </span>
+                          <button
+                            onClick={() => handleOpenApplicants(job)}
+                            className="text-xs px-2.5 py-1 rounded-full border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 transition-colors shrink-0"
+                          >
+                            Data
+                          </button>
                           <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
-                            ${job.price_usdc < 1 ? job.price_usdc.toFixed(2) : job.price_usdc}
+                            ${job.price_usdc.toFixed(1)}
                           </span>
                         </div>
 
-                        {/* Rating section */}
-                        {job.status === "completed" && job.creator_id && (
-                          job.rating !== null ? (
-                            <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                              <span>Your rating:</span>
-                              {[1,2,3,4,5].map((s) => (
-                                <Star key={s} className={`w-3.5 h-3.5 ${s <= job.rating! ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
-                              ))}
-                            </div>
-                          ) : ratingJobId === job.id ? (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <div className="flex items-center gap-0.5">
-                                {[1,2,3,4,5].map((s) => (
-                                  <button
-                                    key={s}
-                                    onMouseEnter={() => setRatingHover(s)}
-                                    onMouseLeave={() => setRatingHover(0)}
-                                    onClick={() => setRatingValue(s)}
-                                    className="p-0.5"
-                                  >
-                                    <Star className={`w-5 h-5 transition-colors ${s <= (ratingHover || ratingValue) ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
-                                  </button>
-                                ))}
-                              </div>
-                              <button
-                                onClick={() => handleSubmitRating(job.id)}
-                                disabled={!ratingValue || submittingRating}
-                                className="btn-primary text-xs px-3 py-1.5"
-                              >
-                                {submittingRating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Submit"}
-                              </button>
-                              <button
-                                onClick={() => { setRatingJobId(null); setRatingValue(0); setRatingHover(0); }}
-                                className="text-xs text-neutral-400 hover:text-neutral-600"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => { setRatingJobId(job.id); setRatingValue(0); setRatingHover(0); }}
-                              className="text-xs text-blue-500 hover:underline self-start flex items-center gap-1"
-                            >
-                              <Star className="w-3 h-3" /> Rate this creator
-                            </button>
-                          )
-                        )}
                       </div>
                     ))}
                   </div>
@@ -828,6 +886,166 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* ── Applicants Modal ──────────────────────────────────── */}
+      {applicantsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setApplicantsModal(null)}
+        >
+          <div
+            className="card w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-neutral-900 dark:text-white truncate">Creators</h2>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500 truncate mt-0.5">{applicantsModal.jobTitle}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-4">
+                <button
+                  onClick={handleExportApplicants}
+                  disabled={applicants.length === 0}
+                  className="btn-outline text-xs px-3 py-1.5 disabled:opacity-40"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={() => setApplicantsModal(null)}
+                  className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-neutral-400"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1">
+              {loadingApplicants ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-neutral-400">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Loading…</span>
+                </div>
+              ) : applicants.length === 0 ? (
+                <div className="text-center py-16 text-neutral-400 dark:text-neutral-500">
+                  <p className="text-sm">No creators have joined this job yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                  {applicants.slice(applicantsPage * APPL_PAGE_SIZE, (applicantsPage + 1) * APPL_PAGE_SIZE).map((a) => (
+                    <div key={a.twitter_handle} className="px-5 py-3 flex items-start gap-3">
+                      {/* Avatar */}
+                      {a.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={a.avatar_url} alt={a.twitter_handle} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                          {a.twitter_handle.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-medium text-neutral-900 dark:text-white">@{a.twitter_handle}</span>
+                          {a.is_verified_blue && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-1 ${STATUS_STYLE[a.status] ?? "bg-neutral-100 text-neutral-500"}`}>
+                            {a.status}
+                          </span>
+                        </div>
+
+                        {/* Proof + Rate button row */}
+                        {(a.proof_url || a.status === "completed") && (
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            {a.proof_url && (
+                              <a href={a.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                {applicantsModal.jobType === "repost" ? "Reposted tweet" : "Proof link"}
+                              </a>
+                            )}
+                            {a.status === "completed" && (
+                              applicantsModal?.jobRating !== null ? (
+                                <div className="flex items-center gap-0.5">
+                                  {[1,2,3,4,5].map((s) => (
+                                    <Star key={s} className={`w-3.5 h-3.5 ${s <= (applicantsModal?.jobRating ?? 0) ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
+                                  ))}
+                                </div>
+                              ) : ratingHandle !== a.twitter_handle ? (
+                                <button onClick={() => { setRatingHandle(a.twitter_handle); setRatingValue(0); setRatingHover(0); }} className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                                  <Star className="w-3 h-3" /> Rate this creator
+                                </button>
+                              ) : null
+                            )}
+                          </div>
+                        )}
+
+                        {/* Star picker — expands inline when rating active */}
+                        {a.status === "completed" && applicantsModal?.jobRating === null && ratingHandle === a.twitter_handle && (
+                          <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                            <div className="flex items-center gap-0.5">
+                              {[1,2,3,4,5].map((s) => (
+                                <button key={s} onMouseEnter={() => setRatingHover(s)} onMouseLeave={() => setRatingHover(0)} onClick={() => setRatingValue(s)} className="p-0.5">
+                                  <Star className={`w-5 h-5 transition-colors ${s <= (ratingHover || ratingValue) ? "text-amber-400 fill-amber-400" : "text-neutral-300 dark:text-neutral-600"}`} />
+                                </button>
+                              ))}
+                            </div>
+                            <button onClick={handleSubmitRating} disabled={!ratingValue || submittingRating} className="btn-primary text-xs px-3 py-1.5">
+                              {submittingRating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Submit"}
+                            </button>
+                            <button onClick={() => { setRatingHandle(null); setRatingValue(0); setRatingHover(0); }} className="text-xs text-neutral-400 hover:text-neutral-600">
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Additional info */}
+                        {a.additional_info && Object.keys(a.additional_info).length > 0 && (
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+                            {a.additional_info.wallet   && <span className="text-xs text-neutral-400">wallet: <span className="text-neutral-600 dark:text-neutral-300 font-mono">{a.additional_info.wallet}</span></span>}
+                            {a.additional_info.email    && <span className="text-xs text-neutral-400">email: <span className="text-neutral-600 dark:text-neutral-300">{a.additional_info.email}</span></span>}
+                            {a.additional_info.discord  && <span className="text-xs text-neutral-400">discord: <span className="text-neutral-600 dark:text-neutral-300">{a.additional_info.discord}</span></span>}
+                            {a.additional_info.telegram && <span className="text-xs text-neutral-400">telegram: <span className="text-neutral-600 dark:text-neutral-300">{a.additional_info.telegram}</span></span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer pagination */}
+            {applicants.length > APPL_PAGE_SIZE && (
+              <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
+                <span className="text-xs text-neutral-400">
+                  {applicantsPage * APPL_PAGE_SIZE + 1}–{Math.min((applicantsPage + 1) * APPL_PAGE_SIZE, applicants.length)} of {applicants.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setApplicantsPage((p) => p - 1)}
+                    disabled={applicantsPage === 0}
+                    className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-neutral-500 px-1">
+                    {applicantsPage + 1} / {Math.ceil(applicants.length / APPL_PAGE_SIZE)}
+                  </span>
+                  <button
+                    onClick={() => setApplicantsPage((p) => p + 1)}
+                    disabled={(applicantsPage + 1) * APPL_PAGE_SIZE >= applicants.length}
+                    className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
