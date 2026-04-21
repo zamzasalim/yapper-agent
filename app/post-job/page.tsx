@@ -176,6 +176,7 @@ function PostJobForm() {
   const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline]       = useState("24");
+  const [deadlineCustom, setDeadlineCustom] = useState("");
   const [numCreators, setNumCreators] = useState(1);
   const [submitted, setSubmitted]     = useState(false);
 
@@ -311,6 +312,8 @@ function PostJobForm() {
         num_creators: effectiveCreators,
         deadline_hours: jobType === "campaign"
           ? parseInt(campaignDuration) * 24
+          : deadline === "custom" && deadlineCustom
+          ? Math.max(1, Math.round((new Date(deadlineCustom).getTime() - Date.now()) / 3_600_000))
           : parseInt(deadline),
       }),
     });
@@ -787,7 +790,17 @@ function PostJobForm() {
                   <option value="24">24 hours</option>
                   <option value="48">48 hours</option>
                   <option value="72">72 hours</option>
+                  <option value="custom">Custom date & time…</option>
                 </select>
+                {deadline === "custom" && (
+                  <input
+                    type="datetime-local"
+                    className="input-field mt-2"
+                    value={deadlineCustom}
+                    min={new Date(Date.now() + 3_600_000).toISOString().slice(0, 16)}
+                    onChange={(e) => setDeadlineCustom(e.target.value)}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -848,6 +861,9 @@ function PostJobForm() {
                           : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
                       <p className={cn("text-xs font-bold", creatorTier === tier.value ? "text-blue-700 dark:text-blue-400" : "text-neutral-800 dark:text-neutral-200")}>
                         {tier.label}
+                      </p>
+                      <p className={cn("text-[10px] mt-0.5", creatorTier === tier.value ? "text-blue-500 dark:text-blue-400" : "text-neutral-400 dark:text-neutral-500")}>
+                        {tier.sub}
                       </p>
                       <p className={cn("text-sm font-extrabold mt-1", creatorTier === tier.value ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
                         {tier.price === -1 ? "Custom" : `$${tier.price}`}

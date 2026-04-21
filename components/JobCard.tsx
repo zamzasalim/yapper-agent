@@ -475,7 +475,7 @@ export function JobCard({ job }: { job: Job }) {
   const hasTierJob      = job.type === "content" || job.type === "campaign";
   const hasTweetBadge   = isEngagementJob && job.tweetUrl;
   const showRequireBlue = !!job.requireBlue;
-  const showFollowers   = (isEngagementJob || isCustom) && !!job.minFollowers && job.minFollowers > 0;
+  const showFollowers   = (isEngagementJob || isCustom) && job.minFollowers != null;
   const tierLabel       = hasTierJob ? deriveTierLabel(job.minFollowers ?? 0) : null;
   const maxCreators     = job.maxCreators ?? 1;
   const slotsLeft       = Math.max(0, maxCreators - (job.slotsTaken ?? 0));
@@ -546,7 +546,7 @@ export function JobCard({ job }: { job: Job }) {
           {showFollowers && (
             <span className="tag text-[10px] px-2 py-0.5 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
-              {job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K` : job.minFollowers}+
+              {job.minFollowers === 0 ? "Any" : job.minFollowers! >= 1000 ? `${(job.minFollowers! / 1000).toFixed(0)}K+` : `${job.minFollowers}+`}
             </span>
           )}
 
