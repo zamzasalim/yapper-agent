@@ -207,7 +207,7 @@ function PostJobForm() {
   const [requireTelegram, setRequireTelegram]   = useState(false);
 
   // Budget (content / campaign)
-  const [creatorTier, setCreatorTier]   = useState("1000-10000");
+  const [selectedTiers, setSelectedTiers] = useState<string[]>(["1000-10000"]);
   const [customPrice, setCustomPrice]   = useState("");
   const [requireCenblue, setRequireCenblue] = useState(false);
   const [minFollowers, setMinFollowers]     = useState(0);
@@ -221,14 +221,24 @@ function PostJobForm() {
 
   // ── Price calc ──
   const fixedPrice   = FIXED_PRICE[jobType];
-  const selectedTier = CREATOR_TIERS.find((t) => t.value === creatorTier);
+  const activeTiers  = CREATOR_TIERS.filter((t) => selectedTiers.includes(t.value));
+  const hasMacro     = activeTiers.some((t) => t.price === -1);
+  const maxTierPrice = hasMacro ? -1 : Math.max(...activeTiers.map((t) => t.price), 0);
+
+  function toggleTier(value: string) {
+    setSelectedTiers((prev) =>
+      prev.includes(value)
+        ? prev.length > 1 ? prev.filter((v) => v !== value) : prev
+        : [...prev, value]
+    );
+  }
 
   const unitPrice: number = (() => {
     if (fixedPrice !== undefined) return fixedPrice;
     if (jobType === "custom") return parseFloat(customPrice) || 0;
     // content / campaign
-    if (selectedTier?.price === -1) return parseFloat(customPrice) || 0;
-    return selectedTier?.price ?? 0;
+    if (hasMacro) return parseFloat(customPrice) || 0;
+    return maxTierPrice;
   })();
 
   const effectiveCreators = jobType === "campaign" ? Math.max(2, numCreators) : numCreators;
@@ -240,9 +250,9 @@ function PostJobForm() {
 
   // ── Save job ──
   async function saveJob(txHashStr?: string) {
-    // For content/campaign: derive min followers from selected tier automatically
+    // For content/campaign: derive min followers from selected tiers (use lowest)
     const effectiveMinFollowers =
-      showTier ? (selectedTier?.min ?? 0) : minFollowers;
+      showTier ? Math.min(...activeTiers.map((t) => t.min)) : minFollowers;
 
     const reqParts: string[] = [];
     if (requireCenblue)          reqParts.push("verified only");
@@ -365,7 +375,7 @@ function PostJobForm() {
   }
 
   // ── Validation ──
-  const macroCustomValid = selectedTier?.price !== -1 || parseFloat(customPrice) > 25;
+  const macroCustomValid = !hasMacro || parseFloat(customPrice) > 25;
   const canSubmit = (() => {
     if (!title.trim()) return false;
     switch (jobType) {
@@ -826,9 +836,9 @@ function PostJobForm() {
               </div>
             )}
             {/* For content/campaign: show info that tier drives the min followers */}
-            {showTier && selectedTier && (
+            {showTier && activeTiers.length > 0 && (
               <div className="flex items-center justify-between gap-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
-                <p>Tier <strong className="text-neutral-700 dark:text-neutral-300">{selectedTier.label}</strong></p>
+                <p>Tier <strong className="text-neutral-700 dark:text-neutral-300">{activeTiers.map((t) => t.label).join(" + ")}</strong></p>
                 <p className="text-right">automatically sets the follower requirement.</p>
               </div>
             )}
@@ -848,34 +858,36 @@ function PostJobForm() {
               </div>
             )}
 
-            {/* Tier selector — content & campaign */}
+            {/* Tier selector — content & campaign (multi-select) */}
             {showTier && (
               <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Creator Tier (by followers)</label>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                  Creator Tier <span className="font-normal text-neutral-400">(select one or more)</span>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {CREATOR_TIERS.map((tier) => (
-                    <button key={tier.value} onClick={() => setCreatorTier(tier.value)}
-                      className={cn("p-3 rounded-xl border text-left transition-all",
-                        creatorTier === tier.value
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                          : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
-                      <p className={cn("text-xs font-bold", creatorTier === tier.value ? "text-blue-700 dark:text-blue-400" : "text-neutral-800 dark:text-neutral-200")}>
-                        {tier.label}
-                      </p>
-                      <p className={cn("text-[10px] mt-0.5", creatorTier === tier.value ? "text-blue-500 dark:text-blue-400" : "text-neutral-400 dark:text-neutral-500")}>
-                        {tier.sub}
-                      </p>
-                      <p className={cn("text-sm font-extrabold mt-1", creatorTier === tier.value ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
-                        {tier.price === -1 ? "Custom" : `$${tier.price}`}
-                      </p>
-                    </button>
-                  ))}
+                  {CREATOR_TIERS.map((tier) => {
+                    const active = selectedTiers.includes(tier.value);
+                    return (
+                      <button key={tier.value} onClick={() => toggleTier(tier.value)}
+                        className={cn("p-3 rounded-xl border text-left transition-all",
+                          active
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                            : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
+                        <p className={cn("text-xs font-bold", active ? "text-blue-700 dark:text-blue-400" : "text-neutral-800 dark:text-neutral-200")}>
+                          {tier.label} <span className={cn("font-normal", active ? "text-blue-500 dark:text-blue-400" : "text-neutral-400 dark:text-neutral-500")}>({tier.sub})</span>
+                        </p>
+                        <p className={cn("text-sm font-extrabold mt-1", active ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
+                          {tier.price === -1 ? "Custom" : `$${tier.price}`}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Custom price input — only when tier is -1 (Macro) */}
-            {showTier && selectedTier?.price === -1 && (
+            {/* Custom price input — only when Macro is selected */}
+            {showTier && hasMacro && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                   Custom Price per Creator (USDC) *
