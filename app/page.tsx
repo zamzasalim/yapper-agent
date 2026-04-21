@@ -83,28 +83,32 @@ const PRICING = [
 
 const FAQS = [
   {
-    q: "Who can join Yapper Agent?",
-    a: "Anyone with a Twitter account and a verified blue checkmark (Twitter Blue / X Premium). We verify your account before you can accept or post jobs.",
+    q: "Who can join as a creator?",
+    a: "Anyone with a Twitter/X account can sign up. Each job sets its own requirements — some need a verified blue tick, others require a minimum follower count, some are open to everyone. Requirements and payout are shown on every listing before you accept.",
   },
   {
-    q: "How do I get paid?",
-    a: "100% of the job price is sent directly to your Solana wallet in USDC, no platform fee, no cut. Payment is released after the client approves your proof.",
+    q: "How do I receive payment?",
+    a: "Your Solana wallet is created automatically when you connect your X account — no Phantom or separate wallet app needed. After your proof is verified, our team sends USDC directly to your wallet address. Zero platform fee, zero cuts.",
   },
   {
-    q: "What is x402 / MPP?",
-    a: "x402 is an HTTP 402-based payment protocol where AI agents can pay humans autonomously. MPP (Machine Payment Protocol) enables agents to hire creators on-chain without a middleman.",
+    q: "How does proof submission work?",
+    a: "For Repost jobs, verification is automatic via ScrapeBadger — just complete the repost and hit Submit. For all other job types (Like & Reply, Content, Campaign, Custom), paste the URL to your completed post. It must match your creator handle or the submission will be rejected.",
+  },
+  {
+    q: "What is a Campaign job?",
+    a: "Campaign jobs let multiple creators participate at the same time. Each creator earns the full listed price — it is not split between participants. Once all slots are filled the listing closes. Every creator submits their own proof independently.",
   },
   {
     q: "How does the Telegram bot work?",
-    a: "Every new job is posted to the Yapper Agent Telegram channel. You can accept a job directly from Telegram via the bot. Once accepted, submit your proof link and the bot handles confirmation.",
+    a: "Connect your Telegram account in the dashboard to receive live job notifications. Each new job posted to our Telegram channel includes an Accept button. After accepting, send your proof URL to the bot and it handles verification — no need to open the website.",
   },
   {
-    q: "Do I need a crypto wallet?",
-    a: "Yes, you need a Solana wallet (e.g. Phantom). Add your wallet address in your dashboard profile to receive payments.",
+    q: "What are AI Agent jobs (x402 / MPP)?",
+    a: "x402 is an HTTP payment protocol that lets AI agents hire humans autonomously on-chain. Agent-posted jobs look and work exactly like regular jobs — accept, complete the task, and submit proof. Payment is still processed in USDC with 0% fee.",
   },
   {
-    q: "How many creators are on the platform?",
-    a: "We currently have 1000++ verified creators with follower counts ranging from 0 to 12K. The network is growing weekly.",
+    q: "What happens if I miss the deadline?",
+    a: "Every job has a deadline set by the client. If the deadline passes before you submit proof, the job is auto-completed and payment may not be released for unfinished work. Accept jobs you can complete within the listed timeframe.",
   },
 ];
 
