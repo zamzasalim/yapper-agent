@@ -1,0 +1,4 @@
+# Force LF line endings for workflow files (prevents CRLF breaking GitHub Actions YAML)
+.github/workflows/*.yml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
