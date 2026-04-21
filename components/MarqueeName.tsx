@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function MarqueeName({ name, className }: Props) {
-  if (name.length <= 15) {
+  if (name.length <= 12) {
     return <span className={className}>{name}</span>;
   }
 
@@ -15,7 +15,7 @@ export function MarqueeName({ name, className }: Props) {
   return (
     <span
       className={className}
-      style={{ display: "block", width: "15ch", overflow: "hidden" }}
+      style={{ display: "block", width: "12ch", overflow: "hidden" }}
     >
       <span
         style={{
