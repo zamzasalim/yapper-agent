@@ -141,6 +141,10 @@ export default function DashboardPage() {
   const [savingNiches, setSavingNiches]     = useState(false);
   const [nichesSaved, setNichesSaved]       = useState(false);
   const [editingNiches, setEditingNiches]   = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileNameInput, setProfileNameInput]     = useState("");
+  const [profileAvatarInput, setProfileAvatarInput] = useState("");
+  const [savingProfile, setSavingProfile]   = useState(false);
   const [ratingHandle, setRatingHandle]         = useState<string | null>(null);
   const [ratingValue, setRatingValue]           = useState(0);
   const [ratingHover, setRatingHover]           = useState(0);
@@ -250,6 +254,28 @@ export default function DashboardPage() {
       if (prev.length >= 3) return prev;
       return [...prev, niche];
     });
+  }
+
+  async function handleSaveProfile() {
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          twitter_handle: twitterHandle,
+          ...(profileNameInput.trim() && { display_name: profileNameInput.trim() }),
+          ...(profileAvatarInput.trim() && { avatar_url: profileAvatarInput.trim() }),
+        }),
+      });
+      if (res.ok) {
+        const { user } = await res.json();
+        if (user) setProfile(user);
+        setEditingProfile(false);
+      }
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   async function handleSaveNiches() {
@@ -554,6 +580,16 @@ export default function DashboardPage() {
 
           <div className="shrink-0 flex items-center gap-2">
             <button
+              onClick={() => {
+                setProfileNameInput(profile?.display_name ?? twitterHandle ?? "");
+                setProfileAvatarInput(profile?.avatar_url ?? "");
+                setEditingProfile(true);
+              }}
+              className="btn-outline text-xs px-4 py-2"
+            >
+              Edit Profile
+            </button>
+            <button
               onClick={() => open()}
               className="btn-outline text-xs px-4 py-2"
             >
@@ -643,6 +679,58 @@ export default function DashboardPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Edit Profile Modal ────────────────────────────────── */}
+        {editingProfile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="card p-6 w-full max-w-sm flex flex-col gap-4">
+              <h2 className="font-bold text-neutral-900 dark:text-white text-base">Edit Profile</h2>
+
+              {/* Avatar preview */}
+              <div className="flex items-center gap-3">
+                {profileAvatarInput ? (
+                  <img src={profileAvatarInput} alt="preview" className="w-12 h-12 rounded-full object-cover border border-neutral-200 dark:border-neutral-700" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-white font-bold shrink-0">
+                    {(twitterHandle || "?").slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Avatar URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={profileAvatarInput}
+                    onChange={(e) => setProfileAvatarInput(e.target.value)}
+                    className="input-field text-sm w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Display name */}
+              <div>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Display Name</label>
+                <input
+                  type="text"
+                  placeholder={twitterHandle}
+                  value={profileNameInput}
+                  onChange={(e) => setProfileNameInput(e.target.value)}
+                  maxLength={50}
+                  className="input-field text-sm w-full"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <button onClick={() => setEditingProfile(false)} className="btn-outline text-xs px-4 py-2">
+                  Cancel
+                </button>
+                <button onClick={handleSaveProfile} disabled={savingProfile} className="btn-primary text-xs px-4 py-2">
+                  {savingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

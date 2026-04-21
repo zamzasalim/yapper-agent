@@ -14,16 +14,30 @@ export async function fetchTwitterUserStats(
     );
     if (!res.ok) return null;
     const json = await res.json();
+
     // response shape: root object, { data: {...} }, or { data: [{...}] }
     let user = json;
     if (json.data !== undefined) {
       user = Array.isArray(json.data) ? json.data[0] : json.data;
     }
-    if (!user || !user.followers_count) return null;
-    return {
-      followers:        user.followers_count  ?? 0,
-      is_verified_blue: user.is_blue_verified ?? false,
-    };
+    if (!user) return null;
+
+    // Try multiple field name variations — ScrapeBadger API may vary
+    const followers: number =
+      user.followers_count ??
+      user.public_metrics?.followers_count ??
+      user.follower_count ??
+      user.followers ??
+      0;
+
+    const is_verified_blue: boolean =
+      user.is_blue_verified ??
+      user.verified ??
+      user.is_verified ??
+      user.blue_verified ??
+      false;
+
+    return { followers, is_verified_blue };
   } catch {
     return null;
   }

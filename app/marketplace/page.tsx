@@ -1,4 +1,4 @@
-export const revalidate = 60; // ISR: cache page for 60 seconds
+export const revalidate = 10; // ISR: cache page for 10 seconds
 
 import { Navbar } from "@/components/Navbar";
 import { MarketplaceClient } from "@/components/MarketplaceClient";
