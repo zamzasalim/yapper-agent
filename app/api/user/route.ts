@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
       if (stats) {
         updates.twitter_followers = stats.followers;
         updates.is_verified_blue  = stats.is_verified_blue;
+        // Only backfill name/avatar if not already set by user
+        if (!existing.display_name || existing.display_name === existing.twitter_handle) {
+          if (stats.name) updates.display_name = stats.name;
+        }
+        if (!existing.avatar_url && stats.avatar_url) {
+          updates.avatar_url = stats.avatar_url;
+        }
       }
 
       if (Object.keys(updates).length > 0) {
@@ -58,8 +65,8 @@ export async function POST(req: NextRequest) {
         twitter_handle,
         twitter_id: twitter_id || twitter_handle,
         twitter_followers: stats?.followers ?? 0,
-        display_name: display_name || twitter_handle,
-        avatar_url: avatar_url ?? null,
+        display_name: display_name || stats?.name || twitter_handle,
+        avatar_url: avatar_url ?? stats?.avatar_url ?? null,
         is_verified_blue: stats?.is_verified_blue ?? false,
         role: "creator" as const,
       })

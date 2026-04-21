@@ -4,7 +4,7 @@
  */
 export async function fetchTwitterUserStats(
   handle: string
-): Promise<{ followers: number; is_verified_blue: boolean } | null> {
+): Promise<{ followers: number; is_verified_blue: boolean; name?: string; avatar_url?: string } | null> {
   const apiKey = process.env.SCRAPEBADGER_API_KEY ?? "";
   if (!apiKey || !handle) return null;
   try {
@@ -22,22 +22,14 @@ export async function fetchTwitterUserStats(
     }
     if (!user) return null;
 
-    // Try multiple field name variations — ScrapeBadger API may vary
-    const followers: number =
-      user.followers_count ??
-      user.public_metrics?.followers_count ??
-      user.follower_count ??
-      user.followers ??
-      0;
+    const followers: number = user.followers_count ?? user.public_metrics?.followers_count ?? user.follower_count ?? user.followers ?? 0;
+    const is_verified_blue: boolean = user.is_blue_verified ?? user.verified ?? false;
 
-    const is_verified_blue: boolean =
-      user.is_blue_verified ??
-      user.verified ??
-      user.is_verified ??
-      user.blue_verified ??
-      false;
+    // Use higher-res avatar (_normal → _400x400)
+    const raw_avatar: string | undefined = user.profile_image_url;
+    const avatar_url = raw_avatar ? raw_avatar.replace("_normal.", "_400x400.") : undefined;
 
-    return { followers, is_verified_blue };
+    return { followers, is_verified_blue, name: user.name ?? undefined, avatar_url };
   } catch {
     return null;
   }
