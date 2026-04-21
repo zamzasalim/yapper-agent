@@ -14,15 +14,16 @@ flowchart TD
     A1([Connect X]) --> A2[Reown AppKit Twitter OAuth]
     A2 --> A3[Embedded Solana wallet created]
     A3 --> A4{User in DB?}
-    A4 -->|New| A5[POST /api/user\nCreate record\nScrapeBadger: followers + blue]
-    A4 -->|Existing| A6[POST /api/user\nSync wallet\nRefresh followers + blue]
+    A4 -->|New| A5[POST /api/user\nCreate record\nScrapeBadger: followers + blue + name + avatar]
+    A4 -->|Existing| A6[POST /api/user\nSync wallet\nRefresh followers + blue + backfill name/avatar]
     A5 & A6 --> A7[[Dashboard ready]]
+    A7 --> EDITPROF[Edit Profile modal\nCustom display_name + avatar_url\nPATCH /api/user]
 
     %% ── CLIENT: POST JOB ────────────────────────────────────────
     A7 --> CL1[Post Job page]
     CL1 --> CL2{Job Type}
-    CL2 -->|Repost 0.50 USDC\nLike and Reply 0.20 USDC| CL3[Fixed price]
-    CL2 -->|Content or Campaign\ntier pricing| CL4[Select tier\nNano Micro Mid Macro\nSet creator count]
+    CL2 -->|Retweet 0.50 USDC\nLike and Reply 0.20 USDC| CL3[Fixed price\nPreset or custom deadline]
+    CL2 -->|Content or Campaign\ntier pricing| CL4[Select tier - multi except Super CT\nNano CT 5 Small CT 25 Big CT 50 Super CT custom gt 50\nPrice = sum of selected tiers\nPreset or custom deadline]
     CL2 -->|Custom\nadmin approval| CL5[Free-form brief\nNo payment yet]
 
     CL3 & CL4 --> CL6[Send USDC to platform wallet]
@@ -50,7 +51,7 @@ flowchart TD
     CR5 & CR8 & CR9 --> CR10[Creator does the work]
     CR10 --> CR11[Submit proof\nPOST /api/jobs/:id/verify-proof]
     CR11 --> CR12{Job type}
-    CR12 -->|Repost| CR13[ScrapeBadger\ncheck retweet exists]
+    CR12 -->|Retweet| CR13[ScrapeBadger\ncheck retweet exists]
     CR12 -->|Like Content Campaign Custom| CR14[Validate proof URL\nmatches creator handle]
     CR13 -->|Not found| PROOFERR([Retry later])
     CR14 -->|Wrong account| PROOFERR
@@ -136,7 +137,7 @@ flowchart TD
     %% ── REFERENCE ───────────────────────────────────────────────
     subgraph IDS["Job ID Format"]
         direction LR
-        ID1["Repost:       RH + 8-char UUID"]
+        ID1["Retweet:      RH + 8-char UUID"]
         ID2["Like Reply:   LH + 8-char UUID"]
         ID3["Content:      CH + 8-char UUID"]
         ID4["Campaign:     EH + 8-char UUID"]
@@ -167,7 +168,7 @@ flowchart TD
     A7 -.->|Admin only| AD_CAN
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
-    class A1,A2,A3,A4,A5,A6,A7 auth
+    class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
     class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2 client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI admin
