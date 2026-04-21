@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Star, CheckCircle2, ArrowRight } from "lucide-react";
 import { formatFollowers, getPriceTier } from "@/lib/solana";
+import { MarqueeName } from "@/components/MarqueeName";
 
 interface Creator {
   id: string;
@@ -44,10 +45,11 @@ export function CreatorCard({ creator }: { creator: Creator }) {
         )}
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-sm truncate text-neutral-900 dark:text-white">
-              {creator.name}
-            </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MarqueeName
+              name={creator.name}
+              className="font-semibold text-sm text-neutral-900 dark:text-white"
+            />
             {creator.verified && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
           </div>
           <a

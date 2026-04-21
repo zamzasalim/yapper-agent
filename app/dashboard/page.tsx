@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { MarqueeName } from "@/components/MarqueeName";
 
 const PAGE_SIZE = 5;
 
@@ -497,9 +498,12 @@ export default function DashboardPage() {
             {/* Row 1: Display name + blue tick + role badges */}
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {profile?.display_name && (
-                <h1 className="text-lg font-bold text-neutral-900 dark:text-white">
-                  {profile.display_name}
-                </h1>
+                <div className="overflow-hidden max-w-[200px]">
+                  <MarqueeName
+                    name={profile.display_name}
+                    className="text-lg font-bold text-neutral-900 dark:text-white"
+                  />
+                </div>
               )}
               {profile?.is_verified_blue && (
                 <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />

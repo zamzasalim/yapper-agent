@@ -210,6 +210,12 @@ select.input-field { color-scheme: light dark; }
   will-change: transform;
 }
 
+/* ── Marquee name (long display names > 15 chars) ────────────────────────── */
+@keyframes marquee-name {
+  0%, 20%   { transform: translateX(0); }
+  80%, 100% { transform: translateX(-50%); }
+}
+
 /* ── Live dot ─────────────────────────────────────────────────────────────── */
 .dot-live {
   display: inline-block;
