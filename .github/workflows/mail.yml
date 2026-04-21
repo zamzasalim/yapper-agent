@@ -1,4 +1,4 @@
-name: Expire Jobs
+name: Expire Jobs (test)
 
 on:
   schedule:
