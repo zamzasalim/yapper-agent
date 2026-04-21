@@ -18,7 +18,7 @@ const SERVICES = [
   {
     icon: FileText,
     title: "Content Creation",
-    desc: "Original posts with real-world context & success stories. You write, you earn",
+    desc: "Original posts with real-world context & success stories. You write, you earn.",
     price: "From $5",
     tag: "Human",
     color: "text-violet-600",
@@ -27,7 +27,7 @@ const SERVICES = [
   {
     icon: Repeat2,
     title: "Repost",
-    desc: "Amplify a tweet to your audience. Simple, fast & pays instantly in USDC",
+    desc: "Amplify a tweet to your audience. Simple, fast & pays instantly in USDC.",
     price: "$0.50",
     tag: "Quick Task",
     color: "text-blue-600",
@@ -36,7 +36,7 @@ const SERVICES = [
   {
     icon: Heart,
     title: "Like & Reply",
-    desc: "Like + reply on a specific tweet, authentic engagement from verified blue-tick accounts",
+    desc: "Like + reply on a specific tweet, authentic engagement from real X accounts.",
     price: "$0.20",
     tag: "Engagement",
     color: "text-pink-600",
@@ -45,7 +45,7 @@ const SERVICES = [
   {
     icon: Flag,
     title: "Campaign",
-    desc: "Launch a multi-creator challenge. Set a brief, pick a tier & watch creators compete",
+    desc: "Launch a multi-creator challenge. Set a brief, pick a tier & watch creators compete.",
     price: "Custom",
     tag: "Multi-Creator",
     color: "text-amber-600",
@@ -54,7 +54,7 @@ const SERVICES = [
   {
     icon: Bot,
     title: "AI Agent Jobs",
-    desc: "Machine-posted jobs via x402 & MPP. Agents hire you directly, payment auto-released on proof",
+    desc: "Machine-posted jobs via x402 & MPP. Agents hire you directly, payment auto-released.",
     price: "Custom",
     tag: "x402 · MPP",
     color: "text-emerald-600",
@@ -63,7 +63,7 @@ const SERVICES = [
   {
     icon: DollarSign,
     title: "Custom Job",
-    desc: "Have a unique need? Post a custom job & negotiate directly with creators",
+    desc: "Have a unique need? Post a custom brief, admin reviews & opens it to matching creators.",
     price: "Asking",
     tag: "Flexible",
     color: "text-amber-600",
@@ -83,37 +83,45 @@ const PRICING = [
 
 const FAQS = [
   {
-    q: "Who can join as a creator?",
-    a: "Anyone with a Twitter/X account can sign up. Each job sets its own requirements — some need a verified blue tick, others require a minimum follower count, some are open to everyone. Requirements and payout are shown on every listing before you accept.",
+    q: "Who Can Join as a Creator?",
+    a: "Anyone with a X account. Requirements vary per job, some need a blue tick or minimum followers, some are open to all. Check each listing before you accept.",
   },
   {
-    q: "How do I receive payment?",
-    a: "Your Solana wallet is created automatically when you connect your X account — no Phantom or separate wallet app needed. After your proof is verified, our team sends USDC directly to your wallet address. Zero platform fee, zero cuts.",
+    q: "How do I Receive Payment?",
+    a: "A Solana wallet is auto-created when you connect your X account. After proof is verified, our team sends USDC straight to your wallet. 0% fee, 100% yours.",
   },
   {
-    q: "How does proof submission work?",
-    a: "For Repost jobs, verification is automatic via ScrapeBadger — just complete the repost and hit Submit. For all other job types (Like & Reply, Content, Campaign, Custom), paste the URL to your completed post. It must match your creator handle or the submission will be rejected.",
+    q: "How does Proof Submission Work?",
+    a: "Repost jobs are verified automatically. All other types (Like & Reply, Content, Campaign, Custom), paste the URL of your post. It must match your creator handle.",
   },
   {
-    q: "What is a Campaign job?",
-    a: "Campaign jobs let multiple creators participate at the same time. Each creator earns the full listed price — it is not split between participants. Once all slots are filled the listing closes. Every creator submits their own proof independently.",
+    q: "What is a Content Creation Job?",
+    a: "Write an original post about a topic set by the client, a project, product or story. Requirements & context are in the brief. You earn based on your follower count tier.",
   },
   {
-    q: "How does the Telegram bot work?",
-    a: "Connect your Telegram account in the dashboard to receive live job notifications. Each new job posted to our Telegram channel includes an Accept button. After accepting, send your proof URL to the bot and it handles verification — no need to open the website.",
+    q: "What is a Campaign Job?",
+    a: "A job open to multiple creators at once. Each creator earns the full price, nothing is split. Slots close once filled, everyone submit proof independently.",
   },
   {
-    q: "What are AI Agent jobs (x402 / MPP)?",
-    a: "x402 is an HTTP payment protocol that lets AI agents hire humans autonomously on-chain. Agent-posted jobs look and work exactly like regular jobs — accept, complete the task, and submit proof. Payment is still processed in USDC with 0% fee.",
+    q: "What is a Custom Job?",
+    a: "A job with a unique brief that doesn't fit standard categories. Admin reviews & approves it first, then it opens to creators. Payment & scope are defined in the brief.",
   },
   {
-    q: "What happens if I miss the deadline?",
-    a: "Every job has a deadline set by the client. If the deadline passes before you submit proof, the job is auto-completed and payment may not be released for unfinished work. Accept jobs you can complete within the listed timeframe.",
+    q: "How does Telegram Bot Work?",
+    a: "Connect Telegram in your dashboard. New jobs are broadcast to our channel with an Accept button. Send your proof URL to the bot, no browser needed.",
+  },
+  {
+    q: "What are AI Agent Jobs (x402 / MPP)?",
+    a: "Jobs posted autonomously by AI agents via the x402 payment protocol. Same flow as regular jobs, accept, complete, submit proof, get paid in USDC.",
+  },
+  {
+    q: "What Happens if I Miss The Deadline?",
+    a: "The job auto-completes and your slot is marked missed. Only accept jobs you can finish within the listed timeframe.",
   },
 ];
 
 const STATS = [
-  { label: "Verified Creators", value: "1000++" },
+  { label: "Active Creators", value: "1000++" },
   { label: "Follower Range",    value: "0 – 12k" },
   { label: "Platform Fee",      value: "0%"      },
   { label: "Payment",           value: "USDC"    },
@@ -256,9 +264,9 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
-              { step: "01", title: "Connect & Verify",   icon: Zap,       desc: "Sign in with your Twitter account & add your Solana wallet in your dashboard" },
-              { step: "02", title: "Accept a Job",        icon: Zap,       desc: "Browse open jobs on the platform or accept directly from the Telegram bot" },
-              { step: "03", title: "Get Paid in USDC",    icon: DollarSign,desc: "Submit proof. Client or agent approves. USDC hits your wallet instantly, 100%, no cut" },
+              { step: "01", title: "Connect & Verify",   icon: Zap,       desc: "Sign in with your X account, your wallet is created automatically, no extra setup needed." },
+              { step: "02", title: "Accept a Job",        icon: Zap,       desc: "Browse open jobs on the platform or accept directly from the Telegram bot." },
+              { step: "03", title: "Get Paid in USDC",    icon: DollarSign,desc: "Submit proof. Our team verifies & sends USDC 100% straight to your wallet." },
             ].map((s) => (
               <div key={s.step} className="card p-6 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
@@ -286,7 +294,7 @@ export default function HomePage() {
               Transparent Rates
             </h2>
             <p className="text-neutral-500 dark:text-neutral-400 mt-3">
-              Price per job is determined by your follower count at time of hire
+              Fixed rates for quick tasks, Content & Campaign rates scale with your follower count.
             </p>
           </div>
 
@@ -341,8 +349,9 @@ export default function HomePage() {
                 <Image
                   src="/bitgetwallet.png"
                   alt="Bitget Wallet"
-                  width={140}
-                  height={44}
+                  width={0}
+                  height={0}
+                  sizes="140px"
                   style={{ height: "auto", maxHeight: "44px", width: "auto", maxWidth: "140px" }}
                   unoptimized
                 />
@@ -355,8 +364,9 @@ export default function HomePage() {
                 <Image
                   src="/numbersprotocol.png"
                   alt="Numbers Protocol"
-                  width={160}
+                  width={0}
                   height={0}
+                  sizes="200px"
                   style={{ height: "auto", maxHeight: "84px", width: "auto", maxWidth: "200px" }}
                   unoptimized
                 />
@@ -379,7 +389,7 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-3">Get Jobs via Telegram</h2>
           <p className="text-white/80 mb-8 max-w-lg mx-auto">
             Every new job is broadcast to our Telegram channel the moment it&apos;s posted. Accept
-            tasks and submit proof directly from the bot, no browser needed
+            tasks & submit proof directly from the bot, no browser needed.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
