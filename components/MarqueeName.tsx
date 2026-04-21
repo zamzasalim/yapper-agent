@@ -10,18 +10,20 @@ export function MarqueeName({ name, className }: Props) {
     return <span className={className}>{name}</span>;
   }
 
+  // Container carries the className (font-size) so that `ch` unit
+  // in the keyframe calc resolves to the correct character width.
   return (
-    <span className="overflow-hidden block max-w-full">
+    <span
+      className={className}
+      style={{ display: "block", width: "15ch", overflow: "hidden" }}
+    >
       <span
-        className={className}
         style={{
           display: "inline-block",
           whiteSpace: "nowrap",
-          animation: "marquee-name 6s ease-in-out infinite",
+          animation: "marquee-name 5s ease-in-out infinite",
         }}
       >
-        {name}
-        <span style={{ margin: "0 1.25rem", opacity: 0.25, userSelect: "none" }}>·</span>
         {name}
       </span>
     </span>
