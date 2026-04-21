@@ -223,22 +223,30 @@ function PostJobForm() {
   const fixedPrice   = FIXED_PRICE[jobType];
   const activeTiers  = CREATOR_TIERS.filter((t) => selectedTiers.includes(t.value));
   const hasMacro     = activeTiers.some((t) => t.price === -1);
-  const maxTierPrice = hasMacro ? -1 : Math.max(...activeTiers.map((t) => t.price), 0);
+  const sumTierPrice = hasMacro ? -1 : activeTiers.reduce((s, t) => s + t.price, 0);
 
   function toggleTier(value: string) {
-    setSelectedTiers((prev) =>
-      prev.includes(value)
-        ? prev.length > 1 ? prev.filter((v) => v !== value) : prev
-        : [...prev, value]
-    );
+    const isMacro = CREATOR_TIERS.find((t) => t.value === value)?.price === -1;
+    setSelectedTiers((prev) => {
+      if (isMacro) {
+        // Macro must be solo — clicking it selects only Macro (or deselects if already solo)
+        return prev.length === 1 && prev[0] === value ? prev : [value];
+      }
+      // Selecting a non-Macro tier clears Macro if active
+      const withoutMacro = prev.filter((v) => CREATOR_TIERS.find((t) => t.value === v)?.price !== -1);
+      if (withoutMacro.includes(value)) {
+        return withoutMacro.length > 1 ? withoutMacro.filter((v) => v !== value) : withoutMacro;
+      }
+      return [...withoutMacro, value];
+    });
   }
 
   const unitPrice: number = (() => {
     if (fixedPrice !== undefined) return fixedPrice;
     if (jobType === "custom") return parseFloat(customPrice) || 0;
-    // content / campaign
+    // content / campaign: sum of selected tier prices
     if (hasMacro) return parseFloat(customPrice) || 0;
-    return maxTierPrice;
+    return sumTierPrice;
   })();
 
   const effectiveCreators = jobType === "campaign" ? Math.max(2, numCreators) : numCreators;
@@ -862,11 +870,12 @@ function PostJobForm() {
             {showTier && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                  Creator Tier <span className="font-normal text-neutral-400">(select one or more)</span>
+                  Creator Tier <span className="font-normal text-neutral-400">(select one or more — Macro is solo only)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {CREATOR_TIERS.map((tier) => {
-                    const active = selectedTiers.includes(tier.value);
+                    const active  = selectedTiers.includes(tier.value);
+                    const isMacro = tier.price === -1;
                     return (
                       <button key={tier.value} onClick={() => toggleTier(tier.value)}
                         className={cn("p-3 rounded-xl border text-left transition-all",
@@ -877,8 +886,11 @@ function PostJobForm() {
                           {tier.label} <span className={cn("font-normal", active ? "text-blue-500 dark:text-blue-400" : "text-neutral-400 dark:text-neutral-500")}>({tier.sub})</span>
                         </p>
                         <p className={cn("text-sm font-extrabold mt-1", active ? "text-blue-600" : "text-neutral-900 dark:text-white")}>
-                          {tier.price === -1 ? "Custom" : `$${tier.price}`}
+                          {isMacro ? "Custom" : `$${tier.price}`}
                         </p>
+                        {isMacro && (
+                          <p className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-0.5">solo only</p>
+                        )}
                       </button>
                     );
                   })}
