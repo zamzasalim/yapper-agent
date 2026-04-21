@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Trigger expire-jobs endpoint
         run: |
-          curl -f -s -X GET \
+          curl -f -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/expire-jobs"
