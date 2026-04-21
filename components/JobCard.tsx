@@ -70,10 +70,10 @@ const PROOF_PLACEHOLDER: Record<JobType, string> = {
 };
 
 function deriveTierLabel(minFollowers: number): string {
-  if (minFollowers >= 50000) return "Macro";
-  if (minFollowers >= 10000) return "Mid";
-  if (minFollowers >= 1000)  return "Micro";
-  return "Nano";
+  if (minFollowers >= 50000) return "Super CT";
+  if (minFollowers >= 10000) return "Big CT";
+  if (minFollowers >= 1000)  return "Small CT";
+  return "Nano CT";
 }
 
 function parseRewardType(description: string): string | null {

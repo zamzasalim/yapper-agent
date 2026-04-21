@@ -35,10 +35,10 @@ const FIXED_PRICE: Partial<Record<JobType, number>> = {
 
 // Tiers for content & campaign — min is used as the S&K requirement automatically
 const CREATOR_TIERS = [
-  { label: "Nano",  sub: "0–1K followers",    value: "0-1000",      price: 5,  min: 0     },
-  { label: "Micro", sub: "1K–10K followers",  value: "1000-10000",  price: 10, min: 1000  },
-  { label: "Mid",   sub: "10K–50K followers", value: "10000-50000", price: 25, min: 10000 },
-  { label: "Macro", sub: "50K+ followers",    value: "50000-99999", price: -1, min: 50000 },
+  { label: "Nano CT",  sub: "0–1K followers",    value: "0-1000",      price: 5,  min: 0     },
+  { label: "Small CT", sub: "1K–10K followers",  value: "1000-10000",  price: 25, min: 1000  },
+  { label: "Big CT",   sub: "10K–50K followers", value: "10000-50000", price: 50, min: 10000 },
+  { label: "Super CT", sub: "50K+ followers",    value: "50000-99999", price: -1, min: 50000 },
 ];
 
 // ─── Payment Modal (Manual Transfer + TX Hash Verify) ────────────────────────
@@ -383,7 +383,7 @@ function PostJobForm() {
   }
 
   // ── Validation ──
-  const macroCustomValid = !hasMacro || parseFloat(customPrice) > 25;
+  const macroCustomValid = !hasMacro || parseFloat(customPrice) > 50;
   const canSubmit = (() => {
     if (!title.trim()) return false;
     switch (jobType) {
@@ -870,7 +870,7 @@ function PostJobForm() {
             {showTier && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                  Creator Tier <span className="font-normal text-neutral-400">(select one or more — Macro is solo only)</span>
+                  Creator Tier <span className="font-normal text-neutral-400">(select one or more — Super CT is solo only)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {CREATOR_TIERS.map((tier) => {
@@ -889,7 +889,7 @@ function PostJobForm() {
                           {isMacro ? "Custom" : `$${tier.price}`}
                         </p>
                         {isMacro && (
-                          <p className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-0.5">solo only</p>
+                          <p className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-0.5"></p>
                         )}
                       </button>
                     );
@@ -904,11 +904,11 @@ function PostJobForm() {
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                   Custom Price per Creator (USDC) *
                 </label>
-                <input className="input-field" type="number" min="26" placeholder="min. $26"
+                <input className="input-field" type="number" min="51" placeholder="min. $51"
                   value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} />
-                {customPrice && parseFloat(customPrice) <= 25 && (
+                {customPrice && parseFloat(customPrice) <= 50 && (
                   <p className="text-[10px] text-red-500 mt-1">
-                    Macro tier minimum is $26 USDC (above Mid tier at $25).
+                    Super CT minimum is $51 USDC (above Big CT at $50).
                   </p>
                 )}
               </div>

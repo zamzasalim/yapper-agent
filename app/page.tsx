@@ -74,10 +74,10 @@ const SERVICES = [
 const PRICING = [
   { range: "Like & Reply",                 price: "$0.20",  note: "per action" },
   { range: "Repost",                       price: "$0.50",  note: "per action" },
-  { range: "Content, Nano",   price: "$5",     note: "per post"    },
-  { range: "Content, Micro",  price: "$10",    note: "per post"    },
-  { range: "Content, Mid",    price: "$25",    note: "per post"    },
-  { range: "Content, Macro",  price: "Custom", note: "per post"    },
+  { range: "Content, Nano CT",   price: "$5",     note: "per post"    },
+  { range: "Content, Small CT",  price: "$25",    note: "per post"    },
+  { range: "Content, Big CT",    price: "$50",    note: "per post"    },
+  { range: "Content, Super CT",  price: "Custom", note: "per post"    },
   { range: "Campaign",        price: "Custom", note: "per creator" },
   { range: "Custom Job",                   price: "Asking", note: "negotiated" },
 ];
