@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 
-const ADMINS = ["Autosultan_team", "0xhnfdm"];
-
 /**
- * POST /api/admin/expire-jobs?admin_handle=xxx
+ * GET /api/cron/expire-jobs
+ * Called automatically by Vercel Cron every hour.
+ * Protected by CRON_SECRET env var.
+ *
  * Scans all open/in_progress jobs and expires those past their deadline:
- *   - open       → cancelled  (no creator accepted before deadline)
- *   - in_progress → completed  (creator accepted but deadline passed)
- * Returns counts of affected rows.
+ *   - open        → cancelled  (expired_no_creator)
+ *   - in_progress → completed  (force-complete; pending job_completions → missed)
  */
-export async function POST(req: NextRequest) {
-  try {
-    const admin_handle = req.nextUrl.searchParams.get("admin_handle");
-    if (!admin_handle) {
-      return NextResponse.json({ error: "admin_handle required" }, { status: 400 });
-    }
-    const isAdmin = ADMINS.some((a) => a.toLowerCase() === admin_handle.toLowerCase());
-    if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
+  try {
     const db = createServerClient();
 
     const { data: activeJobs, error: fetchErr } = await db
@@ -29,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
 
     const now = Date.now();
-    const toCancel: string[]   = [];
+    const toCancel: string[] = [];
     const toComplete: string[] = [];
 
     for (const job of activeJobs ?? []) {
@@ -42,12 +40,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (toCancel.length) {
-      await db.from("jobs").update({ status: "cancelled", cancel_reason: "expired_no_creator" }).in("id", toCancel);
+      await db
+        .from("jobs")
+        .update({ status: "cancelled", cancel_reason: "expired_no_creator" })
+        .in("id", toCancel);
     }
     if (toComplete.length) {
       const completedAt = new Date().toISOString();
-      await db.from("jobs").update({ status: "completed", completed_at: completedAt }).in("id", toComplete);
-      // Mark campaign slots that never submitted proof before the deadline
+      await db
+        .from("jobs")
+        .update({ status: "completed", completed_at: completedAt })
+        .in("id", toComplete);
+      // Mark campaign slots that never submitted proof
       await db
         .from("job_completions")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,10 +60,7 @@ export async function POST(req: NextRequest) {
         .eq("status", "pending");
     }
 
-    return NextResponse.json({
-      cancelled: toCancel.length,
-      completed: toComplete.length,
-    });
+    return NextResponse.json({ cancelled: toCancel.length, completed: toComplete.length });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

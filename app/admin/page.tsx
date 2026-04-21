@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
   Zap, Download, ExternalLink, Users, Trash2, EyeOff, Eye,
-  X, Copy, Check, Search, ChevronLeft, ChevronRight,
+  X, Copy, Check, Search, ChevronLeft, ChevronRight, CalendarDays,
 } from "lucide-react";
 
 const ADMINS = ["Autosultan_team", "0xhnfdm"];
@@ -34,6 +34,7 @@ interface ActiveJob {
   price_usdc: number;
   is_hidden: boolean;
   deadline_hours: number;
+  deadline_override?: string | null;
   client: { twitter_handle: string; display_name: string } | null;
 }
 
@@ -117,8 +118,10 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function fmtDeadline(createdAt: string, deadlineHours: number) {
-  const expires = new Date(new Date(createdAt).getTime() + deadlineHours * 3_600_000);
+function fmtDeadline(createdAt: string, deadlineHours: number, deadlineOverride?: string | null) {
+  const expires = deadlineOverride
+    ? new Date(deadlineOverride)
+    : new Date(new Date(createdAt).getTime() + deadlineHours * 3_600_000);
   const now = Date.now();
   const diff = (expires.getTime() - now) / 1000;
   const expiresStr = fmtDate(expires.toISOString());
@@ -207,6 +210,9 @@ export default function AdminPage() {
   const [pendingPage, setPendingPage]                 = useState(0);
   const [pendingTypeFilter, setPendingTypeFilter]     = useState("all");
   const [pendingDetailModal, setPendingDetailModal]   = useState<PendingJob | null>(null);
+  const [extendModal, setExtendModal]                 = useState<{ id: string; currentDeadline: Date } | null>(null);
+  const [extendDateValue, setExtendDateValue]         = useState("");
+  const [extending, setExtending]                     = useState(false);
 
   function copyWallet(address: string, jobId: string) {
     navigator.clipboard.writeText(address);
@@ -338,14 +344,33 @@ export default function AdminPage() {
   async function handleRestore(jobId: string) {
     setRestoring(jobId);
     try {
-      const res = await fetch(`/api/admin/jobs/${jobId}?admin_handle=${twitterHandle}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "open" }),
+      const res = await fetch(`/api/admin/jobs/${jobId}/restore?admin_handle=${twitterHandle}`, {
+        method: "POST",
       });
       if (res.ok) setCancelled((prev) => prev.filter((j) => j.id !== jobId));
     } finally {
       setRestoring(null);
+    }
+  }
+
+  async function handleExtendDeadline() {
+    if (!extendModal || !extendDateValue) return;
+    setExtending(true);
+    try {
+      const iso = new Date(extendDateValue).toISOString();
+      const res = await fetch(`/api/admin/jobs/${extendModal.id}?admin_handle=${twitterHandle}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deadline_override: iso }),
+      });
+      if (res.ok) {
+        setActive((prev) =>
+          prev.map((j) => j.id === extendModal.id ? { ...j, deadline_override: iso } : j)
+        );
+        setExtendModal(null);
+      }
+    } finally {
+      setExtending(false);
     }
   }
 
@@ -696,7 +721,7 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                         {pageData.map((job) => {
-                          const dl = fmtDeadline(job.created_at, job.deadline_hours ?? 48);
+                          const dl = fmtDeadline(job.created_at, job.deadline_hours ?? 48, job.deadline_override);
                           return (
                             <tr key={job.id} className={`bg-white dark:bg-neutral-950 transition-colors ${job.is_hidden ? "opacity-50" : "hover:bg-neutral-50 dark:hover:bg-neutral-900"}`}>
                               <td className="px-4 py-3">
@@ -707,6 +732,9 @@ export default function AdminPage() {
                               <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{fmtDate(job.created_at)}</td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className={`text-[10px] font-semibold ${dl.expired ? "text-amber-500 dark:text-amber-400" : "text-neutral-400 dark:text-neutral-500"}`}>{dl.label}</span>
+                                {job.deadline_override && (
+                                  <span className="ml-1 text-[9px] font-medium text-blue-400 dark:text-blue-500">ext</span>
+                                )}
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
@@ -723,6 +751,18 @@ export default function AdminPage() {
                                   <button onClick={() => handleToggleHidden(job.id, job.is_hidden)} disabled={toggling === job.id} title={job.is_hidden ? "Show" : "Hide"}
                                     className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
                                     {toggling === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : job.is_hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const base = job.deadline_override
+                                        ? new Date(job.deadline_override)
+                                        : new Date(new Date(job.created_at).getTime() + (job.deadline_hours ?? 48) * 3_600_000);
+                                      setExtendModal({ id: job.id, currentDeadline: base });
+                                      setExtendDateValue(base.toISOString().slice(0, 16));
+                                    }}
+                                    title="Extend Deadline"
+                                    className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
+                                    <CalendarDays className="w-3.5 h-3.5" />
                                   </button>
                                   <button onClick={() => handleCancelActive(job.id)} disabled={cancelling === job.id} title="Cancel Job"
                                     className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
@@ -1281,6 +1321,53 @@ export default function AdminPage() {
           </div>
         );
       })()}
+
+      {/* ── Extend Deadline Modal ── */}
+      {extendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-blue-500" />
+                <span className="font-semibold text-sm text-neutral-900 dark:text-white">Extend Deadline</span>
+              </div>
+              <button onClick={() => setExtendModal(null)} className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 flex flex-col gap-4">
+              <div>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-1">Current deadline</p>
+                <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                  {extendModal.currentDeadline.toLocaleString("id-ID")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-1.5">New deadline</p>
+                <input
+                  type="datetime-local"
+                  value={extendDateValue}
+                  min={new Date().toISOString().slice(0, 16)}
+                  onChange={(e) => setExtendDateValue(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExtendDeadline}
+                  disabled={!extendDateValue || extending}
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-40">
+                  {extending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarDays className="w-3.5 h-3.5" />}
+                  Save
+                </button>
+                <button onClick={() => setExtendModal(null)} className="px-4 py-2 text-xs font-semibold rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Detail Modal ── */}
       {detailModal && (() => {

@@ -85,6 +85,7 @@ export type Database = {
           is_paid: boolean;
           completed_at: string | null;
           cancel_reason: string | null;
+          deadline_override: string | null;
         };
         Insert: {
           id?: string;
@@ -113,6 +114,7 @@ export type Database = {
           is_paid?: boolean;
           completed_at?: string | null;
           cancel_reason?: string | null;
+          deadline_override?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];
