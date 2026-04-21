@@ -26,7 +26,7 @@ const SERVICES = [
   },
   {
     icon: Repeat2,
-    title: "Repost",
+    title: "Retweet",
     desc: "Amplify a tweet to your audience. Simple, fast & pays instantly in USDC.",
     price: "$0.50",
     tag: "Quick Task",
@@ -73,7 +73,7 @@ const SERVICES = [
 
 const PRICING = [
   { range: "Like & Reply",                 price: "$0.20",  note: "per action" },
-  { range: "Repost",                       price: "$0.50",  note: "per action" },
+  { range: "Retweet",                      price: "$0.50",  note: "per action" },
   { range: "Content, Nano CT",   price: "$5",     note: "per post"    },
   { range: "Content, Small CT",  price: "$25",    note: "per post"    },
   { range: "Content, Big CT",    price: "$50",    note: "per post"    },
@@ -93,7 +93,7 @@ const FAQS = [
   },
   {
     q: "How does Proof Submission Work?",
-    a: "Repost jobs are verified automatically. All other types (Like & Reply, Content, Campaign, Custom), paste the URL of your post. It must match your creator handle.",
+    a: "Retweet jobs are verified automatically. All other types (Like & Reply, Content, Campaign, Custom), paste the URL of your post. It must match your creator handle.",
   },
   {
     q: "What is a Content Creation Job?",

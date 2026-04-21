@@ -9,7 +9,7 @@ const TYPE_LABEL: Record<string, string> = {
   like_reply: "Like & Reply",
   campaign:   "Campaign",
   custom:     "Custom",
-  repost:     "Repost",
+  repost:     "Retweet",
 };
 
 function formatJobBrief(description: string): string {
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
       const job = acceptData.job;
 
       if (job.type === "repost") {
-        await sendMessage(chatId, `✅ Job accepted! Verifying repost...`);
+        await sendMessage(chatId, `✅ Job accepted! Verifying retweet...`);
         const verifyRes = await fetch(`${APP_URL}/api/jobs/${jobId}/verify-proof`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -144,11 +144,11 @@ export async function POST(req: NextRequest) {
         const verifyData = await verifyRes.json();
 
         if (verifyRes.ok) {
-          await sendMessage(chatId, `🎉 Repost verified! Job completed. Payment will be sent to your wallet.`);
+          await sendMessage(chatId, `🎉 Retweet verified! Job completed. Payment will be sent to your wallet.`);
         } else {
           await sendMessage(
             chatId,
-            `⚠️ Job accepted, but repost not detected yet.\n\n${verifyData.error}\n\nAfter retweeting, send:\n/verify ${jobId}`
+            `⚠️ Job accepted, but retweet not detected yet.\n\n${verifyData.error}\n\nAfter retweeting, send:\n/verify ${jobId}`
           );
           await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
         }
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    await sendMessage(chatId, `⏳ Checking repost...`);
+    await sendMessage(chatId, `⏳ Checking retweet...`);
     const verifyRes = await fetch(`${APP_URL}/api/jobs/${jobId}/verify-proof`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
     const verifyData = await verifyRes.json();
 
     if (verifyRes.ok) {
-      await sendMessage(chatId, `🎉 Repost verified! Job completed.`);
+      await sendMessage(chatId, `🎉 Retweet verified! Job completed.`);
       await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
     } else {
       await sendMessage(chatId, `❌ ${verifyData.error}\n\nTry again after retweeting.`);

@@ -24,7 +24,7 @@ interface Job {
   postedAt: string;
 }
 
-const TYPE_FILTERS = ["All", "Content", "Repost", "Like & Reply", "Campaign", "Custom", "Agent Jobs"];
+const TYPE_FILTERS = ["All", "Content", "Retweet", "Like & Reply", "Campaign", "Custom", "Agent Jobs"];
 const STATUS_TABS: { label: string; value: "all" | "open" | "in_progress" }[] = [
   { label: "All",         value: "all"         },
   { label: "Available",   value: "open"        },

@@ -102,7 +102,7 @@ function timeAgo(iso: string) {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  content: "Content", repost: "Repost", like_reply: "Like & Reply",
+  content: "Content", repost: "Retweet", like_reply: "Like & Reply",
   campaign: "Campaign", custom: "Custom",
 };
 

@@ -81,7 +81,7 @@ interface ClientJobRecord {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  repost:     "Repost",
+  repost:     "Retweet",
   like_reply: "Like & Reply",
   content:    "Content",
   custom:     "Custom",
@@ -1050,7 +1050,7 @@ export default function DashboardPage() {
                             {a.proof_url && (
                               <a href={a.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
                                 <ExternalLink className="w-3 h-3 shrink-0" />
-                                {applicantsModal.jobType === "repost" ? "Reposted tweet" : "Proof link"}
+                                {applicantsModal.jobType === "repost" ? "Retweeted post" : "Proof link"}
                               </a>
                             )}
                             {a.status === "completed" && (

@@ -91,7 +91,7 @@ export async function POST(
       const verified = await checkRetweeted(tweetId, twitter_handle);
       if (!verified) {
         return NextResponse.json(
-          { error: "Repost not found yet. Make sure you've retweeted and try again." },
+          { error: "Retweet not found yet. Make sure you've retweeted and try again." },
           { status: 422 }
         );
       }

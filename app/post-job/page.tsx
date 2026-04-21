@@ -21,7 +21,7 @@ type TxPhase = "idle" | "verifying" | "verified" | "error";
 
 const JOB_TYPES: { type: JobType; icon: React.ElementType; label: string; desc: string }[] = [
   { type: "content",    icon: FileText,   label: "Content",      desc: "Original tweet / thread by creator" },
-  { type: "repost",     icon: Repeat2,    label: "Repost",       desc: "Retweet your tweet" },
+  { type: "repost",     icon: Repeat2,    label: "Retweet",      desc: "Retweet your tweet" },
   { type: "like_reply", icon: Heart,      label: "Like & Reply", desc: "Like + reply on your tweet" },
   { type: "campaign",   icon: Flag,       label: "Campaign",     desc: "Multi-creator campaign / challenge" },
   { type: "custom",     icon: HelpCircle, label: "Custom",       desc: "Any other task, you define it" },
@@ -560,7 +560,7 @@ function PostJobForm() {
                   jobType === "content"  ? "e.g. Write a thread about our DeFi protocol" :
                   jobType === "campaign" ? "e.g. #YapperMay Challenge" :
                   jobType === "custom"   ? "e.g. Translate our whitepaper to Bahasa" :
-                  "e.g. Repost our Solana launch tweet"}
+                  "e.g. Retweet our Solana launch tweet"}
                 value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
 
@@ -870,7 +870,7 @@ function PostJobForm() {
             {showTier && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                  Creator Tier <span className="font-normal text-neutral-400">(select one or more — Super CT is solo only)</span>
+                  Creator Tier <span className="font-normal text-neutral-400">(select one or more, Super CT is solo only)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {CREATOR_TIERS.map((tier) => {

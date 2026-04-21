@@ -39,7 +39,7 @@ const TYPE_ICON: Record<JobType, string> = {
 
 const TYPE_LABEL: Record<JobType, string> = {
   content:    "Content",
-  repost:     "Repost",
+  repost:     "Retweet",
   like_reply: "Like & Reply",
   campaign:   "Campaign",
   custom:     "Custom",
@@ -54,7 +54,7 @@ const TYPE_COLOR: Record<JobType, string> = {
 };
 
 const TYPE_TASK: Record<JobType, string> = {
-  repost:     "Repost this tweet",
+  repost:     "Retweet this tweet",
   like_reply: "Like & reply to this tweet",
   content:    "Create original content",
   campaign:   "Join this campaign",
@@ -373,7 +373,7 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
           <div className="flex flex-col items-center py-10 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              {isAutoVerify ? "Verifying your repost…" : "Submitting proof…"}
+              {isAutoVerify ? "Verifying your retweet…" : "Submitting proof…"}
             </p>
             <p className="text-xs text-neutral-400 dark:text-neutral-500">This may take a few seconds</p>
           </div>
@@ -440,7 +440,7 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
               <CheckCircle2 className="w-7 h-7 text-green-600 dark:text-green-400" />
             </div>
             <p className="text-base font-bold text-neutral-900 dark:text-white">
-              {isAutoVerify ? "Repost verified!" : "Proof submitted!"}
+              {isAutoVerify ? "Retweet verified!" : "Proof submitted!"}
             </p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
               Payment will be processed shortly.
