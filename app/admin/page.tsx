@@ -74,7 +74,8 @@ interface CancelledJob {
   is_agent_job: boolean;
   creator_id: string | null;
   cancel_reason: string | null;
-  client: { twitter_handle: string; display_name: string } | null;
+  is_refunded: boolean;
+  client: { twitter_handle: string; display_name: string; wallet_address: string } | null;
 }
 
 const CANCEL_REASON_LABEL: Record<string, { label: string; color: string }> = {
@@ -204,6 +205,8 @@ export default function AdminPage() {
   const [cancelledSearch, setCancelledSearch]         = useState("");
   const [cancelledPage, setCancelledPage]             = useState(0);
   const [restoring, setRestoring]                     = useState<string | null>(null);
+  const [refunding, setRefunding]                     = useState<string | null>(null);
+  const [copiedRefundWallet, setCopiedRefundWallet]   = useState<string | null>(null);
   const [cancelling, setCancelling]                   = useState<string | null>(null);
   const [cancelDetailModal, setCancelDetailModal]     = useState<CancelledJob | null>(null);
   const [pendingSearch, setPendingSearch]             = useState("");
@@ -351,6 +354,28 @@ export default function AdminPage() {
     } finally {
       setRestoring(null);
     }
+  }
+
+  async function handleMarkRefunded(jobId: string) {
+    setRefunding(jobId);
+    try {
+      const res = await fetch(`/api/admin/jobs/${jobId}?admin_handle=${twitterHandle}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_refunded: true }),
+      });
+      if (res.ok) {
+        setCancelled((prev) => prev.map((j) => j.id === jobId ? { ...j, is_refunded: true } : j));
+      }
+    } finally {
+      setRefunding(null);
+    }
+  }
+
+  function copyRefundWallet(wallet: string, jobId: string) {
+    navigator.clipboard.writeText(wallet);
+    setCopiedRefundWallet(jobId);
+    setTimeout(() => setCopiedRefundWallet(null), 1500);
   }
 
   async function handleExtendDeadline() {
@@ -1076,11 +1101,38 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-3 font-bold text-neutral-900 dark:text-white whitespace-nowrap">${job.price_usdc.toFixed(1)}</td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1 justify-end">
+                                <div className="flex items-center gap-1 justify-end flex-wrap">
                                   <button onClick={() => setCancelDetailModal(job)} title="View Details"
                                     className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                                     <ExternalLink className="w-3.5 h-3.5" />
                                   </button>
+                                  {/* Refund actions */}
+                                  {job.is_refunded ? (
+                                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 whitespace-nowrap">
+                                      Refunded
+                                    </span>
+                                  ) : (
+                                    <>
+                                      {job.client?.wallet_address && (
+                                        <button
+                                          onClick={() => copyRefundWallet(job.client!.wallet_address, job.id)}
+                                          title="Copy Client Wallet"
+                                          className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                        >
+                                          {copiedRefundWallet === job.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => handleMarkRefunded(job.id)}
+                                        disabled={refunding === job.id}
+                                        title="Mark Refunded"
+                                        className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors disabled:opacity-40"
+                                      >
+                                        {refunding === job.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                        Refund
+                                      </button>
+                                    </>
+                                  )}
                                   <button
                                     onClick={() => handleRestore(job.id)}
                                     disabled={restoring === job.id}

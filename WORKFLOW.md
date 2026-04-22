@@ -18,6 +18,8 @@ flowchart TD
     A4 -->|Existing| A6[POST /api/user\nSync wallet\nRefresh followers + blue + backfill name/avatar]
     A5 & A6 --> A7[[Dashboard ready]]
     A7 --> EDITPROF[Edit Profile modal\nCustom display_name + avatar_url\nPATCH /api/user]
+    A7 --> NOTIF[Notification bell\nGET /api/notifications\nbadge count]
+    NOTIF --> NOTIF_LIST[Dropdown: notification list\ne.g. Your custom job XH-xxxx was rejected]
 
     %% ── CLIENT: POST JOB ────────────────────────────────────────
     A7 --> CL1[Post Job page]
@@ -36,7 +38,7 @@ flowchart TD
 
     %% ── CREATOR: ACCEPT AND WORK ────────────────────────────────
     TGNOTIFY --> CR1
-    A7 --> CR1[Browse Marketplace\nor Telegram notification]
+    A7 --> CR1[Browse Marketplace\nexcludes hidden jobs\nor Telegram notification]
     CR1 --> CR2[Accept job\nPATCH /api/jobs/:id/accept]
     CR2 --> CR3{Requirements check}
     CR3 -->|Fail: blue or followers| CRERR([Rejected])
@@ -44,6 +46,7 @@ flowchart TD
 
     CR4 -->|Single = 1| CR5[creator_id locked\nstatus: in_progress]
     CR4 -->|Campaign more than 1| CR6[job_completions row\nslots_taken++]
+    CR4 -->|Campaign type with max 1\ntreated as Single| CR5
     CR6 --> CR7{All slots filled?}
     CR7 -->|No| CR8[Job stays open\nmore creators can join]
     CR7 -->|Yes| CR9[status: in_progress]
@@ -52,7 +55,7 @@ flowchart TD
     CR10 --> CR11[Submit proof\nPOST /api/jobs/:id/verify-proof]
     CR11 --> CR12{Job type}
     CR12 -->|Retweet| CR13[ScrapeBadger\ncheck retweet exists]
-    CR12 -->|Like Content Campaign Custom| CR14[Validate proof URL\nmatches creator handle]
+    CR12 -->|Like Reply Content Campaign Custom| CR14[Validate proof URL\nmatches creator handle]
     CR13 -->|Not found| PROOFERR([Retry later])
     CR14 -->|Wrong account| PROOFERR
     CR13 & CR14 -->|Verified| CR15{Single or Campaign?}
@@ -81,7 +84,10 @@ flowchart TD
     AD_PEND[Admin - Pending tab\nsearch + type filter + table]
     AD_PEND --> AD1D[View Details modal\nbrief + deadline + access + reward]
     AD1D --> AD2{Decision}
-    AD2 -->|Reject| AD3([status: cancelled\ncancel_reason: admin_rejected])
+    AD2 -->|Reject| AD3[status: cancelled\ncancel_reason: admin_rejected]
+    AD3 --> NOTIFCREATE[POST /api/notifications\ncreate rejection notification\nfor job owner]
+    AD3 --> AD_CAN
+    NOTIFCREATE -.->|client sees in bell| NOTIF
     AD2 -->|Approve| AD4[status: open]
     AD4 --> TGNOTIFY
 
@@ -92,6 +98,7 @@ flowchart TD
     AD_ACT --> ADMEXT[Extend Deadline\nCalendarDays modal\nPATCH deadline_override]
     AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled\ncancel_reason: admin_rejected]
     ADMCANCEL --> AD_CAN
+    ADMHIDE -.->|hidden jobs excluded| CR1
 
     %% ── AUTO-EXPIRE: CRON + MANUAL ──────────────────────────────
     CRON[GitHub Actions - every hour\nor Vercel Cron - once per day\nGET /api/cron/expire-jobs\nCRON_SECRET protected]
@@ -100,8 +107,10 @@ flowchart TD
 
     EXPCHECK{Deadline passed?\nUses deadline_override\nif set, else\ncreated_at + deadline_hours}
     EXPCHECK -->|open + expired| AUTOCANCEL([status: cancelled\ncancel_reason: expired_no_creator])
-    EXPCHECK -->|in_progress + expired| AUTOCOMPLETE[status: completed\ncompleted_at set]
+    AUTOCANCEL --> AD_CAN
+    EXPCHECK -->|in_progress + expired| AUTOCOMPLETE[status: completed\ncompleted_at set\ncompleted slots still enter payout list]
     AUTOCOMPLETE --> MISSEDSLOTS([pending job_completions\nstatus: missed])
+    AUTOCOMPLETE --> AD5
 
     %% ── ADMIN: COMPLETED TAB ────────────────────────────────────
     AD5[Admin - Completed tab\nsearch + type + paid filter + pagination]
@@ -117,6 +126,8 @@ flowchart TD
     AD_CAN --> CANVIEW[View Details modal\nclient brief + meta]
     AD_CAN --> RESTORE[POST /api/admin/jobs/:id/restore\nstatus: open\ncancel_reason: null\ncreator_id: null\nslots_taken: 0\ndelete job_completions]
     AD_CAN --> CANDEL[Delete permanently]
+    AD_CAN --> REFUND[Copy Client Wallet\nMark Refunded\nPATCH is_refunded]
+    REFUND --> REFUNDED([Refund marked])
     RESTORE --> RESTORED([Back in marketplace\nstatus: open])
 
     %% ── TELEGRAM BOT ────────────────────────────────────────────
@@ -125,6 +136,8 @@ flowchart TD
         TG1[Dashboard: Connect Telegram] --> TG2[POST /api/telegram/connect\nLink token 15 min TTL]
         TG2 --> TG3[Open bot with token\nBot saves chat_id]
         TG3 --> TG4[Dashboard polls every 3s\nmax 2 min until confirmed]
+        TG4 -->|2 min no confirm| TG_TIMEOUT([Token expired\nClick Retry to regenerate])
+        TG_TIMEOUT -.-> TG2
 
         TG5[Channel: Apply via Bot] --> TG6[Bot calls accept API\nwith job id]
         TG6 --> TG7[User sends proof URL\nBot calls verify-proof]
@@ -142,7 +155,7 @@ flowchart TD
         ID3["Content:      CH + 8-char UUID"]
         ID4["Campaign:     EH + 8-char UUID"]
         ID5["Custom:       XH + 8-char UUID"]
-        ID6["Agent jobs:   RA  LA  CA  EA  XA"]
+        ID6["Agent jobs:   RA  LA  CA  EA  XA  (future)"]
     end
 
     subgraph CANCEL_REASONS["Cancel Reasons"]
@@ -154,9 +167,10 @@ flowchart TD
 
     subgraph DB_FIELDS["Key DB Fields on jobs"]
         direction LR
-        DB1["completed_at:     timestamptz - set when status becomes completed"]
-        DB2["cancel_reason:    text        - set when status becomes cancelled"]
+        DB1["completed_at:      timestamptz - set when status becomes completed"]
+        DB2["cancel_reason:     text        - set when status becomes cancelled"]
         DB3["deadline_override: timestamptz - admin override for expiry calculation"]
+        DB4["is_refunded:       boolean     - admin marks refund sent to client wallet"]
     end
 
     %% ── NAVIGATION (dotted) ─────────────────────────────────────
@@ -169,12 +183,12 @@ flowchart TD
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
-    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2 client
+    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
-    class AD_PEND,AD1D,AD2,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI admin
+    class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND admin
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY telegram
-    class JOBDONE,RESTORED done
+    class JOBDONE,RESTORED,REFUNDED done
     class CRERR,PROOFERR err
-    class AUTOCANCEL,AD3,AUTOCOMPLETE,MISSEDSLOTS cancelled
+    class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT cancelled
     class CRON,EXPCHECK,MANUALEXPIRE cron
 ```

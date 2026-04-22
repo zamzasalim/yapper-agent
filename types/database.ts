@@ -86,6 +86,7 @@ export type Database = {
           completed_at: string | null;
           cancel_reason: string | null;
           deadline_override: string | null;
+          is_refunded: boolean;
         };
         Insert: {
           id?: string;
@@ -115,6 +116,7 @@ export type Database = {
           completed_at?: string | null;
           cancel_reason?: string | null;
           deadline_override?: string | null;
+          is_refunded?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];
@@ -163,6 +165,26 @@ export type Database = {
           confirmed?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["transactions"]["Insert"]>;
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          job_id: string | null;
+          message: string;
+          is_read: boolean;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          job_id?: string | null;
+          message: string;
+          is_read?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
         Relationships: [];
       };
     };

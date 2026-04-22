@@ -28,6 +28,7 @@ export async function PATCH(
     if (typeof body.status        === "string")    patch.status            = body.status;
     if (typeof body.cancel_reason === "string")    patch.cancel_reason     = body.cancel_reason;
     if (body.deadline_override    !== undefined)   patch.deadline_override = body.deadline_override ?? null;
+    if (typeof body.is_refunded   === "boolean")   patch.is_refunded       = body.is_refunded;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (db.from("jobs").update(patch as any).eq("id", id).select().single());

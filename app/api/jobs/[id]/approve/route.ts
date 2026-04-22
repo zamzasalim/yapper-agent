@@ -35,7 +35,7 @@ export async function PATCH(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, status, type")
+      .select("id, status, type, title, client_id")
       .eq("id", id)
       .maybeSingle();
 
@@ -62,6 +62,14 @@ export async function PATCH(
 
     if (newStatus === "open") {
       await notifyNewJob(updated);
+    }
+
+    if (newStatus === "cancelled" && job.client_id) {
+      await db.from("notifications").insert({
+        user_id: job.client_id,
+        job_id: id,
+        message: `Your job "${job.title}" was rejected by admin.`,
+      });
     }
 
     return NextResponse.json({ job: updated, action: newStatus });

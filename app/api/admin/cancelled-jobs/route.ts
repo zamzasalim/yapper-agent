@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
       .from("jobs")
       .select(
         `id, created_at, type, title, description, price_usdc, deadline_hours, tweet_url,
-         require_blue, min_followers, max_creators, is_agent_job, creator_id, cancel_reason,
-         client:users!client_id(twitter_handle, display_name)`
+         require_blue, min_followers, max_creators, is_agent_job, creator_id, cancel_reason, is_refunded,
+         client:users!client_id(twitter_handle, display_name, wallet_address)`
       )
       .eq("status", "cancelled")
       .order("created_at", { ascending: false });
