@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
   Zap, Download, ExternalLink, Users, Trash2, EyeOff, Eye,
-  X, Copy, Check, Search, ChevronLeft, ChevronRight, CalendarDays,
+  X, Copy, Check, Search, ChevronLeft, ChevronRight, CalendarDays, Link2,
 } from "lucide-react";
 
 const ADMINS = ["Autosultan_team", "0xhnfdm"];
@@ -75,6 +75,7 @@ interface CancelledJob {
   creator_id: string | null;
   cancel_reason: string | null;
   is_refunded: boolean;
+  tx_hash: string | null;
   client: { twitter_handle: string; display_name: string; wallet_address: string } | null;
 }
 
@@ -1079,6 +1080,7 @@ export default function AdminPage() {
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Posted</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Reason</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Amount</th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Refund</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
@@ -1101,38 +1103,49 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-3 font-bold text-neutral-900 dark:text-white whitespace-nowrap">${job.price_usdc.toFixed(1)}</td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1 justify-end flex-wrap">
+                                {job.is_refunded
+                                  ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">Yay</span>
+                                  : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700">Nay</span>
+                                }
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-1 justify-end">
+                                  {/* Mark refunded toggle */}
+                                  <button
+                                    onClick={() => handleMarkRefunded(job.id)}
+                                    disabled={refunding === job.id || job.is_refunded}
+                                    title={job.is_refunded ? "Already refunded" : "Mark Refunded"}
+                                    className={`p-1.5 rounded-lg transition-colors ${job.is_refunded ? "text-green-500" : "text-neutral-300 dark:text-neutral-700 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950"}`}
+                                  >
+                                    {refunding === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                  </button>
+                                  {/* Copy client wallet */}
+                                  {job.client?.wallet_address && (
+                                    <button
+                                      onClick={() => copyRefundWallet(job.client!.wallet_address, job.id)}
+                                      title="Copy Client Wallet"
+                                      className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                    >
+                                      {copiedRefundWallet === job.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                    </button>
+                                  )}
+                                  {/* Solscan tx link */}
+                                  {job.tx_hash && (
+                                    <a
+                                      href={`https://solscan.io/tx/${job.tx_hash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="View payment on Solscan"
+                                      className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors"
+                                    >
+                                      <Link2 className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+                                  {/* View Details */}
                                   <button onClick={() => setCancelDetailModal(job)} title="View Details"
                                     className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                                     <ExternalLink className="w-3.5 h-3.5" />
                                   </button>
-                                  {/* Refund actions */}
-                                  {job.is_refunded ? (
-                                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 whitespace-nowrap">
-                                      Refunded
-                                    </span>
-                                  ) : (
-                                    <>
-                                      {job.client?.wallet_address && (
-                                        <button
-                                          onClick={() => copyRefundWallet(job.client!.wallet_address, job.id)}
-                                          title="Copy Client Wallet"
-                                          className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-                                        >
-                                          {copiedRefundWallet === job.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={() => handleMarkRefunded(job.id)}
-                                        disabled={refunding === job.id}
-                                        title="Mark Refunded"
-                                        className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors disabled:opacity-40"
-                                      >
-                                        {refunding === job.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                                        Refund
-                                      </button>
-                                    </>
-                                  )}
                                   <button
                                     onClick={() => handleRestore(job.id)}
                                     disabled={restoring === job.id}
@@ -1140,7 +1153,7 @@ export default function AdminPage() {
                                     className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors disabled:opacity-40"
                                   >
                                     {restoring === job.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                                    Restore
+                                    
                                   </button>
                                   <button onClick={() => handleDelete(job.id)} disabled={deleting === job.id} title="Delete"
                                     className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">

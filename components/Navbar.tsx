@@ -7,6 +7,7 @@ import { Zap, Menu, X, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "./ThemeProvider";
+import { NotificationBell } from "./NotificationBell";
 
 const AuthButton = dynamic(
   () => import("./AuthButton").then((m) => ({ default: m.AuthButton })),
@@ -78,6 +79,7 @@ export function Navbar() {
 
         {/* Right side — flex-1 justify-end */}
         <div className="flex-1 flex items-center justify-end gap-2">
+          {pathname === "/dashboard" && <NotificationBell />}
           <ThemeToggle />
           <AuthButton />
 

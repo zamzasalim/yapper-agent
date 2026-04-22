@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       .from("jobs")
       .select(
         `id, created_at, type, title, description, price_usdc, deadline_hours, tweet_url,
-         require_blue, min_followers, max_creators, is_agent_job, creator_id, cancel_reason, is_refunded,
+         require_blue, min_followers, max_creators, is_agent_job, creator_id, cancel_reason, is_refunded, tx_hash,
          client:users!client_id(twitter_handle, display_name, wallet_address)`
       )
       .eq("status", "cancelled")

@@ -21,7 +21,6 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  Bell,
 } from "lucide-react";
 import { MarqueeName } from "@/components/MarqueeName";
 
@@ -69,14 +68,6 @@ interface ApplicantRecord {
   status: string;
   proof_url: string | null;
   additional_info: { wallet?: string; email?: string; discord?: string; telegram?: string } | null;
-}
-
-interface NotificationRecord {
-  id: string;
-  message: string;
-  job_id: string | null;
-  is_read: boolean;
-  created_at: string;
 }
 
 interface ClientJobRecord {
@@ -168,9 +159,6 @@ export default function DashboardPage() {
   const [jobsTypeFilter, setJobsTypeFilter]         = useState<string | null>(null);
   const [clientJobsFilter, setClientJobsFilter]     = useState<JobStatus | null>(null);
   const [clientJobsTypeFilter, setClientJobsTypeFilter] = useState<string | null>(null);
-
-  const [notifications, setNotifications]           = useState<NotificationRecord[]>([]);
-  const [showNotifications, setShowNotifications]   = useState(false);
 
   const [connectingTelegram, setConnectingTelegram] = useState(false);
   const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
@@ -427,19 +415,6 @@ export default function DashboardPage() {
   // Cleanup poll on unmount
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  useEffect(() => {
-    if (!twitterHandle) return;
-    fetch(`/api/notifications?handle=${encodeURIComponent(twitterHandle)}`)
-      .then((r) => r.json())
-      .then((d) => setNotifications(d.notifications ?? []))
-      .catch(() => {});
-  }, [twitterHandle]);
-
-  async function handleMarkRead(notifId: string) {
-    await fetch(`/api/notifications/${notifId}`, { method: "PATCH" });
-    setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, is_read: true } : n));
-  }
-
   async function handleDisconnectTelegram() {
     if (!twitterHandle) return;
     setConnectingTelegram(true);
@@ -618,46 +593,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="shrink-0 flex items-center gap-2">
-            {/* Notification bell */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications((v) => !v)}
-                className="relative p-2 rounded-lg text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4" />
-                {notifications.some((n) => !n.is_read) && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
-                )}
-              </button>
-              {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-xl z-50 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
-                    <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Notifications</span>
-                    <button onClick={() => setShowNotifications(false)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-neutral-100 dark:divide-neutral-800">
-                    {notifications.length === 0 ? (
-                      <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center py-6">No notifications</p>
-                    ) : notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => handleMarkRead(n.id)}
-                        className={`px-4 py-3 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800 ${n.is_read ? "opacity-60" : ""}`}
-                      >
-                        <p className="text-xs text-neutral-800 dark:text-neutral-200 leading-relaxed">{n.message}</p>
-                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1">
-                          {new Date(n.created_at).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          {!n.is_read && <span className="ml-2 font-semibold text-blue-500">New</span>}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
             <button
               onClick={() => {
                 setProfileNameInput(profile?.display_name ?? twitterHandle ?? "");
