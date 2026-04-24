@@ -96,8 +96,8 @@ export async function POST(
         .eq("creator_id", targetCreator.id)
         .not("rating", "is", null);
       const allRatings = [
-        ...(singleRated ?? []).map((j: { rating: number }) => j.rating),
-        ...(campaignRated ?? []).map((c: { rating: number }) => c.rating),
+        ...(singleRated ?? []).map((j) => j.rating as number),
+        ...(campaignRated ?? []).map((c: { rating: number | null }) => c.rating as number),
       ];
       const avgRating = allRatings.reduce((a: number, b: number) => a + b, 0) / allRatings.length;
       await db
