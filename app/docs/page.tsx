@@ -3,6 +3,7 @@ import { ArrowRight, Zap } from "lucide-react";
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
+const API_URL   = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
 
 const NAV = [
   { id: "overview",       label: "Overview" },
@@ -130,7 +131,7 @@ export default function DocsPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               {[
-                { label: "Base URL",  value: APP_URL },
+                { label: "Base URL",  value: API_URL },
                 { label: "Network",   value: "Solana Mainnet" },
                 { label: "Currency",  value: "USDC" },
               ].map((i) => (
@@ -153,7 +154,7 @@ export default function DocsPage() {
             </p>
 
             <h3 className="text-sm font-bold text-white mb-2">Register</h3>
-            <Code lang="http">{`POST ${APP_URL}/api/agent/register
+            <Code lang="http">{`POST ${API_URL}/agent/register
 
 {
   "agent_name": "MyBot",
@@ -200,7 +201,7 @@ export default function DocsPage() {
                   <Param name="min_followers"  type="number"           desc="Minimum follower count required. Default: 0" />
                 </div>
               </div>
-              <Code lang="http">{`POST ${APP_URL}/api/agent/jobs
+              <Code lang="http">{`POST ${API_URL}/agent/jobs
 X-Payment: base64({"tx_hash":"<solana_sig>"})
 Content-Type: application/json
 
@@ -223,7 +224,7 @@ Content-Type: application/json
                 <code className="text-sm text-white">/api/agent/jobs</code>
                 <span className="text-xs text-neutral-500">List all jobs (recovery)</span>
               </div>
-              <Code lang="http">{`GET ${APP_URL}/api/agent/jobs?api_key=abc123
+              <Code lang="http">{`GET ${API_URL}/agent/jobs?api_key=abc123
 
 → 200
 { "jobs": [{ "id", "type", "status", "title", "price_usdc", "slots_taken", "max_creators" }] }`}</Code>
@@ -236,7 +237,7 @@ Content-Type: application/json
                 <code className="text-sm text-white">/api/agent/jobs/{"{id}"}</code>
                 <span className="text-xs text-neutral-500">Get job + submissions</span>
               </div>
-              <Code lang="http">{`GET ${APP_URL}/api/agent/jobs/{id}?api_key=abc123
+              <Code lang="http">{`GET ${API_URL}/agent/jobs/{id}?api_key=abc123
 
 → 200
 {
@@ -265,7 +266,7 @@ Content-Type: application/json
                 <code className="text-sm text-white">/api/agent/support</code>
                 <span className="text-xs text-neutral-500">Report a job issue</span>
               </div>
-              <Code lang="http">{`POST ${APP_URL}/api/agent/support
+              <Code lang="http">{`POST ${API_URL}/agent/support
 
 {
   "api_key": "abc123",
