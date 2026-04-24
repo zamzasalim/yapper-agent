@@ -133,7 +133,7 @@ export async function PATCH(req: NextRequest) {
       display_name: display_name || twitter_handle,
       wallet_address: wallet_address ?? "pending",
       twitter_followers: twitter_followers ?? 0,
-      is_verified_blue: true,
+      is_verified_blue: false,
       role: "creator" as const,
     };
 

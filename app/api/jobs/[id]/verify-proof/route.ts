@@ -31,7 +31,7 @@ export async function POST(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, type, status, tweet_url, creator_id, max_creators, slots_taken, price_usdc")
+      .select("id, type, status, tweet_url, creator_id, max_creators, slots_taken, price_usdc, client_id, title")
       .eq("id", id)
       .maybeSingle();
 
@@ -123,6 +123,18 @@ export async function POST(
       // Update creator stats
       try { await (db as any).rpc("increment_creator_stats", { user_id: creator.id, amount: job.price_usdc ?? 0 }); } catch {}
 
+      // Notify client their job was completed
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((job as any).client_id) {
+        void db.from("notifications").insert({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          user_id: (job as any).client_id as string,
+          job_id: id,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          message: `@${twitter_handle} completed your job "${(job as any).title}"!`,
+        });
+      }
+
       return NextResponse.json({ job: updated });
     }
 
@@ -133,6 +145,9 @@ export async function POST(
       .eq("job_id", id)
       .eq("creator_id", creator.id);
 
+    // Increment campaign creator stats per-slot
+    try { await (db as any).rpc("increment_creator_stats", { user_id: creator.id, amount: job.price_usdc ?? 0 }); } catch {}
+
     const { count } = await db
       .from("job_completions")
       .select("id", { count: "exact", head: true })
@@ -142,6 +157,18 @@ export async function POST(
     const allDone = (count ?? 0) >= maxCreators;
     if (allDone) {
       await db.from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", id);
+
+      // Notify client all campaign slots are done
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((job as any).client_id) {
+        void db.from("notifications").insert({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          user_id: (job as any).client_id as string,
+          job_id: id,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          message: `All creators have completed your campaign "${(job as any).title}"!`,
+        });
+      }
     }
 
     return NextResponse.json({ job: { id, type: job.type, proof_url: finalProofUrl } });

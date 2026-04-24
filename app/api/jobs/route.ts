@@ -14,6 +14,7 @@ export async function GET() {
          client:users!client_id(twitter_handle, display_name)`
       )
       .eq("status", "open")
+      .eq("is_hidden", false)
       .order("created_at", { ascending: false })
       .limit(50);
 

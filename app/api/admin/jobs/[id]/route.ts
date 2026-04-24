@@ -31,9 +31,19 @@ export async function PATCH(
     if (typeof body.is_refunded   === "boolean")   patch.is_refunded       = body.is_refunded;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (db.from("jobs").update(patch as any).eq("id", id).select().single());
+    const { data, error } = await (db.from("jobs").update(patch as any).eq("id", id).select("id, title, client_id, status").single());
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Notify client when admin cancels their job from the Active tab
+    if (patch.status === "cancelled" && data.client_id) {
+      void db.from("notifications").insert({
+        user_id: data.client_id as string,
+        job_id: id,
+        message: `Your job "${data.title}" was cancelled by admin.`,
+      });
+    }
+
     return NextResponse.json({ job: data });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";

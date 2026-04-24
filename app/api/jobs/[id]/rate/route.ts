@@ -75,7 +75,10 @@ export async function POST(
         return NextResponse.json({ error: "Creator has not completed this campaign." }, { status: 409 });
       }
 
-      // Recalculate creator avg from their single-creator jobs + this new rating
+      // Recalculate avg across single-creator rated jobs + this new campaign rating.
+      // Note: campaign ratings have no persistent column on job_completions, so past
+      // campaign ratings are not included. A future migration adding job_completions.rating
+      // would make this complete.
       const { data: ratedJobs } = await db
         .from("jobs")
         .select("rating")
