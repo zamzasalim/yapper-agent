@@ -67,25 +67,39 @@ export async function POST(
 
       const { data: completion } = await db
         .from("job_completions")
-        .select("id, status")
+        .select("id, status, rating")
         .eq("job_id", id)
         .eq("creator_id", targetCreator.id)
         .maybeSingle();
       if (!completion || completion.status !== "completed") {
         return NextResponse.json({ error: "Creator has not completed this campaign." }, { status: 409 });
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((completion as any).rating !== null && (completion as any).rating !== undefined) {
+        return NextResponse.json({ error: "This campaign slot has already been rated." }, { status: 409 });
+      }
 
-      // Recalculate avg across single-creator rated jobs + this new campaign rating.
-      // Note: campaign ratings have no persistent column on job_completions, so past
-      // campaign ratings are not included. A future migration adding job_completions.rating
-      // would make this complete.
-      const { data: ratedJobs } = await db
+      // Persist rating on the completion row
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).from("job_completions").update({ rating }).eq("id", completion.id);
+
+      // Recalculate avg: single-creator rated jobs + all rated campaign completions
+      const { data: singleRated } = await db
         .from("jobs")
         .select("rating")
         .eq("creator_id", targetCreator.id)
         .not("rating", "is", null);
-      const allRatings = [...(ratedJobs ?? []).map((j) => j.rating as number), rating];
-      const avgRating  = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: campaignRated } = await (db as any)
+        .from("job_completions")
+        .select("rating")
+        .eq("creator_id", targetCreator.id)
+        .not("rating", "is", null);
+      const allRatings = [
+        ...(singleRated ?? []).map((j: { rating: number }) => j.rating),
+        ...(campaignRated ?? []).map((c: { rating: number }) => c.rating),
+      ];
+      const avgRating = allRatings.reduce((a: number, b: number) => a + b, 0) / allRatings.length;
       await db
         .from("users")
         .update({ rating: Math.round(avgRating * 10) / 10 })
