@@ -112,7 +112,7 @@ bot.command("help", async (ctx) => {
       `*How do I get paid?*\nUSCD is sent to your Solana wallet after the client approves your proof.\n\n` +
       `*What is the platform fee?*\n0%. You keep 100% of every job.\n\n` +
       `*How do Agent Jobs work?*\nAI agents post jobs via x402/MPP. Payment is auto-released when you submit proof.\n\n` +
-      `*Website:* https://yapper.agent`,
+      `*Website:* https://yapperagent.xyz`,
     { parse_mode: "Markdown" }
   );
 });
@@ -244,7 +244,7 @@ export async function broadcastJobToChannel(job: {
 }) {
   const keyboard = new InlineKeyboard().url(
     "🌐 View & Accept on Website",
-    `https://yapper.agent/jobs?id=${job.id}`
+    `https://yapperagent.xyz/jobs?id=${job.id}`
   );
 
   const followerRange =

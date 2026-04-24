@@ -20,7 +20,7 @@ if (projectId) {
   const appUrl =
     typeof window !== "undefined"
       ? window.location.origin
-      : (process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent.vercel.app");
+      : (process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz");
 
   createAppKit({
     adapters: [solanaAdapter],
