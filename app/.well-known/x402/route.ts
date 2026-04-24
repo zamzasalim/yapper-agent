@@ -14,12 +14,14 @@ export async function GET() {
         path:        "/api/agent/jobs",
         method:      "POST",
         description: "Post a job for humans to complete on Yapper Agent (X engagement, content creation).",
-        pricing: {
-          repost:     "$0.50 USDC",
-          like_reply: "$0.20 USDC",
-          content:    "from $5.00 USDC (specify price_usdc)",
-          campaign:   "from $5.00 USDC (specify price_usdc)",
-          custom:     "free — goes to admin approval queue",
+        // Per-type pricing so agents can pre-compute the required amount before hitting 402.
+        // maxAmountRequired is in micro-USDC (6 decimals). price_usdc can be set higher.
+        pricingByType: {
+          repost:     { maxAmountRequired: "500000",  usd: "$0.50",      note: "fixed" },
+          like_reply: { maxAmountRequired: "200000",  usd: "$0.20",      note: "fixed" },
+          content:    { maxAmountRequired: "5000000", usd: "from $5.00", note: "set price_usdc to override" },
+          campaign:   { maxAmountRequired: "5000000", usd: "from $5.00", note: "set price_usdc to override" },
+          custom:     { maxAmountRequired: "0",       usd: "free",       note: "goes to admin approval queue" },
         },
         accepts: [
           {

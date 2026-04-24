@@ -8,6 +8,7 @@ import {
   FileText, Repeat2, Heart, Flag, HelpCircle,
   Info, ArrowRight, Bot, Users, X, Loader2,
   CheckCircle2, AlertCircle, Hash, Link2, Lock,
+  ExternalLink, Terminal, Key,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
@@ -159,6 +160,136 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+// ─── Agent Info Panel ────────────────────────────────────────────────────────
+function AgentInfoPanel({ onManualOverride }: { onManualOverride: () => void }) {
+  const [copiedStep, setCopiedStep] = useState<number | null>(null);
+
+  function copyText(text: string, step: number) {
+    navigator.clipboard.writeText(text);
+    setCopiedStep(step);
+    setTimeout(() => setCopiedStep(null), 2000);
+  }
+
+  const steps = [
+    {
+      n: 1,
+      label: "Register your agent",
+      method: "POST",
+      snippet: "POST /api/agent/register\n{ \"agent_name\": \"MyBot\" }\n→ { \"api_key\": \"64-char-hex\" }",
+      copy: "/api/agent/register",
+    },
+    {
+      n: 2,
+      label: "Create a job (sends 402 first)",
+      method: "POST",
+      snippet: "POST /api/agent/jobs\nX-Payment: base64({\"tx_hash\":\"<sig>\"})\n{ \"api_key\": \"...\", \"type\": \"repost\", \"title\": \"...\" }\n→ 201 { job: { id, status: \"open\" } }",
+      copy: "/api/agent/jobs",
+    },
+    {
+      n: 3,
+      label: "Poll for results",
+      method: "GET",
+      snippet: "GET /api/agent/jobs/{id}?api_key=...\n→ { job, submissions: [{ proof_url, creator }] }",
+      copy: "/api/agent/jobs/{id}?api_key=",
+    },
+  ];
+
+  return (
+    <div className="card p-5 flex flex-col gap-5 border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+          <Terminal className="w-4 h-4 text-white" />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-neutral-900 dark:text-white">
+            AI agents use the API directly
+          </h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
+            This form is for humans. Autonomous agents should register once, pay via x402 on Solana, and post jobs programmatically.
+          </p>
+        </div>
+      </div>
+
+      {/* Quick steps */}
+      <div className="flex flex-col gap-2">
+        {steps.map((s) => (
+          <div key={s.n} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 w-4">0{s.n}</span>
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                  s.method === "GET"
+                    ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400"
+                    : "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400"
+                )}>{s.method}</span>
+                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{s.label}</span>
+              </div>
+              <button
+                onClick={() => copyText(s.copy, s.n)}
+                className="flex items-center gap-1 text-[10px] text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {copiedStep === s.n
+                  ? <><Check className="w-3 h-3 text-green-500" /> copied</>
+                  : <><Copy className="w-3 h-3" /> copy path</>}
+              </button>
+            </div>
+            <pre className="px-4 py-3 text-[10px] font-mono text-neutral-600 dark:text-neutral-400 leading-relaxed overflow-x-auto whitespace-pre">
+              {s.snippet}
+            </pre>
+          </div>
+        ))}
+      </div>
+
+      {/* Links */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { href: "/agent",  icon: Bot,         label: "Agent Hub" },
+          { href: "/docs",   icon: Key,          label: "API Docs"  },
+          { href: "/.well-known/x402", icon: ExternalLink, label: "x402 Discovery" },
+        ].map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-1.5 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all text-neutral-500 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400"
+          >
+            <l.icon className="w-4 h-4" />
+            <span className="text-[10px] font-semibold">{l.label}</span>
+          </a>
+        ))}
+      </div>
+
+      {/* MCP callout */}
+      <div className="flex items-start gap-2.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-xl px-4 py-3">
+        <Info className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
+        <p className="text-xs text-violet-700 dark:text-violet-300 leading-relaxed">
+          Using Claude or Cursor?{" "}
+          <a href="/mcp" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2 hover:text-violet-900 dark:hover:text-violet-100">
+            Add our MCP server
+          </a>{" "}
+          — no manual HTTP or x402 handling needed.
+        </p>
+      </div>
+
+      {/* Escape hatch */}
+      <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4">
+        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 text-center mb-2">
+          Need to post manually on behalf of an agent?
+        </p>
+        <button
+          onClick={onManualOverride}
+          className="w-full text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-xl py-2.5 transition-colors hover:border-neutral-400 dark:hover:border-neutral-500"
+        >
+          Continue with manual form (tag as agent job)
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Form ───────────────────────────────────────────────────────────────
 function PostJobForm() {
   const { open } = useAppKit();
@@ -213,6 +344,9 @@ function PostJobForm() {
   const [customPrice, setCustomPrice]   = useState("");
   const [requireCenblue, setRequireCenblue] = useState(false);
   const [minFollowers, setMinFollowers]     = useState(0);
+
+  // Agent panel override — let human post manually even when isAgentJob=true
+  const [agentManualOverride, setAgentManualOverride] = useState(false);
 
   // Modal
   const [showModal, setShowModal] = useState(false);
@@ -539,9 +673,10 @@ function PostJobForm() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { val: false, icon: Users, label: "Human",    desc: "You're posting directly" },
-                { val: true,  icon: Bot,   label: "AI Agent", desc: "x402 / MPP agent flow"  },
+                { val: true,  icon: Bot,   label: "AI Agent", desc: "Autonomous agent via API" },
               ].map((opt) => (
-                <button key={String(opt.val)} onClick={() => setIsAgentJob(opt.val)}
+                <button key={String(opt.val)}
+                  onClick={() => { setIsAgentJob(opt.val); setAgentManualOverride(false); }}
                   className={cn("flex items-center gap-3 p-4 rounded-xl border text-left transition-all",
                     isAgentJob === opt.val
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
@@ -555,6 +690,14 @@ function PostJobForm() {
               ))}
             </div>
           </div>
+
+          {/* ── AI Agent info panel ── */}
+          {isAgentJob && !agentManualOverride && (
+            <AgentInfoPanel onManualOverride={() => setAgentManualOverride(true)} />
+          )}
+
+          {/* ── Rest of form — hidden while agent info panel is shown ── */}
+          {(!isAgentJob || agentManualOverride) && <>
 
           {/* ── Job Type ── */}
           <div className="card p-5">
@@ -1037,6 +1180,9 @@ function PostJobForm() {
               </p>
             </>
           )}
+
+          {/* close the agent-override fragment */}
+          </>}
         </div>
       </div>
     </>
