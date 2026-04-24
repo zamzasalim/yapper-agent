@@ -28,6 +28,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const prefilledCreator: string | undefined = body.prefilledCreator
+      ? String(body.prefilledCreator).replace(/^@/, "")
+      : undefined;
     const db = createServerClient();
 
     // Upsert user (client) — create record if they haven't registered as creator
@@ -102,6 +105,22 @@ export async function POST(req: NextRequest) {
       const messageId = await notifyNewJob(job);
       if (messageId) {
         await db.from("jobs").update({ telegram_message_id: String(messageId) }).eq("id", job.id);
+      }
+    }
+
+    // Direct-hire: notify the target creator
+    if (prefilledCreator && ["open", "pending_approval"].includes(job.status)) {
+      const { data: targetCreator } = await db
+        .from("users")
+        .select("id")
+        .eq("twitter_handle", prefilledCreator)
+        .maybeSingle();
+      if (targetCreator) {
+        void db.from("notifications").insert({
+          user_id: targetCreator.id,
+          job_id: job.id,
+          message: `@${body.twitter_handle} wants to hire you directly for "${job.title}"!`,
+        });
       }
     }
 

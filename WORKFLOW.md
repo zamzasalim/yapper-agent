@@ -73,21 +73,23 @@ flowchart TD
     CR13 & CR14 -->|Verified| CR15{Single or Campaign?}
 
     CR15 -->|Single| CR16[job: completed\ncompleted_at set\nstats incremented]
-    CR15 -->|Campaign| CR17[completion row: completed]
+    CR15 -->|Campaign| CR17[completion row: completed\nstats incremented per slot]
     CR17 --> CR18{All slots done?}
     CR18 -->|No| CR19[Waiting for others]
     CR18 -->|Yes| CR20[job: completed\ncompleted_at set]
+    CR20 --> NOTIF_CAMPAIGN_DONE[POST /api/notifications\nNotify client: all creators\ncompleted your campaign]
+    NOTIF_CAMPAIGN_DONE -.->|client sees in bell| NOTIF
     CR16 & CR20 --> JOBDONE[[Job Completed]]
 
     %% ── POST-COMPLETION ─────────────────────────────────────────
     JOBDONE --> EX1{Custom job\nextra fields?}
-    EX1 -->|Yes| EX2[POST /api/jobs/:id/submit-info\nwallet + email + discord + telegram]
+    EX1 -->|Yes| EX2[POST /api/jobs/:id/submit-info\nwallet + email + discord + telegram\ncreator_handle verified against\ncompleted job or completion row]
     EX1 -->|No| CLREVIEW
     EX2 --> CLREVIEW
 
     CLREVIEW[Client - Jobs You Posted dashboard]
     CLREVIEW --> RV1[GET /api/jobs/:id/applicants\nView proof links + extra info\nExport CSV]
-    RV1 --> RV2[POST /api/jobs/:id/rate\n1-5 stars - job must be completed\nSingle: rating stored on job\nCampaign: pass creator_handle - updates creator avg directly]
+    RV1 --> RV2[POST /api/jobs/:id/rate\n1-5 stars - job must be completed\nSingle: rating stored on job row\nCampaign: pass creator_handle - per-slot rating\nstored in job_completions - avg recalculated\nfrom both single-job and campaign ratings]
 
     JOBDONE --> AD5
 
@@ -113,7 +115,7 @@ flowchart TD
     ADMHIDE -.->|hidden jobs excluded| CR1
 
     %% ── AUTO-EXPIRE: CRON + MANUAL ──────────────────────────────
-    CRON[GitHub Actions - every hour\nor Vercel Cron - once per day\nGET /api/cron/expire-jobs\nCRON_SECRET protected]
+    CRON[GitHub Actions - every hour\nGET /api/cron/expire-jobs\nCRON_SECRET protected]
     CRON --> EXPCHECK
     MANUALEXPIRE --> EXPCHECK
 
@@ -124,11 +126,13 @@ flowchart TD
     AUTOCANCEL --> AD_CAN
     EXPCHECK -->|in_progress + expired| AUTOCOMPLETE[status: completed\ncompleted_at set\ncompleted slots still enter payout list]
     AUTOCOMPLETE --> MISSEDSLOTS([accepted job_completions without proof\nstatus: missed])
+    AUTOCOMPLETE --> NOTIF_FORCECOMP[POST /api/notifications\nNotify client: job reached deadline\nmarked completed]
+    NOTIF_FORCECOMP -.->|client sees in bell| NOTIF
     AUTOCOMPLETE --> AD5
 
     %% ── ADMIN: COMPLETED TAB ────────────────────────────────────
     AD5[Admin - Completed tab\nsearch + type + paid filter + pagination]
-    AD5 --> AD6[View Details modal\ncreator handle + proof + wallet]
+    AD5 --> AD6[View Details modal\ncreator handle + proof + wallet\nCampaign: completions array\nper-slot creator + proof + wallet]
     AD6 --> AD7([Manual USDC payout\nMark Paid + Copy Wallet\nExport Excel per job or bulk])
 
     %% ── ADMIN: CANCELLED TAB ────────────────────────────────────
@@ -198,7 +202,7 @@ flowchart TD
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
-    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE client
+    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND admin
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY,TG_DISCONNECT telegram

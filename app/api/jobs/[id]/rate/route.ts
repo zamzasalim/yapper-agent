@@ -123,7 +123,7 @@ export async function POST(
       .eq("creator_id", job.creator_id)
       .not("rating", "is", null);
 
-    const allRatings = [...(ratedJobs ?? []).map((j) => j.rating as number), rating];
+    const allRatings = (ratedJobs ?? []).map((j) => j.rating as number);
     const avgRating  = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
 
     await db

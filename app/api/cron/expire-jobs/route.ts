@@ -71,6 +71,18 @@ export async function GET(req: NextRequest) {
         .update({ status: "missed" } as any)
         .in("job_id", toComplete)
         .eq("status", "accepted");
+
+      // Notify clients their in_progress job was force-completed at deadline
+      const completeNotifs = (activeJobs ?? [])
+        .filter((j) => toComplete.includes(j.id) && (j as any).client_id)
+        .map((j) => ({
+          user_id: (j as any).client_id as string,
+          job_id: j.id,
+          message: `Your job "${(j as any).title}" reached its deadline and has been marked completed.`,
+        }));
+      if (completeNotifs.length) {
+        try { await db.from("notifications").insert(completeNotifs); } catch {}
+      }
     }
 
     return NextResponse.json({ cancelled: toCancel.length, completed: toComplete.length });
