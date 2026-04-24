@@ -18,11 +18,16 @@ flowchart TD
     A4 -->|Existing| A6[POST /api/user\nSync wallet\nRefresh followers + blue + backfill name/avatar]
     A5 & A6 --> A7[[Dashboard ready]]
     A7 --> EDITPROF[Edit Profile modal\nCustom display_name + avatar_url\nPATCH /api/user]
-    A7 --> NOTIF[Notification bell\nGET /api/notifications\nbadge count]
-    NOTIF --> NOTIF_LIST[Dropdown: notification list\ne.g. Your custom job XH-xxxx was rejected]
+    A7 --> NOTIF[Notification bell in Navbar\nVisible only on /dashboard\nGET /api/notifications\nbadge count]
+    NOTIF --> NOTIF_LIST[Dropdown: notification list\ne.g. Your custom job XH-xxxx was rejected\nor @client wants to hire you directly]
 
     %% ── CLIENT: POST JOB ────────────────────────────────────────
     A7 --> CL1[Post Job page]
+    A7 --> MKPL[Creator Marketplace\n/marketplace]
+    MKPL --> DIRECTHIRE[Click Hire at creator\nopens /post-job?creator=handle and followers=n]
+    DIRECTHIRE --> CL1_DH[Post Job - Direct Hire mode\nJob type locked to Content\nCampaign option hidden\nnumCreators fixed at 1\nTier auto-selected and locked\nbased on creator follower count]
+    CL1_DH --> CL2
+
     CL1 --> CL2{Job Type}
     CL2 -->|Retweet 0.50 USDC\nLike and Reply 0.20 USDC| CL3[Fixed price\nPreset or custom deadline]
     CL2 -->|Content or Campaign\ntier pricing| CL4[Select tier - multi except Super CT\nNano CT 5 Small CT 25 Big CT 50 Super CT custom gt 50\nPrice = sum of selected tiers\nPreset or custom deadline]
@@ -35,6 +40,9 @@ flowchart TD
     CL5 --> CL9[POST /api/jobs\nstatus: pending_approval]
 
     CL8 --> TGNOTIFY[Broadcast to\nTelegram channel]
+    CL8 -->|if direct hire| NOTIF_CREATOR[POST /api/notifications\nNotify creator:\nhandle = prefilledCreator\nmessage: @client wants to hire you directly]
+    CL9 -->|if direct hire| NOTIF_CREATOR
+    NOTIF_CREATOR -.->|creator sees in bell| NOTIF
 
     %% ── CREATOR: ACCEPT AND WORK ────────────────────────────────
     TGNOTIFY --> CR1
@@ -124,11 +132,11 @@ flowchart TD
     CANREASON -->|admin_rejected| CANADM[Admin Rejected]
     CANREASON -->|client_cancelled| CANCLI[Client Cancelled]
     AD_CAN --> CANVIEW[View Details modal\nclient brief + meta]
-    AD_CAN --> RESTORE[POST /api/admin/jobs/:id/restore\nstatus: open\ncancel_reason: null\ncreator_id: null\nslots_taken: 0\ndelete job_completions]
+    AD_CAN --> RESTORE[POST /api/admin/jobs/:id/restore\nstatus: open or pending_approval for custom\ncancel_reason: null\ncreator_id: null\nslots_taken: 0\ndeadline_override = now + deadline_hours\ndelete job_completions]
     AD_CAN --> CANDEL[Delete permanently]
     AD_CAN --> REFUND[Copy Client Wallet\nMark Refunded\nPATCH is_refunded]
     REFUND --> REFUNDED([Refund marked])
-    RESTORE --> RESTORED([Back in marketplace\nstatus: open])
+    RESTORE --> RESTORED([Back in marketplace or approval queue\ndeadline reset from now])
 
     %% ── TELEGRAM BOT ────────────────────────────────────────────
     subgraph TG["Telegram Bot"]
@@ -183,7 +191,7 @@ flowchart TD
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
-    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST client
+    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND admin
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY telegram
