@@ -22,10 +22,18 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!handle) return;
-    fetch(`/api/notifications?handle=${encodeURIComponent(handle)}`)
-      .then((r) => r.json())
-      .then((d) => setNotifications(d.notifications ?? []))
-      .catch(() => {});
+
+    async function fetchNotifs() {
+      try {
+        const r = await fetch(`/api/notifications?handle=${encodeURIComponent(handle)}`);
+        const d = await r.json();
+        setNotifications(d.notifications ?? []);
+      } catch { /* ignore */ }
+    }
+
+    fetchNotifs();
+    const timer = setInterval(fetchNotifs, 30_000);
+    return () => clearInterval(timer);
   }, [handle]);
 
   useEffect(() => {

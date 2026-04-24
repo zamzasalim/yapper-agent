@@ -46,7 +46,7 @@ export async function PATCH(
     // ── 3. Fetch job ───────────────────────────────────────────────────────
     const { data: job } = await db
       .from("jobs")
-      .select("id, status, description, max_creators, slots_taken, require_blue, min_followers, type")
+      .select("id, status, description, max_creators, slots_taken, require_blue, min_followers, type, client_id, title")
       .eq("id", id)
       .maybeSingle();
 
@@ -94,6 +94,20 @@ export async function PATCH(
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      // Notify client their job was accepted
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const clientId = (job as any).client_id as string | null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const jobTitle = (job as any).title as string;
+      if (clientId) {
+        db.from("notifications").insert({
+          user_id: clientId,
+          job_id: id,
+          message: `@${twitter_handle} accepted your job "${jobTitle}"!`,
+        }).catch(() => {});
+      }
+
       return NextResponse.json({ job: updated });
     }
 
@@ -122,6 +136,19 @@ export async function PATCH(
       .from("jobs")
       .update({ slots_taken: newSlotsTaken, status: newStatus })
       .eq("id", id);
+
+    // Notify client a creator joined their campaign
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const clientId = (job as any).client_id as string | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const jobTitle = (job as any).title as string;
+    if (clientId) {
+      db.from("notifications").insert({
+        user_id: clientId,
+        job_id: id,
+        message: `@${twitter_handle} joined your campaign "${jobTitle}" (slot ${newSlotsTaken}/${maxCreators}).`,
+      }).catch(() => {});
+    }
 
     const { data: updated } = await db.from("jobs").select().eq("id", id).single();
     return NextResponse.json({ job: updated });

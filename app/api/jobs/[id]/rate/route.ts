@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { client_handle, rating } = await req.json();
+    const { client_handle, creator_handle, rating } = await req.json();
 
     if (!client_handle) {
       return NextResponse.json({ error: "client_handle required" }, { status: 400 });
@@ -50,11 +50,50 @@ export async function POST(
     if (job.status !== "completed") {
       return NextResponse.json({ error: "Can only rate completed jobs." }, { status: 409 });
     }
+    // ── Campaign (multi-creator) path ─────────────────────────────────────
+    if (!job.creator_id) {
+      if (!creator_handle) {
+        return NextResponse.json({ error: "creator_handle required for campaign jobs." }, { status: 400 });
+      }
+
+      const { data: targetCreator } = await db
+        .from("users")
+        .select("id")
+        .eq("twitter_handle", creator_handle)
+        .maybeSingle();
+      if (!targetCreator) {
+        return NextResponse.json({ error: "Creator not found." }, { status: 404 });
+      }
+
+      const { data: completion } = await db
+        .from("job_completions")
+        .select("id, status")
+        .eq("job_id", id)
+        .eq("creator_id", targetCreator.id)
+        .maybeSingle();
+      if (!completion || completion.status !== "completed") {
+        return NextResponse.json({ error: "Creator has not completed this campaign." }, { status: 409 });
+      }
+
+      // Recalculate creator avg from their single-creator jobs + this new rating
+      const { data: ratedJobs } = await db
+        .from("jobs")
+        .select("rating")
+        .eq("creator_id", targetCreator.id)
+        .not("rating", "is", null);
+      const allRatings = [...(ratedJobs ?? []).map((j) => j.rating as number), rating];
+      const avgRating  = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
+      await db
+        .from("users")
+        .update({ rating: Math.round(avgRating * 10) / 10 })
+        .eq("id", targetCreator.id);
+
+      return NextResponse.json({ success: true, rating, new_avg: avgRating });
+    }
+
+    // ── Single-creator path ────────────────────────────────────────────────
     if (job.rating !== null) {
       return NextResponse.json({ error: "This job has already been rated." }, { status: 409 });
-    }
-    if (!job.creator_id) {
-      return NextResponse.json({ error: "No creator assigned to this job." }, { status: 409 });
     }
 
     // Save rating on the job

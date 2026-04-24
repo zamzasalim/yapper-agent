@@ -304,7 +304,7 @@ export default function DashboardPage() {
       const res = await fetch(`/api/jobs/${applicantsModal.jobId}/rate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_handle: twitterHandle, rating: ratingValue }),
+        body: JSON.stringify({ client_handle: twitterHandle, rating: ratingValue, creator_handle: ratingHandle }),
       });
       if (res.ok) {
         setClientJobs((prev) =>
@@ -572,7 +572,7 @@ export default function DashboardPage() {
                     onClick={() => { setTelegramTimedOut(false); handleConnectTelegram(); }}
                     className="text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-1.5"
                   >
-                    Token expired — Retry
+                    Timed out — Retry
                   </button>
                 ) : (
                   <button

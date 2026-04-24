@@ -18,7 +18,7 @@ flowchart TD
     A4 -->|Existing| A6[POST /api/user\nSync wallet\nRefresh followers + blue + backfill name/avatar]
     A5 & A6 --> A7[[Dashboard ready]]
     A7 --> EDITPROF[Edit Profile modal\nCustom display_name + avatar_url\nPATCH /api/user]
-    A7 --> NOTIF[Notification bell in Navbar\nVisible only on /dashboard\nGET /api/notifications\nbadge count]
+    A7 --> NOTIF[Notification bell in Navbar\nVisible only on /dashboard\nGET /api/notifications\nbadge count - polls every 30s]
     NOTIF --> NOTIF_LIST[Dropdown: notification list\ne.g. Your custom job XH-xxxx was rejected\nor @client wants to hire you directly]
 
     %% ── CLIENT: POST JOB ────────────────────────────────────────
@@ -53,7 +53,11 @@ flowchart TD
     CR3 -->|Pass| CR4{max creators?}
 
     CR4 -->|Single = 1| CR5[creator_id locked\nstatus: in_progress]
+    CR5 --> NOTIF_ACCEPT[POST /api/notifications\nNotify client: creator accepted job]
+    NOTIF_ACCEPT -.->|client sees in bell| NOTIF
     CR4 -->|Campaign more than 1| CR6[job_completions row\nslots_taken++]
+    CR6 --> NOTIF_SLOT[POST /api/notifications\nNotify client: creator joined campaign\nslot x of max]
+    NOTIF_SLOT -.->|client sees in bell| NOTIF
     CR4 -->|Campaign type with max 1\ntreated as Single| CR5
     CR6 --> CR7{All slots filled?}
     CR7 -->|No| CR8[Job stays open\nmore creators can join]
@@ -96,7 +100,7 @@ flowchart TD
     AD3 --> NOTIFCREATE[POST /api/notifications\ncreate rejection notification\nfor job owner]
     AD3 --> AD_CAN
     NOTIFCREATE -.->|client sees in bell| NOTIF
-    AD2 -->|Approve| AD4[status: open]
+    AD2 -->|Approve| AD4[status: open\nPATCH /api/jobs/:id/approve]
     AD4 --> TGNOTIFY
 
     %% ── ADMIN: ACTIVE TAB ───────────────────────────────────────
@@ -115,9 +119,11 @@ flowchart TD
 
     EXPCHECK{Deadline passed?\nUses deadline_override\nif set, else\ncreated_at + deadline_hours}
     EXPCHECK -->|open + expired| AUTOCANCEL([status: cancelled\ncancel_reason: expired_no_creator])
+    AUTOCANCEL --> NOTIF_EXPIRE[POST /api/notifications\nNotify client: job expired\nno creator accepted in time]
+    NOTIF_EXPIRE -.->|client sees in bell| NOTIF
     AUTOCANCEL --> AD_CAN
     EXPCHECK -->|in_progress + expired| AUTOCOMPLETE[status: completed\ncompleted_at set\ncompleted slots still enter payout list]
-    AUTOCOMPLETE --> MISSEDSLOTS([pending job_completions\nstatus: missed])
+    AUTOCOMPLETE --> MISSEDSLOTS([accepted job_completions without proof\nstatus: missed])
     AUTOCOMPLETE --> AD5
 
     %% ── ADMIN: COMPLETED TAB ────────────────────────────────────
@@ -144,8 +150,9 @@ flowchart TD
         TG1[Dashboard: Connect Telegram] --> TG2[POST /api/telegram/connect\nLink token 15 min TTL]
         TG2 --> TG3[Open bot with token\nBot saves chat_id]
         TG3 --> TG4[Dashboard polls every 3s\nmax 2 min until confirmed]
-        TG4 -->|2 min no confirm| TG_TIMEOUT([Token expired\nClick Retry to regenerate])
+        TG4 -->|2 min no confirm| TG_TIMEOUT([UI timed out\nClick Retry to regenerate token\nNote: actual token still valid 15 min])
         TG_TIMEOUT -.-> TG2
+        TG_DISCONNECT[Dashboard: Disconnect Telegram\nDELETE /api/telegram/connect\nClears chat_id + token fields] -.->|already connected| TG1
 
         TG5[Channel: Apply via Bot] --> TG6[Bot calls accept API\nwith job id]
         TG6 --> TG7[User sends proof URL\nBot calls verify-proof]
@@ -191,10 +198,10 @@ flowchart TD
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
-    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR client
+    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND admin
-    class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY telegram
+    class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY,TG_DISCONNECT telegram
     class JOBDONE,RESTORED,REFUNDED done
     class CRERR,PROOFERR err
     class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT cancelled
