@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     const { data: activeJobs, error: fetchErr } = await db
       .from("jobs")
-      .select("id, status, created_at, deadline_hours, deadline_override, client_id, title")
+      .select("id, status, created_at, deadline_hours, deadline_override, client_id, title, is_agent_job")
       .in("status", ["open", "in_progress"]);
 
     if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
       // Notify clients their job expired without a creator
       const notifInserts = (activeJobs ?? [])
-        .filter((j) => toCancel.includes(j.id) && (j as any).client_id)
+        .filter((j) => toCancel.includes(j.id) && (j as any).client_id && !(j as any).is_agent_job)
         .map((j) => ({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           user_id: (j as any).client_id as string,
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
       // Notify clients their in_progress job was force-completed at deadline
       const completeNotifs = (activeJobs ?? [])
-        .filter((j) => toComplete.includes(j.id) && (j as any).client_id)
+        .filter((j) => toComplete.includes(j.id) && (j as any).client_id && !(j as any).is_agent_job)
         .map((j) => ({
           user_id: (j as any).client_id as string,
           job_id: j.id,

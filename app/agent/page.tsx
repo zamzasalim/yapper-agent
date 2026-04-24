@@ -1,8 +1,9 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { ArrowRight, Zap, CheckCircle2 } from "lucide-react";
 
-const APP_URL  = process.env.NEXT_PUBLIC_APP_URL  ?? "https://yapper-agent-five.vercel.app";
-const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.yapper-agent-five.vercel.app";
+const APP_URL_ENV  = process.env.NEXT_PUBLIC_APP_URL  ?? "https://yapper-agent-five.vercel.app";
+const DOCS_URL_ENV = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.yapper-agent-five.vercel.app";
 
 const HOW_IT_WORKS = [
   {
@@ -27,59 +28,6 @@ const HOW_IT_WORKS = [
   },
 ];
 
-const INTEGRATIONS = [
-  {
-    label:    "MCP Server",
-    badge:    "Model Context Protocol",
-    desc:     "Connect via JSON-RPC 2.0. Tools: register, create_job, list_jobs, get_job, support.",
-    endpoint: `${APP_URL}/mcp`,
-    cta:      "View endpoint",
-    href:     `${APP_URL}/mcp`,
-    color:    "from-violet-500/10 to-violet-500/5 border-violet-500/20",
-    dot:      "bg-violet-500",
-  },
-  {
-    label:    "OpenClaw Skill",
-    badge:    "Skill File",
-    desc:     "Add this skill to any x402-compatible AI agent. Full quickstart + tool definitions.",
-    endpoint: `${APP_URL}/skill.md`,
-    cta:      "View skill",
-    href:     `${APP_URL}/skill.md`,
-    color:    "from-blue-500/10 to-blue-500/5 border-blue-500/20",
-    dot:      "bg-blue-500",
-  },
-  {
-    label:    "x402 Discovery",
-    badge:    "x402 Protocol",
-    desc:     "Standard /.well-known/x402 discovery. Lists all payable endpoints and pricing.",
-    endpoint: `${APP_URL}/.well-known/x402`,
-    cta:      "View discovery",
-    href:     `${APP_URL}/.well-known/x402`,
-    color:    "from-emerald-500/10 to-emerald-500/5 border-emerald-500/20",
-    dot:      "bg-emerald-500",
-  },
-  {
-    label:    "OpenAPI / MPP",
-    badge:    "OpenAPI 3.0",
-    desc:     "Full OpenAPI spec for MPP-compatible agents. All request/response schemas included.",
-    endpoint: `${APP_URL}/openapi.json`,
-    cta:      "View spec",
-    href:     `${APP_URL}/openapi.json`,
-    color:    "from-amber-500/10 to-amber-500/5 border-amber-500/20",
-    dot:      "bg-amber-500",
-  },
-  {
-    label:    "Documentation",
-    badge:    "Docs",
-    desc:     "Full API reference, authentication guide, code examples, and job type details.",
-    endpoint: DOCS_URL,
-    cta:      "Read docs",
-    href:     DOCS_URL,
-    color:    "from-neutral-500/10 to-neutral-500/5 border-neutral-500/20",
-    dot:      "bg-neutral-400",
-  },
-];
-
 const MCP_TOOLS = [
   { name: "register_agent",  desc: "One-time registration → permanent api_key" },
   { name: "get_payment_info", desc: "Get USDC amount + wallet to pay before creating a job" },
@@ -97,7 +45,68 @@ const JOB_TYPES = [
   { type: "custom",     price: "free",       id: "XA" },
 ];
 
-export default function AgentPage() {
+export default async function AgentPage() {
+  const h = await headers();
+  const host = h.get("host") ?? "";
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.");
+
+  // Navigation hrefs — relative on local, absolute subdomain on production
+  const docsHref = isLocal ? "/docs" : DOCS_URL_ENV;
+  const appHref  = isLocal ? "/"     : APP_URL_ENV;
+
+  const INTEGRATIONS = [
+    {
+      label:    "MCP Server",
+      badge:    "Model Context Protocol",
+      desc:     "Connect via JSON-RPC 2.0. Tools: register, create_job, list_jobs, get_job, support.",
+      endpoint: `${APP_URL_ENV}/mcp`,
+      cta:      "View endpoint",
+      href:     "/mcp",
+      color:    "from-violet-500/10 to-violet-500/5 border-violet-500/20",
+      dot:      "bg-violet-500",
+    },
+    {
+      label:    "OpenClaw Skill",
+      badge:    "Skill File",
+      desc:     "Add this skill to any x402-compatible AI agent. Full quickstart + tool definitions.",
+      endpoint: `${APP_URL_ENV}/skill.md`,
+      cta:      "View skill",
+      href:     "/skill.md",
+      color:    "from-blue-500/10 to-blue-500/5 border-blue-500/20",
+      dot:      "bg-blue-500",
+    },
+    {
+      label:    "x402 Discovery",
+      badge:    "x402 Protocol",
+      desc:     "Standard /.well-known/x402 discovery. Lists all payable endpoints and pricing.",
+      endpoint: `${APP_URL_ENV}/.well-known/x402`,
+      cta:      "View discovery",
+      href:     "/.well-known/x402",
+      color:    "from-emerald-500/10 to-emerald-500/5 border-emerald-500/20",
+      dot:      "bg-emerald-500",
+    },
+    {
+      label:    "OpenAPI / MPP",
+      badge:    "OpenAPI 3.0",
+      desc:     "Full OpenAPI spec for MPP-compatible agents. All request/response schemas included.",
+      endpoint: `${APP_URL_ENV}/openapi.json`,
+      cta:      "View spec",
+      href:     "/openapi.json",
+      color:    "from-amber-500/10 to-amber-500/5 border-amber-500/20",
+      dot:      "bg-amber-500",
+    },
+    {
+      label:    "Documentation",
+      badge:    "Docs",
+      desc:     "Full API reference, authentication guide, code examples, and job type details.",
+      endpoint: DOCS_URL_ENV,
+      cta:      "Read docs",
+      href:     docsHref,
+      color:    "from-neutral-500/10 to-neutral-500/5 border-neutral-500/20",
+      dot:      "bg-neutral-400",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-[family-name:var(--font-geist-sans)]">
 
@@ -116,9 +125,9 @@ export default function AgentPage() {
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <Link href={DOCS_URL} className="text-neutral-400 hover:text-white transition-colors">Docs</Link>
-            <a href={`${APP_URL}/skill.md`} className="text-neutral-400 hover:text-white transition-colors">Skill</a>
-            <Link href={APP_URL} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+            <Link href={docsHref} className="text-neutral-400 hover:text-white transition-colors">Docs</Link>
+            <a href="/skill.md" className="text-neutral-400 hover:text-white transition-colors">Skill</a>
+            <Link href={appHref} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
               Main App
             </Link>
           </div>
@@ -145,14 +154,14 @@ export default function AgentPage() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <a
-            href={`${APP_URL}/api/agent/register`}
+            href="/api/agent/register"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
           >
             Register Agent
             <ArrowRight className="w-4 h-4" />
           </a>
           <Link
-            href={DOCS_URL}
+            href={docsHref}
             className="inline-flex items-center gap-2 border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
           >
             Read Docs
@@ -302,10 +311,10 @@ export default function AgentPage() {
             </p>
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 font-mono text-xs mb-6">
               <p className="text-neutral-500 mb-1">MCP endpoint</p>
-              <p className="text-white">{APP_URL}/mcp</p>
+              <p className="text-white">{APP_URL_ENV}/mcp</p>
             </div>
             <a
-              href={`${APP_URL}/mcp`}
+              href="/mcp"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
@@ -378,10 +387,10 @@ export default function AgentPage() {
           </div>
           <p className="text-xs text-neutral-600">Solana · USDC · x402 · MPP · MCP</p>
           <div className="flex items-center gap-4 text-xs text-neutral-500">
-            <Link href={APP_URL} className="hover:text-white transition-colors">Main App</Link>
-            <Link href={DOCS_URL} className="hover:text-white transition-colors">Docs</Link>
-            <a href={`${APP_URL}/skill.md`} className="hover:text-white transition-colors">skill.md</a>
-            <a href={`${APP_URL}/openapi.json`} className="hover:text-white transition-colors">openapi.json</a>
+            <Link href={appHref} className="hover:text-white transition-colors">Main App</Link>
+            <Link href={docsHref} className="hover:text-white transition-colors">Docs</Link>
+            <a href="/skill.md" className="hover:text-white transition-colors">skill.md</a>
+            <a href="/openapi.json" className="hover:text-white transition-colors">openapi.json</a>
           </div>
         </div>
       </footer>

@@ -91,9 +91,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Transaction already used for another job." }, { status: 409 });
     }
 
-    const { valid, error: payErr } = await verifyX402Payment(payment.tx_hash, amountUsdc);
+    const { valid, error: payErr, payer } = await verifyX402Payment(payment.tx_hash, amountUsdc);
     if (!valid) {
       return NextResponse.json({ error: payErr }, { status: 402 });
+    }
+
+    // Backfill agent wallet_address from tx fee payer if not yet set
+    if (payer) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: agentUser } = await (db as any)
+        .from("users")
+        .select("wallet_address")
+        .eq("id", agent.id)
+        .maybeSingle();
+      if (!agentUser?.wallet_address) {
+        await db.from("users").update({ wallet_address: payer }).eq("id", agent.id);
+      }
     }
 
     // ── Create job ─────────────────────────────────────────────────────────

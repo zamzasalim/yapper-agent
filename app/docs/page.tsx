@@ -1,8 +1,9 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { ArrowRight, Zap } from "lucide-react";
 
-const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapper-agent-five.vercel.app";
-const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapper-agent-five.vercel.app";
+const APP_URL_ENV   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapper-agent-five.vercel.app";
+const AGENT_URL_ENV = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapper-agent-five.vercel.app";
 
 const NAV = [
   { id: "overview",       label: "Overview" },
@@ -53,7 +54,18 @@ function Param({ name, type, required, desc }: { name: string; type: string; req
   );
 }
 
-export default function DocsPage() {
+export default async function DocsPage() {
+  const h = await headers();
+  const host = h.get("host") ?? "";
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.");
+
+  // Navigation hrefs — relative on local, absolute subdomain on production
+  const agentHref = isLocal ? "/agent" : AGENT_URL_ENV;
+  const appHref   = isLocal ? "/"      : APP_URL_ENV;
+
+  // Always use production URL in code examples (docs are documentation)
+  const APP_URL = APP_URL_ENV;
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-[family-name:var(--font-geist-sans)]">
 
@@ -72,8 +84,8 @@ export default function DocsPage() {
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <Link href={AGENT_URL} className="text-neutral-400 hover:text-white transition-colors">Agent Hub</Link>
-            <Link href={APP_URL} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+            <Link href={agentHref} className="text-neutral-400 hover:text-white transition-colors">Agent Hub</Link>
+            <Link href={appHref} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
               Main App
             </Link>
           </div>
@@ -99,19 +111,19 @@ export default function DocsPage() {
               ))}
             </ul>
             <div className="mt-8 pt-6 border-t border-neutral-800 space-y-2">
-              <a href={`${APP_URL}/.well-known/x402`} target="_blank" rel="noopener noreferrer"
+              <a href="/.well-known/x402" target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
                 x402 Discovery <ArrowRight className="w-3 h-3" />
               </a>
-              <a href={`${APP_URL}/openapi.json`} target="_blank" rel="noopener noreferrer"
+              <a href="/openapi.json" target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
                 OpenAPI Spec <ArrowRight className="w-3 h-3" />
               </a>
-              <a href={`${APP_URL}/skill.md`} target="_blank" rel="noopener noreferrer"
+              <a href="/skill.md" target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
                 skill.md <ArrowRight className="w-3 h-3" />
               </a>
-              <a href={`${APP_URL}/mcp`} target="_blank" rel="noopener noreferrer"
+              <a href="/mcp" target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
                 MCP Endpoint <ArrowRight className="w-3 h-3" />
               </a>
@@ -435,10 +447,10 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
             </span>
           </div>
           <div className="flex items-center gap-4 text-xs text-neutral-500">
-            <Link href={APP_URL} className="hover:text-white transition-colors">Main App</Link>
-            <Link href={AGENT_URL} className="hover:text-white transition-colors">Agent Hub</Link>
-            <a href={`${APP_URL}/openapi.json`} className="hover:text-white transition-colors">OpenAPI</a>
-            <a href={`${APP_URL}/skill.md`} className="hover:text-white transition-colors">skill.md</a>
+            <Link href={appHref} className="hover:text-white transition-colors">Main App</Link>
+            <Link href={agentHref} className="hover:text-white transition-colors">Agent Hub</Link>
+            <a href="/openapi.json" className="hover:text-white transition-colors">OpenAPI</a>
+            <a href="/skill.md" className="hover:text-white transition-colors">skill.md</a>
           </div>
         </div>
       </footer>

@@ -31,7 +31,7 @@ export async function POST(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, type, status, tweet_url, creator_id, max_creators, slots_taken, price_usdc, client_id, title")
+      .select("id, type, status, tweet_url, creator_id, max_creators, slots_taken, price_usdc, client_id, title, is_agent_job")
       .eq("id", id)
       .maybeSingle();
 
@@ -123,9 +123,9 @@ export async function POST(
       // Update creator stats
       try { await (db as any).rpc("increment_creator_stats", { user_id: creator.id, amount: job.price_usdc ?? 0 }); } catch {}
 
-      // Notify client their job was completed
+      // Notify client their job was completed (skip for agent jobs — they poll the API)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((job as any).client_id) {
+      if ((job as any).client_id && !(job as any).is_agent_job) {
         void db.from("notifications").insert({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           user_id: (job as any).client_id as string,
@@ -158,9 +158,9 @@ export async function POST(
     if (allDone) {
       await db.from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", id);
 
-      // Notify client all campaign slots are done
+      // Notify client all campaign slots are done (skip for agent jobs)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((job as any).client_id) {
+      if ((job as any).client_id && !(job as any).is_agent_job) {
         void db.from("notifications").insert({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           user_id: (job as any).client_id as string,

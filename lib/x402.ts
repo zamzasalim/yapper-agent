@@ -38,11 +38,11 @@ export function parsePaymentHeader(header: string): { tx_hash: string } | null {
   return null;
 }
 
-/** Verify a Solana USDC payment to the platform wallet. */
+/** Verify a Solana USDC payment to the platform wallet. Returns `payer` (fee payer address) on success. */
 export async function verifyX402Payment(
   txHash: string,
   expectedUsdc: number
-): Promise<{ valid: boolean; error?: string }> {
+): Promise<{ valid: boolean; error?: string; payer?: string }> {
   try {
     const tx = await connection.getParsedTransaction(txHash, {
       maxSupportedTransactionVersion: 0,
@@ -51,6 +51,10 @@ export async function verifyX402Payment(
     if (!tx)                  return { valid: false, error: "Transaction not found. Wait for confirmation and retry." };
     if (tx.meta?.err !== null) return { valid: false, error: "Transaction failed on-chain." };
 
+    // Fee payer = first account key (the wallet that signed and sent the tx)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payer: string | undefined = (tx.transaction.message.accountKeys[0] as any)?.pubkey?.toString();
+
     const pre  = tx.meta?.preTokenBalances?.find(b => b.mint === USDC_MINT_STR && b.owner === PLATFORM_WALLET_STR);
     const post = tx.meta?.postTokenBalances?.find(b => b.mint === USDC_MINT_STR && b.owner === PLATFORM_WALLET_STR);
     const delta = (post?.uiTokenAmount?.uiAmount ?? 0) - (pre?.uiTokenAmount?.uiAmount ?? 0);
@@ -58,7 +62,7 @@ export async function verifyX402Payment(
     if (delta < expectedUsdc - 0.001) {
       return { valid: false, error: `Insufficient payment: received $${delta.toFixed(2)}, required $${expectedUsdc.toFixed(2)} USDC.` };
     }
-    return { valid: true };
+    return { valid: true, payer };
   } catch {
     return { valid: false, error: "Failed to verify transaction. Please retry." };
   }

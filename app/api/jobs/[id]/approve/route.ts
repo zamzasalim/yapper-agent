@@ -35,7 +35,7 @@ export async function PATCH(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, status, type, title, client_id")
+      .select("id, status, type, title, client_id, is_agent_job")
       .eq("id", id)
       .maybeSingle();
 
@@ -64,7 +64,8 @@ export async function PATCH(
       await notifyNewJob(updated);
     }
 
-    if (newStatus === "cancelled" && job.client_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (newStatus === "cancelled" && job.client_id && !(job as any).is_agent_job) {
       await db.from("notifications").insert({
         user_id: job.client_id,
         job_id: id,
