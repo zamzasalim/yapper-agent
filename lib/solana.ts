@@ -60,9 +60,10 @@ export async function buildUsdcTransfer(
  * Price tier based on follower count.
  */
 export function getPriceTier(followers: number): number {
-  if (followers < 1000) return 5;
-  if (followers < 10000) return 10;
-  return -1; // "rate applied" — custom quote
+  if (followers < 1000)   return 5;   // Nano CT
+  if (followers < 10000)  return 25;  // Small CT
+  if (followers < 50000)  return 50;  // Big CT
+  return -1;                           // Super CT — custom quote
 }
 
 export function formatFollowers(n: number): string {

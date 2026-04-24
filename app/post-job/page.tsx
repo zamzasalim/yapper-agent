@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import {
   FileText, Repeat2, Heart, Flag, HelpCircle,
   Info, ArrowRight, Bot, Users, X, Loader2,
-  CheckCircle2, AlertCircle, Hash, Link2,
+  CheckCircle2, AlertCircle, Hash, Link2, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
@@ -165,10 +165,12 @@ function PostJobForm() {
   const { isConnected, embeddedWalletInfo, status } = useAppKitAccount();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
   const isRestoring  = status === "connecting" || status === "reconnecting";
   const authenticated = isConnected;
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
+  const prefilledFollowers = parseInt(searchParams?.get("followers") ?? "-1", 10);
 
   // Common
   const [jobType, setJobType]         = useState<JobType>("content");
@@ -218,6 +220,18 @@ function PostJobForm() {
   const [txError, setTxError]     = useState("");
   const [txHash, setTxHash]       = useState("");
   const [copied, setCopied]       = useState(false);
+
+  // Auto-select tier and lock to content when hiring a specific creator
+  useEffect(() => {
+    if (!prefilledCreator || prefilledFollowers < 0) return;
+    setJobType("content");
+    setNumCreators(1);
+    if (prefilledFollowers < 1000)        setSelectedTiers(["0-1000"]);
+    else if (prefilledFollowers < 10000)  setSelectedTiers(["1000-10000"]);
+    else if (prefilledFollowers < 50000)  setSelectedTiers(["10000-50000"]);
+    else                                  setSelectedTiers(["50000-99999"]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefilledCreator]);
 
   // ── Price calc ──
   const fixedPrice   = FIXED_PRICE[jobType];
@@ -337,6 +351,7 @@ function PostJobForm() {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? "Failed to save job");
+    return json.job?.id as string | undefined;
   }
 
   // ── Direct submit for custom (no USDC) ──
@@ -344,8 +359,19 @@ function PostJobForm() {
     setSubmittingCustom(true);
     setCustomError("");
     try {
-      await saveJob();
+      const jobId = await saveJob();
       setSubmitted(true);
+      if (prefilledCreator && jobId) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            handle: prefilledCreator,
+            job_id: jobId,
+            message: `@${twitterHandle} wants to hire you directly for "${title}"!`,
+          }),
+        }).catch(() => {});
+      }
     } catch (err: unknown) {
       setCustomError(err instanceof Error ? err.message : "Failed to submit");
     } finally {
@@ -367,9 +393,20 @@ function PostJobForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Payment verification failed");
       setTxPhase("verified");
-      await saveJob(txHash.trim());
+      const jobId = await saveJob(txHash.trim());
       setShowModal(false);
       setSubmitted(true);
+      if (prefilledCreator && jobId) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            handle: prefilledCreator,
+            job_id: jobId,
+            message: `@${twitterHandle} wants to hire you directly for "${title}"!`,
+          }),
+        }).catch(() => {});
+      }
     } catch (err: unknown) {
       setTxError(err instanceof Error ? err.message : "Verification failed");
       setTxPhase("error");
@@ -523,7 +560,7 @@ function PostJobForm() {
           <div className="card p-5">
             <label className="block text-sm font-semibold text-neutral-900 dark:text-white mb-3">Job Type</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {JOB_TYPES.map((jt) => (
+              {JOB_TYPES.filter((jt) => !prefilledCreator || jt.type !== "campaign").map((jt) => (
                 <button key={jt.type} onClick={() => setJobType(jt.type)}
                   className={cn("flex flex-col gap-1.5 p-3 rounded-xl border text-left transition-all",
                     jobType === jt.type
@@ -870,18 +907,29 @@ function PostJobForm() {
             {showTier && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
-                  Creator Tier <span className="font-normal text-neutral-400">(select one or more, Super CT is solo only)</span>
+                  Creator Tier{" "}
+                  {prefilledCreator
+                    ? <span className="font-normal text-neutral-400 inline-flex items-center gap-1"><Lock className="w-3 h-3" /> locked</span>
+                    : <span className="font-normal text-neutral-400">(select one or more, Super CT is solo only)</span>
+                  }
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {CREATOR_TIERS.map((tier) => {
                     const active  = selectedTiers.includes(tier.value);
                     const isMacro = tier.price === -1;
+                    const locked  = !!prefilledCreator;
                     return (
-                      <button key={tier.value} onClick={() => toggleTier(tier.value)}
+                      <button key={tier.value}
+                        onClick={() => { if (!locked) toggleTier(tier.value); }}
+                        disabled={locked}
                         className={cn("p-3 rounded-xl border text-left transition-all",
-                          active
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                            : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
+                          locked
+                            ? active
+                              ? "border-blue-500 bg-blue-50 dark:bg-blue-950 opacity-80 cursor-default"
+                              : "border-neutral-200 dark:border-neutral-800 opacity-40 cursor-default"
+                            : active
+                              ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                              : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700")}>
                         <p className={cn("text-xs font-bold", active ? "text-blue-700 dark:text-blue-400" : "text-neutral-800 dark:text-neutral-200")}>
                           {tier.label} <span className={cn("font-normal", active ? "text-blue-500 dark:text-blue-400" : "text-neutral-400 dark:text-neutral-500")}>({tier.sub})</span>
                         </p>
@@ -895,6 +943,12 @@ function PostJobForm() {
                     );
                   })}
                 </div>
+                {prefilledCreator && (
+                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5 flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    Tier auto-selected based on @{prefilledCreator}&apos;s follower count.
+                  </p>
+                )}
               </div>
             )}
 
@@ -915,14 +969,16 @@ function PostJobForm() {
             )}
 
             {/* Number of creators */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                {jobType === "campaign" ? "Number of Creators (min. 2) *" : "Number of Creators"}
-              </label>
-              <input className="input-field" type="number" min={jobType === "campaign" ? "2" : "1"} max="10000"
-                value={jobType === "campaign" ? effectiveCreators : numCreators}
-                onChange={(e) => setNumCreators(Math.max(jobType === "campaign" ? 2 : 1, parseInt(e.target.value) || 1))} />
-            </div>
+            {!prefilledCreator && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  {jobType === "campaign" ? "Number of Creators (min. 2) *" : "Number of Creators"}
+                </label>
+                <input className="input-field" type="number" min={jobType === "campaign" ? "2" : "1"} max="10000"
+                  value={jobType === "campaign" ? effectiveCreators : numCreators}
+                  onChange={(e) => setNumCreators(Math.max(jobType === "campaign" ? 2 : 1, parseInt(e.target.value) || 1))} />
+              </div>
+            )}
 
             {/* Cost summary */}
             <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl px-4 py-3 flex items-center justify-between">

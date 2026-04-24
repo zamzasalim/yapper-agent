@@ -103,7 +103,7 @@ export function CreatorCard({ creator }: { creator: Creator }) {
       </div>
 
       {/* CTA */}
-      <Link href={`/post-job?creator=${creator.handle}`} className="btn-primary text-xs px-4 py-2.5 mt-auto">
+      <Link href={`/post-job?creator=${creator.handle}&followers=${creator.followers}`} className="btn-primary text-xs px-4 py-2.5 mt-auto">
         Hire @{creator.handle}
         <ArrowRight className="w-3.5 h-3.5" />
       </Link>

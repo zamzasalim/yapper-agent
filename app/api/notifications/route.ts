@@ -26,18 +26,32 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ notifications: data ?? [] });
 }
 
-/** POST /api/notifications — internal: create a notification for a user */
+/** POST /api/notifications — create a notification.
+ *  Accepts { user_id, job_id?, message } OR { handle, job_id?, message }
+ */
 export async function POST(req: NextRequest) {
   try {
-    const { user_id, job_id, message } = await req.json();
-    if (!user_id || !message) {
-      return NextResponse.json({ error: "user_id and message required" }, { status: 400 });
-    }
+    const { user_id, handle, job_id, message } = await req.json();
+    if (!message) return NextResponse.json({ error: "message required" }, { status: 400 });
 
     const db = createServerClient();
+    let resolvedUserId = user_id as string | undefined;
+
+    if (!resolvedUserId && handle) {
+      const { data: user } = await db
+        .from("users")
+        .select("id")
+        .eq("twitter_handle", (handle as string).replace(/^@/, ""))
+        .maybeSingle();
+      if (!user) return NextResponse.json({ error: "Creator not found" }, { status: 404 });
+      resolvedUserId = user.id;
+    }
+
+    if (!resolvedUserId) return NextResponse.json({ error: "user_id or handle required" }, { status: 400 });
+
     const { data, error } = await db
       .from("notifications")
-      .insert({ user_id, job_id: job_id ?? null, message })
+      .insert({ user_id: resolvedUserId, job_id: job_id ?? null, message })
       .select()
       .single();
 

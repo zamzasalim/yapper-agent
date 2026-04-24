@@ -351,7 +351,14 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/jobs/${jobId}/restore?admin_handle=${twitterHandle}`, {
         method: "POST",
       });
-      if (res.ok) setCancelled((prev) => prev.filter((j) => j.id !== jobId));
+      if (res.ok) {
+        setCancelled((prev) => prev.filter((j) => j.id !== jobId));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(`Restore failed: ${data.error ?? res.statusText}`);
+      }
+    } catch {
+      alert("Restore failed: network error");
     } finally {
       setRestoring(null);
     }

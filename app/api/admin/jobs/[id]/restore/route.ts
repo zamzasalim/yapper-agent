@@ -23,7 +23,7 @@ export async function POST(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, status")
+      .select("id, status, type, deadline_hours")
       .eq("id", id)
       .maybeSingle();
 
@@ -32,13 +32,21 @@ export async function POST(
       return NextResponse.json({ error: "Job is not cancelled." }, { status: 409 });
     }
 
+    // Custom jobs go back to pending_approval (re-enter approval queue)
+    // All other jobs go back to open (re-enter marketplace)
+    const restoredStatus = job.type === "custom" ? "pending_approval" : "open";
+
+    // Reset deadline from now so the job doesn't expire immediately
+    const newDeadline = new Date(Date.now() + (job.deadline_hours ?? 24) * 3_600_000).toISOString();
+
     const { error: updateError } = await db
       .from("jobs")
       .update({
-        status: "open",
+        status: restoredStatus,
         cancel_reason: null,
         creator_id: null,
         slots_taken: 0,
+        deadline_override: newDeadline,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       .eq("id", id);
