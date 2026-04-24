@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { notifyNewJob } from "@/lib/telegram";
 import { parsePaymentHeader, verifyX402Payment, requiredUsdc, x402Body } from "@/lib/x402";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
 
 type AgentRow = { id: string; display_name: string } | null;
 

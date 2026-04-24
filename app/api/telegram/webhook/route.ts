@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { sendMessage, escapeHtml } from "@/lib/telegram";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
 
 const TYPE_LABEL: Record<string, string> = {
   content:    "Content",

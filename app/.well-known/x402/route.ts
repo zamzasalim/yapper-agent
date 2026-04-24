@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const APP_URL         = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent.vercel.app";
+const APP_URL         = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
 const PLATFORM_WALLET = process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "CzQZDvbjHHZDXxDeGUX2KTorQhiZnJvt6z6V2QtfMDU2";
 const USDC_MINT       = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 

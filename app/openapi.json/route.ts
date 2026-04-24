@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent-five.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
 
 /** GET /openapi.json — OpenAPI 3.0 spec for the Yapper Agent API (MPP-compatible) */
 export async function GET() {

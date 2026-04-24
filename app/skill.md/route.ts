@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent-five.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
 
 /** GET /skill.md — Agent skill file for x402/MCP-compatible AI agents */
 export async function GET() {

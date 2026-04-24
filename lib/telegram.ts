@@ -1,7 +1,7 @@
 const BOT_TOKEN    = process.env.TELEGRAM_BOT_TOKEN    ?? "";
 const CHANNEL_ID   = process.env.TELEGRAM_CHANNEL_ID   ?? "@yapperagent";
 const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME ?? "yapper_agent_bot";
-const APP_URL      = process.env.NEXT_PUBLIC_APP_URL    ?? "https://yapper-agent.vercel.app";
+const APP_URL      = process.env.NEXT_PUBLIC_APP_URL    ?? "https://yapperagent.xyz";
 
 const TYPE_LABEL: Record<string, string> = {
   repost:     "Repost",

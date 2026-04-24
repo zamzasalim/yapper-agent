@@ -1,8 +1,8 @@
 import { ArrowRight, Zap } from "lucide-react";
 
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
-const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapper-agent-five.vercel.app";
-const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapper-agent-five.vercel.app";
+const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
+const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
 
 const NAV = [
   { id: "overview",       label: "Overview" },

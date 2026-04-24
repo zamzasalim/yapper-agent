@@ -1,8 +1,8 @@
 import { ArrowRight, Zap, CheckCircle2 } from "lucide-react";
 
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
-const APP_URL  = process.env.NEXT_PUBLIC_APP_URL  ?? "https://yapper-agent-five.vercel.app";
-const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.yapper-agent-five.vercel.app";
+const APP_URL  = process.env.NEXT_PUBLIC_APP_URL  ?? "https://yapperagent.xyz";
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.yapperagent.xyz";
 
 const HOW_IT_WORKS = [
   {

@@ -4,7 +4,7 @@ import { requiredUsdc, x402Body, parsePaymentHeader, verifyX402Payment } from "@
 import { notifyNewJob } from "@/lib/telegram";
 import { revalidatePath } from "next/cache";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapper-agent-five.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
 
 // ── MCP Tool definitions ──────────────────────────────────────────────────────
 
