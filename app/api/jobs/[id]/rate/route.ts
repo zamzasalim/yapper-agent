@@ -65,17 +65,17 @@ export async function POST(
         return NextResponse.json({ error: "Creator not found." }, { status: 404 });
       }
 
-      const { data: completion } = await db
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: completion } = await (db as any)
         .from("job_completions")
         .select("id, status, rating")
         .eq("job_id", id)
         .eq("creator_id", targetCreator.id)
-        .maybeSingle();
+        .maybeSingle() as { data: { id: string; status: string; rating: number | null } | null };
       if (!completion || completion.status !== "completed") {
         return NextResponse.json({ error: "Creator has not completed this campaign." }, { status: 409 });
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((completion as any).rating !== null && (completion as any).rating !== undefined) {
+      if (completion.rating !== null && completion.rating !== undefined) {
         return NextResponse.json({ error: "This campaign slot has already been rated." }, { status: 409 });
       }
 
