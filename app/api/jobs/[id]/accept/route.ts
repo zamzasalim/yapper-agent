@@ -101,11 +101,11 @@ export async function PATCH(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const jobTitle = (job as any).title as string;
       if (clientId) {
-        db.from("notifications").insert({
+        void db.from("notifications").insert({
           user_id: clientId,
           job_id: id,
           message: `@${twitter_handle} accepted your job "${jobTitle}"!`,
-        }).catch(() => {});
+        });
       }
 
       return NextResponse.json({ job: updated });
@@ -143,11 +143,11 @@ export async function PATCH(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const jobTitle = (job as any).title as string;
     if (clientId) {
-      db.from("notifications").insert({
+      void db.from("notifications").insert({
         user_id: clientId,
         job_id: id,
         message: `@${twitter_handle} joined your campaign "${jobTitle}" (slot ${newSlotsTaken}/${maxCreators}).`,
-      }).catch(() => {});
+      });
     }
 
     const { data: updated } = await db.from("jobs").select().eq("id", id).single();

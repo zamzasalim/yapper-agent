@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
           message: `Your job "${(j as any).title}" expired — no creator accepted in time.`,
         }));
       if (notifInserts.length) {
-        await db.from("notifications").insert(notifInserts).catch(() => {});
+        try { await db.from("notifications").insert(notifInserts); } catch {}
       }
     }
     if (toComplete.length) {

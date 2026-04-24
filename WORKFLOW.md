@@ -87,7 +87,7 @@ flowchart TD
 
     CLREVIEW[Client - Jobs You Posted dashboard]
     CLREVIEW --> RV1[GET /api/jobs/:id/applicants\nView proof links + extra info\nExport CSV]
-    RV1 --> RV2[POST /api/jobs/:id/rate\n1-5 stars - job must be completed\nAvg creator rating recalculated]
+    RV1 --> RV2[POST /api/jobs/:id/rate\n1-5 stars - job must be completed\nSingle: rating stored on job\nCampaign: pass creator_handle - updates creator avg directly]
 
     JOBDONE --> AD5
 
