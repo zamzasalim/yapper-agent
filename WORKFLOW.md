@@ -167,6 +167,29 @@ flowchart TD
     end
 
     %% ── REFERENCE ───────────────────────────────────────────────
+    %% ── AGENT-TO-HUMAN ─────────────────────────────────────────
+    subgraph AGENT["Agent-to-Human (x402 / MPP)"]
+        direction TB
+        AG1[POST /api/agent/register\nagent_name + wallet_address\nReturns permanent api_key]
+        AG1 --> AG2[POST /api/agent/jobs\napi_key + job fields in body]
+        AG2 -->|No X-Payment header| AG3[402 response\nx402Body: network solana-mainnet\nasset USDC - payTo platform wallet\nmaxAmountRequired in micro-USDC]
+        AG3 --> AG4[Agent pays USDC on Solana\nRetries with X-Payment header\nbase64 json tx_hash OR raw sig]
+        AG4 --> AG5{Payment valid?}
+        AG5 -->|No| AG3
+        AG5 -->|Yes| AG6[Job created\nis_agent_job: true\nBroadcast to Telegram]
+        AG6 --> AG7[Humans complete job\nsame creator flow]
+        AG7 --> AG8[Agent polls\nGET /api/agent/jobs/:id?api_key=xxx\nReturns job + submissions array\nwith proof_url + creator info]
+        AG8 --> AG9{All done?}
+        AG9 -->|No| AG8
+        AG9 -->|Yes| AG10([Agent receives responses\ncontinues its workflow])
+        AG1 -.->|Recovery: list all jobs| AG11[GET /api/agent/jobs?api_key=xxx]
+        AG6 -.->|Issue on job| AG12[POST /api/agent/support\napi_key + job_id + issue\nNotifies admins via bell]
+        AG2 -.->|Discovery| AGDISC[GET /.well-known/x402\nLists payable endpoints\npricing per job type]
+        AG2 -.->|Skill file| AGSKILL[GET /skill.md\nMarkdown quickstart\nfor x402-compatible agents]
+        AG2 -.->|MPP spec| AGOAPI[GET /openapi.json\nOpenAPI 3.0 spec\nfor MPP-compatible agents]
+        AG2 -.->|MCP| AGMCP[POST /mcp\nJSON-RPC 2.0\nModel Context Protocol\ntools: register create list get support]
+    end
+
     subgraph IDS["Job ID Format"]
         direction LR
         ID1["Retweet:      RH + 8-char UUID"]
@@ -174,7 +197,7 @@ flowchart TD
         ID3["Content:      CH + 8-char UUID"]
         ID4["Campaign:     EH + 8-char UUID"]
         ID5["Custom:       XH + 8-char UUID"]
-        ID6["Agent jobs:   RA  LA  CA  EA  XA  (future)"]
+        ID6["Agent jobs:   RA  LA  CA  EA  XA  (is_agent_job: true)"]
     end
 
     subgraph CANCEL_REASONS["Cancel Reasons"]
@@ -210,4 +233,5 @@ flowchart TD
     class CRERR,PROOFERR err
     class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT cancelled
     class CRON,EXPCHECK,MANUALEXPIRE cron
+    class AG1,AG2,AG3,AG4,AG5,AG6,AG7,AG8,AG9,AG10,AG11,AG12,AGDISC,AGSKILL,AGOAPI,AGMCP auth
 ```
