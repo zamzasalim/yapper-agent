@@ -467,27 +467,14 @@ export default function AgentPage() {
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/5 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-bold text-sm">
-              Yapper<span className="text-violet-400"> Agent</span>
-            </span>
-          </div>
-
-          <p className="text-[10px] text-neutral-700 font-mono tracking-widest uppercase">
-            Solana · USDC · x402 · MPP · MCP
-          </p>
-
-          <div className="flex items-center gap-4 text-xs text-neutral-600">
-            <a href={APP_URL}               className="hover:text-neutral-300 transition-colors">Main App</a>
-            <a href={DOCS_URL}              className="hover:text-neutral-300 transition-colors">Docs</a>
-            <a href={`${AGENT_URL}/skill.md`}    className="hover:text-neutral-300 transition-colors font-mono">skill.md</a>
-            <a href={`${AGENT_URL}/openapi.json`} className="hover:text-neutral-300 transition-colors font-mono">openapi.json</a>
-          </div>
+      <footer className="border-t border-white/5 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center">
+          <a
+            href="#"
+            className="flex items-center gap-1.5 text-xs text-neutral-600 hover:text-neutral-300 transition-colors font-mono"
+          >
+            ↑ Back to top
+          </a>
         </div>
       </footer>
 

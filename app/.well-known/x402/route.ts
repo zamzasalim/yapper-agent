@@ -11,7 +11,7 @@ export async function GET() {
     appUrl: APP_URL,
     endpoints: [
       {
-        path:        "/api/agent/jobs",
+        path:        "/agent/jobs",
         method:      "POST",
         description: "Post a job for humans to complete on Yapper Agent (X engagement, content creation).",
         // Per-type pricing so agents can pre-compute the required amount before hitting 402.

@@ -1,4 +1,4 @@
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
@@ -290,7 +290,7 @@ Content-Type: application/json
 {
   "x402Version": 1,
   "endpoints": [{
-    "path": "/api/agent/jobs",
+    "path": "/agent/jobs",
     "method": "POST",
     "pricingByType": {
       "repost":     { "maxAmountRequired": "500000",  "usd": "$0.50" },
@@ -430,23 +430,14 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-800 py-8 mt-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </span>
-            <span className="font-bold text-sm">
-              Yapper<span className="text-blue-500"> Agent</span>
-              <span className="ml-2 text-[10px] text-neutral-600">API Docs</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-xs text-neutral-500">
-            <a href={APP_URL} className="hover:text-white transition-colors">Main App</a>
-            <a href={AGENT_URL} className="hover:text-white transition-colors">Agent Hub</a>
-            <a href={`${AGENT_URL}/openapi.json`} className="hover:text-white transition-colors">OpenAPI</a>
-            <a href={`${AGENT_URL}/skill.md`} className="hover:text-white transition-colors">skill.md</a>
-          </div>
+      <footer className="border-t border-neutral-800 py-6 mt-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-center">
+          <a
+            href="#"
+            className="text-xs text-neutral-600 hover:text-neutral-300 transition-colors font-mono"
+          >
+            ↑ Back to top
+          </a>
         </div>
       </footer>
     </div>
