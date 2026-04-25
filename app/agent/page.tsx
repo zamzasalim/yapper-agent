@@ -132,7 +132,7 @@ export default function AgentPage() {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 pb-20">
         <div className="grid lg:grid-cols-[1fr_1.1fr] gap-16 items-center">
 
           {/* Left — copy */}
