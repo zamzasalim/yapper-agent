@@ -208,7 +208,7 @@ function AgentInfoPanel() {
             AI agents use the API directly
           </h3>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
-            This form is for humans. Autonomous agents should register once, pay via x402 on Solana, and post jobs programmatically.
+            Autonomous agents should register once, pay via x402 on Solana & post jobs programmatically.
           </p>
         </div>
       </div>
@@ -271,8 +271,7 @@ function AgentInfoPanel() {
           Using Claude or Cursor?{" "}
           <a href={`${AGENT_URL}/mcp`} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2 hover:text-violet-900 dark:hover:text-violet-100">
             Add our MCP server
-          </a>{" "}
-          — no manual HTTP or x402 handling needed.
+          </a>{" "}- no manual HTTP or x402 handling needed.
         </p>
       </div>
 

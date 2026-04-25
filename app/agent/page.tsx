@@ -7,10 +7,10 @@ const DOCS_URL  = process.env.NEXT_PUBLIC_DOCS_URL  ?? "https://docs.yapperagent
 const API_URL   = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
 
 const LIFECYCLE = [
-  { n: "01", icon: Code2,    title: "Register",       desc: "One call — get your permanent api_key. No OAuth, no dashboard." },
+  { n: "01", icon: Code2,    title: "Register",       desc: "One call, get your permanent api_key. No OAuth, no dashboard." },
   { n: "02", icon: Cpu,      title: "Pay via x402",   desc: "Send USDC on Solana, include the tx signature in X-Payment header." },
   { n: "03", icon: Layers,   title: "Job goes live",  desc: "Real humans on X see the job in the Telegram channel & web." },
-  { n: "04", icon: Terminal, title: "Fetch results",  desc: "Poll GET /agent/jobs/{id} — get proof URLs and creator info." },
+  { n: "04", icon: Terminal, title: "Fetch results",  desc: "Poll GET /agent/jobs/{id} - get proof URL and creator info." },
 ];
 
 const INTEGRATIONS = [
@@ -26,7 +26,7 @@ const INTEGRATIONS = [
     icon: Code2,
     label: "x402 Native",
     tag:   "x402 Protocol",
-    desc:  "Call the API directly. Pay via Solana tx → pass X-Payment header → job is live.",
+    desc:  "Call the API directly. Pay via Solana tx » pass X-Payment header » job is live.",
     url:   `${API_URL}/agent/jobs`,
     accent: "cyan",
   },
@@ -65,10 +65,10 @@ const INTEGRATIONS = [
 ];
 
 const MCP_TOOLS = [
-  { name: "register_agent",   ret: "→ api_key, agent_id",           desc: "One-time setup — store the key permanently" },
+  { name: "register_agent",   ret: "→ api_key, agent_id",           desc: "One-time setup, store the key permanently" },
   { name: "get_payment_info", ret: "→ amount, payTo, network",       desc: "Pre-flight check before paying USDC" },
   { name: "create_job",       ret: "→ job.id, job.status",           desc: "Post a job after payment is confirmed" },
-  { name: "list_jobs",        ret: "→ jobs[]",                       desc: "Recovery — fetch all jobs for this agent" },
+  { name: "list_jobs",        ret: "→ jobs[]",                       desc: "Recovery, fetch all jobs for this agent" },
   { name: "get_job",          ret: "→ job + submissions[]",          desc: "Poll until status = completed" },
   { name: "submit_support",   ret: "→ { success }",                  desc: "Flag an issue to Yapper moderators" },
 ];
@@ -162,7 +162,7 @@ export default function AgentPage() {
               Your agent posts a job, real X creators complete it, you fetch the result.
               Payment flows automatically in{" "}
               <span className="text-white font-semibold">USDC on Solana</span>{" "}
-              — no escrow delays, no dashboards.
+              - no escrow delays, no dashboards.
             </p>
 
             <div className="flex flex-wrap items-center gap-3 mb-10">
@@ -184,7 +184,7 @@ export default function AgentPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-neutral-500 font-mono">
-              {["x402 Protocol", "MPP Compatible", "MCP Server", "0% Platform Fee", "USDC / Solana"].map(f => (
+              {["x402 / MPP", "MCP Server", "0% Fee", "USDC on Solana"].map(f => (
                 <span key={f} className="flex items-center gap-1.5">
                   <span className="w-1 h-1 rounded-full bg-emerald-400" />
                   {f}
@@ -328,7 +328,7 @@ export default function AgentPage() {
                 Hire humans with<br />a natural tool call
               </h2>
               <p className="text-neutral-400 text-sm leading-relaxed mb-8">
-                Add Yapper as an MCP server — no manual HTTP, no x402 plumbing.
+                Add Yapper as an MCP server - no manual HTTP, no x402 plumbing.
                 Works with Claude, Cursor, and any MCP-compatible runtime.
               </p>
 
