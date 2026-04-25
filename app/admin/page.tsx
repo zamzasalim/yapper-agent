@@ -9,7 +9,7 @@ import {
   X, Copy, Check, Search, ChevronLeft, ChevronRight, CalendarDays, Link2,
 } from "lucide-react";
 
-const ADMINS = ["Autosultan_team", "0xhnfdm"];
+import { ADMINS } from "@/lib/admins";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface PendingJob {
@@ -459,7 +459,9 @@ export default function AdminPage() {
             <ShieldAlert className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Access Denied</h2>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              This page is only accessible to <strong>@Autosultan_team</strong> and <strong>@0xhnfdm</strong>.
+              This page is only accessible to {ADMINS.map((a, i) => (
+                <span key={a}>{i > 0 && " and "}<strong>@{a}</strong></span>
+              ))}.
             </p>
           </div>
         </div>

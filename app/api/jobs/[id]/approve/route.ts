@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { notifyNewJob } from "@/lib/telegram";
 
-const ADMINS = ["Autosultan_team", "0xhnfdm"];
+import { ADMINS } from "@/lib/admins";
 
 /**
  * PATCH /api/jobs/[id]/approve

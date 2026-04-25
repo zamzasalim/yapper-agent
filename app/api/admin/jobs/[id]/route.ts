@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 
-const ADMINS = ["Autosultan_team", "0xhnfdm"];
+import { ADMINS } from "@/lib/admins";
 
 function isAdmin(handle: string) {
   return ADMINS.some((a) => a.toLowerCase() === handle.toLowerCase());
