@@ -468,11 +468,16 @@ export default function AgentPage() {
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/5 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center">
-          <a
-            href="#"
-            className="flex items-center gap-1.5 text-xs text-neutral-600 hover:text-neutral-300 transition-colors font-mono"
-          >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-bold text-sm">
+              Yapper<span className="text-violet-400"> Agent</span>
+            </span>
+          </div>
+          <a href="#" className="text-xs text-neutral-600 hover:text-neutral-300 transition-colors font-mono">
             ↑ Back to top
           </a>
         </div>

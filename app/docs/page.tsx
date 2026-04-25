@@ -431,11 +431,17 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
 
       {/* Footer */}
       <footer className="border-t border-neutral-800 py-6 mt-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-center">
-          <a
-            href="#"
-            className="text-xs text-neutral-600 hover:text-neutral-300 transition-colors font-mono"
-          >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 text-white" />
+            </span>
+            <span className="font-bold text-sm">
+              Yapper<span className="text-blue-500"> Agent</span>
+              <span className="ml-2 text-[10px] text-neutral-600">API Docs</span>
+            </span>
+          </div>
+          <a href="#" className="text-xs text-neutral-500 hover:text-white transition-colors font-mono">
             ↑ Back to top
           </a>
         </div>
