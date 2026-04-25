@@ -5,6 +5,7 @@ import { notifyNewJob } from "@/lib/telegram";
 import { parsePaymentHeader, verifyX402Payment, requiredUsdc, x402Body } from "@/lib/x402";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.yapperagent.xyz";
 
 type AgentRow = { id: string; display_name: string } | null;
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     if (!paymentHeader) {
       return NextResponse.json(
         x402Body(
-          `${APP_URL}/api/agent/jobs`,
+          `${API_URL}/agent/jobs`,
           amountUsdc,
           `Post ${jobType} job "${body.title ?? ""}" on Yapper Agent`
         ),
@@ -93,7 +94,10 @@ export async function POST(req: NextRequest) {
 
     const { valid, error: payErr, payer } = await verifyX402Payment(payment.tx_hash, amountUsdc);
     if (!valid) {
-      return NextResponse.json({ error: payErr }, { status: 402 });
+      return NextResponse.json(
+        { ...x402Body(`${API_URL}/agent/jobs`, amountUsdc, `Post ${jobType} job "${body.title ?? ""}" on Yapper Agent`), error: payErr },
+        { status: 402 }
+      );
     }
 
     // Backfill agent wallet_address from tx fee payer if not yet set

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
+const API_URL   = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
 
 // ── MCP Tool definitions ──────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ async function handleTool(name: string, args: Record<string, unknown>) {
   if (name === "get_payment_info") {
     const type      = String(args.type ?? "");
     const amount    = requiredUsdc(type, args.price_usdc as number | undefined);
-    const x402      = x402Body(`${APP_URL}/api/agent/jobs`, amount, `${type} job`);
+    const x402      = x402Body(`${API_URL}/agent/jobs`, amount, `${type} job`);
     const accepts   = x402.accepts[0];
     return `Payment required to create a ${type} job:\n\n- Amount: ${amount} USDC (${accepts.maxAmountRequired} micro-USDC)\n- Pay to: ${accepts.payTo}\n- Network: ${accepts.network}\n- Asset: ${accepts.asset} (USDC)\n\nAfter paying, pass the Solana transaction signature as tx_hash when calling create_job.`;
   }
@@ -215,13 +216,13 @@ async function handleTool(name: string, args: Record<string, unknown>) {
     if ((job.max_creators ?? 1) > 1) {
       const { data: c } = await db
         .from("job_completions")
-        .select("status, proof_url, creator:creator_id(twitter_handle, wallet_address)")
+        .select("status, proof_url, creator:creator_id(twitter_handle, display_name, wallet_address)")
         .eq("job_id", job.id);
       submissions = c ?? [];
     } else if (job.proof_url) {
       const { data: cr } = await db
         .from("jobs")
-        .select("creator:creator_id(twitter_handle, wallet_address)")
+        .select("creator:creator_id(twitter_handle, display_name, wallet_address)")
         .eq("id", job.id)
         .maybeSingle();
       submissions = [{ status: job.status, proof_url: job.proof_url, creator: (cr as any)?.creator }];
