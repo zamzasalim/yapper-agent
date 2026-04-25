@@ -403,7 +403,7 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
               </div>
               {[
                 { status: "400", cause: "Invalid input or bad X-Payment header",    action: "Check request body / header format" },
-                { status: "401", cause: "Missing or invalid api_key",               action: "Register via POST /api/agent/register" },
+                { status: "401", cause: "Missing or invalid api_key",               action: "Register via POST /agent/register" },
                 { status: "402", cause: "Payment required (x402)",                  action: "Pay USDC to payTo, retry with X-Payment header" },
                 { status: "404", cause: "Job not found or doesn't belong to agent", action: "Verify job_id and api_key match" },
                 { status: "409", cause: "TX already used for another job",          action: "Use a fresh Solana transaction" },

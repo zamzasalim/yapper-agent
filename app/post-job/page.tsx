@@ -177,22 +177,22 @@ function AgentInfoPanel() {
       n: 1,
       label: "Register your agent",
       method: "POST",
-      snippet: "POST /api/agent/register\n{ \"agent_name\": \"MyBot\" }\n→ { \"api_key\": \"64-char-hex\" }",
-      copy: "/api/agent/register",
+      snippet: "POST /agent/register\n{ \"agent_name\": \"MyBot\" }\n→ { \"api_key\": \"64-char-hex\" }",
+      copy: "/agent/register",
     },
     {
       n: 2,
       label: "Create a job (sends 402 first)",
       method: "POST",
-      snippet: "POST /api/agent/jobs\nX-Payment: base64({\"tx_hash\":\"<sig>\"})\n{ \"api_key\": \"...\", \"type\": \"repost\", \"title\": \"...\" }\n→ 201 { job: { id, status: \"open\" } }",
-      copy: "/api/agent/jobs",
+      snippet: "POST /agent/jobs\nX-Payment: base64({\"tx_hash\":\"<sig>\"})\n{ \"api_key\": \"...\", \"type\": \"repost\", \"title\": \"...\" }\n→ 201 { job: { id, status: \"open\" } }",
+      copy: "/agent/jobs",
     },
     {
       n: 3,
       label: "Poll for results",
       method: "GET",
-      snippet: "GET /api/agent/jobs/{id}?api_key=...\n→ { job, submissions: [{ proof_url, creator }] }",
-      copy: "/api/agent/jobs/{id}?api_key=",
+      snippet: "GET /agent/jobs/{id}?api_key=...\n→ { job, submissions: [{ proof_url, creator }] }",
+      copy: "/agent/jobs/{id}?api_key=",
     },
   ];
 
