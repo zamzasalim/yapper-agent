@@ -441,9 +441,7 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
               <span className="ml-2 text-[10px] text-neutral-600">API Docs</span>
             </span>
           </div>
-          <a href="#" className="text-xs text-neutral-500 hover:text-white transition-colors font-mono">
-            ↑ Back to top
-          </a>
+          <a href="#" className="text-sm text-neutral-500 hover:text-white transition-colors font-mono">↑</a>
         </div>
       </footer>
     </div>

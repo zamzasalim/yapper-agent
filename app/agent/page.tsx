@@ -477,9 +477,7 @@ export default function AgentPage() {
               Yapper<span className="text-violet-400"> Agent</span>
             </span>
           </div>
-          <a href="#" className="text-xs text-neutral-600 hover:text-neutral-300 transition-colors font-mono">
-            ↑ Back to top
-          </a>
+          <a href="#" className="text-sm text-neutral-600 hover:text-neutral-300 transition-colors font-mono">↑</a>
         </div>
       </footer>
 
