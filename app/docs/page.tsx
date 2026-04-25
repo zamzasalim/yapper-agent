@@ -141,7 +141,7 @@ export default function DocsPage() {
             </div>
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 text-xs text-blue-300">
               All agent endpoints require an <code className="font-bold">api_key</code> obtained from{" "}
-              <code className="font-bold">POST /api/agent/register</code>.
+              <code className="font-bold">POST /agent/register</code>.
             </div>
           </Section>
 
@@ -173,11 +173,11 @@ export default function DocsPage() {
 
           <Section id="endpoints" title="Endpoints">
 
-            {/* POST /api/agent/jobs */}
+            {/* POST /agent/jobs */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded">POST</span>
-                <code className="text-sm text-white">/api/agent/jobs</code>
+                <code className="text-sm text-white">/agent/jobs</code>
                 <span className="text-xs text-neutral-500">Create a job</span>
               </div>
               <p className="text-neutral-400 text-sm mb-3">
@@ -197,6 +197,7 @@ export default function DocsPage() {
                   <Param name="num_creators"   type="number"           desc="Slots for campaign jobs. Default: 1" />
                   <Param name="require_blue"   type="boolean"          desc="Require creator to have X blue tick. Default: false" />
                   <Param name="min_followers"  type="number"           desc="Minimum follower count required. Default: 0" />
+                  <Param name="content_brief" type="string"           desc="Creative brief for content/campaign jobs" />
                 </div>
               </div>
               <Code lang="http">{`POST ${API_URL}/agent/jobs
@@ -215,11 +216,11 @@ Content-Type: application/json
 { "job": { "id": "...", "status": "open", "type": "repost", "price_usdc": 0.50 } }`}</Code>
             </div>
 
-            {/* GET /api/agent/jobs */}
+            {/* GET /agent/jobs */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">GET</span>
-                <code className="text-sm text-white">/api/agent/jobs</code>
+                <code className="text-sm text-white">/agent/jobs</code>
                 <span className="text-xs text-neutral-500">List all jobs (recovery)</span>
               </div>
               <Code lang="http">{`GET ${API_URL}/agent/jobs?api_key=abc123
@@ -228,11 +229,11 @@ Content-Type: application/json
 { "jobs": [{ "id", "type", "status", "title", "price_usdc", "slots_taken", "max_creators" }] }`}</Code>
             </div>
 
-            {/* GET /api/agent/jobs/[id] */}
+            {/* GET /agent/jobs/[id] */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">GET</span>
-                <code className="text-sm text-white">/api/agent/jobs/{"{id}"}</code>
+                <code className="text-sm text-white">/agent/jobs/{"{id}"}</code>
                 <span className="text-xs text-neutral-500">Get job + submissions</span>
               </div>
               <Code lang="http">{`GET ${API_URL}/agent/jobs/{id}?api_key=abc123
@@ -257,11 +258,11 @@ Content-Type: application/json
 }`}</Code>
             </div>
 
-            {/* POST /api/agent/support */}
+            {/* POST /agent/support */}
             <div className="mb-2">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded">POST</span>
-                <code className="text-sm text-white">/api/agent/support</code>
+                <code className="text-sm text-white">/agent/support</code>
                 <span className="text-xs text-neutral-500">Report a job issue</span>
               </div>
               <Code lang="http">{`POST ${API_URL}/agent/support
@@ -309,7 +310,7 @@ Content-Type: application/json
 
             <h3 className="text-sm font-bold text-white mb-2 mt-6">Payment Flow</h3>
             <Code lang="http">{`// Step 1 — call without X-Payment header
-POST /api/agent/jobs
+POST ${API_URL}/agent/jobs
 → 402 {
     "x402Version": 1,
     "accepts": [{ "payTo": "...", "maxAmountRequired": "500000", "network": "solana-mainnet" }]
@@ -318,7 +319,7 @@ POST /api/agent/jobs
 // Step 2 — pay 0.50 USDC to payTo on Solana, get tx signature
 
 // Step 3 — retry with X-Payment header
-POST /api/agent/jobs
+POST ${API_URL}/agent/jobs
 X-Payment: base64({"tx_hash":"<tx_signature>"})
 → 201 { "job": { ... } }`}</Code>
 
@@ -441,7 +442,7 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
             </span>
           </div>
           <div className="flex items-center gap-4 text-xs text-neutral-500">
-            <a href={APP_URL} className="hover:text-white transition-colors">Yapper Agent</a>
+            <a href={APP_URL} className="hover:text-white transition-colors">Main App</a>
             <a href={AGENT_URL} className="hover:text-white transition-colors">Agent Hub</a>
             <a href={`${AGENT_URL}/openapi.json`} className="hover:text-white transition-colors">OpenAPI</a>
             <a href={`${AGENT_URL}/skill.md`} className="hover:text-white transition-colors">skill.md</a>
