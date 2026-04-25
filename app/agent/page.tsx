@@ -127,9 +127,6 @@ export default function AgentPage() {
             <a href={APP_URL} className="px-3 py-1.5 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all text-xs font-medium">
               Main App
             </a>
-            <a href={DOCS_URL} className="ml-2 px-4 py-1.5 bg-violet-500 hover:bg-violet-400 text-white rounded-lg text-xs font-semibold transition-colors">
-              Get API Key
-            </a>
           </div>
         </div>
       </nav>
@@ -276,14 +273,9 @@ export default function AgentPage() {
 
       {/* ── Integration grid ──────────────────────────────────────────────────── */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <p className="text-[11px] font-mono font-semibold text-cyan-400 uppercase tracking-[0.2em] mb-2">Integration</p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold">Six Ways to Connect</h2>
-          </div>
-          <a href={DOCS_URL} className="hidden sm:flex items-center gap-1 text-xs text-neutral-500 hover:text-white transition-colors font-mono">
-            Full reference <ArrowRight className="w-3 h-3" />
-          </a>
+        <div className="mb-10">
+          <p className="text-[11px] font-mono font-semibold text-cyan-400 uppercase tracking-[0.2em] mb-2">Integration</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold">Six Ways to Connect</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -360,15 +352,6 @@ export default function AgentPage() {
                 </pre>
               </div>
 
-              <a
-                href={`${AGENT_URL}/mcp`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-violet-500 hover:bg-violet-400 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
-              >
-                <Terminal className="w-4 h-4" />
-                View MCP Endpoint
-              </a>
             </div>
 
             {/* Right — tools list */}
@@ -464,10 +447,12 @@ export default function AgentPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
-              href={DOCS_URL}
-              className="inline-flex items-center gap-2 bg-white text-black font-bold px-6 py-3 rounded-xl text-sm hover:bg-neutral-100 transition-colors"
+              href={`${AGENT_URL}/openapi.json`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-white text-black font-bold px-6 py-3 rounded-xl text-sm hover:bg-neutral-100 transition-colors font-mono"
             >
-              Read the Docs <ArrowRight className="w-4 h-4" />
+              View OpenAPI <ArrowRight className="w-4 h-4" />
             </a>
             <a
               href={`${AGENT_URL}/.well-known/x402`}
