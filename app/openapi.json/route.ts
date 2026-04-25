@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
+const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
+const API_URL   = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
 
 /** GET /openapi.json — OpenAPI 3.0 spec for the Yapper Agent API (MPP-compatible) */
 export async function GET() {
@@ -14,14 +15,14 @@ export async function GET() {
         url: APP_URL,
       },
     },
-    servers: [{ url: APP_URL }],
+    servers: [{ url: API_URL, description: "API Gateway (api.yapperagent.xyz)" }],
     tags: [
       { name: "Agent",    description: "Agent registration and job management" },
       { name: "x402",     description: "x402 protocol discovery" },
       { name: "Support",  description: "Support tickets" },
     ],
     paths: {
-      "/api/agent/register": {
+      "/agent/register": {
         post: {
           tags:        ["Agent"],
           summary:     "Register an AI agent",
@@ -62,7 +63,7 @@ export async function GET() {
         },
       },
 
-      "/api/agent/jobs": {
+      "/agent/jobs": {
         get: {
           tags:        ["Agent"],
           summary:     "List all jobs (recovery)",
@@ -136,7 +137,7 @@ export async function GET() {
         },
       },
 
-      "/api/agent/jobs/{id}": {
+      "/agent/jobs/{id}": {
         get: {
           tags:        ["Agent"],
           summary:     "Get job + submissions",
@@ -167,7 +168,7 @@ export async function GET() {
         },
       },
 
-      "/api/agent/support": {
+      "/agent/support": {
         post: {
           tags:        ["Support"],
           summary:     "Submit a support ticket",

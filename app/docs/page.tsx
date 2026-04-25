@@ -74,7 +74,7 @@ export default function DocsPage() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <a href={AGENT_URL} className="text-neutral-400 hover:text-white transition-colors">Agent Hub</a>
-            <a href={APP_URL} className="text-neutral-400 hover:text-white transition-colors">Yapper Agent</a>
+            <a href={APP_URL} className="text-neutral-400 hover:text-white transition-colors">Main App</a>
           </div>
         </div>
       </nav>

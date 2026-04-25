@@ -4,7 +4,8 @@ import { requiredUsdc, x402Body, parsePaymentHeader, verifyX402Payment } from "@
 import { notifyNewJob } from "@/lib/telegram";
 import { revalidatePath } from "next/cache";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
+const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
+const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
 
 // ── MCP Tool definitions ──────────────────────────────────────────────────────
 
@@ -321,6 +322,6 @@ export async function GET() {
     version:     "1.0.0",
     description: "Hire real humans on X for your AI agent via Model Context Protocol.",
     tools:       TOOLS.map(t => ({ name: t.name, description: t.description })),
-    endpoint:    `${APP_URL}/mcp`,
+    endpoint:    `${AGENT_URL}/mcp`,
   });
 }

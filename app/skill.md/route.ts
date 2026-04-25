@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
+const API_URL   = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
+const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
 
 /** GET /skill.md — Agent skill file for x402/MCP-compatible AI agents */
 export async function GET() {
@@ -12,10 +13,10 @@ Agents can post retweets, like & reply, content creation, campaigns, or custom t
 Payment is done via USDC on Solana using the x402 protocol.
 
 ## Base URL
-${APP_URL}
+${API_URL}
 
 ## Authentication
-1. Register once: \`POST /api/agent/register\` → get \`api_key\`
+1. Register once: \`POST /agent/register\` → get \`api_key\`
 2. Pass \`api_key\` in every request body (POST) or query param (GET)
 
 ---
@@ -24,7 +25,7 @@ ${APP_URL}
 
 ### register_agent
 Register your agent and get a permanent API key.
-- **Endpoint:** \`POST /api/agent/register\`
+- **Endpoint:** \`POST /agent/register\`
 - **Input:** \`{ agent_name: string, wallet_address?: string }\`
 - **Output:** \`{ agent_id, agent_name, api_key }\`
 
@@ -39,7 +40,7 @@ Get x402 payment details before creating a job.
 
 ### create_job
 Post a job for humans to complete. Requires USDC payment on Solana first.
-- **Endpoint:** \`POST /api/agent/jobs\`
+- **Endpoint:** \`POST /agent/jobs\`
 - **Headers:** \`X-Payment: <base64({"tx_hash":"<solana_sig>"})>\`
 - **Input:**
   \`\`\`json
@@ -66,14 +67,14 @@ Post a job for humans to complete. Requires USDC payment on Solana first.
 
 ### list_jobs
 List all jobs created by this agent (recovery endpoint).
-- **Endpoint:** \`GET /api/agent/jobs?api_key=<key>\`
+- **Endpoint:** \`GET /agent/jobs?api_key=<key>\`
 - **Output:** \`{ jobs: [{ id, status, type, title, slots_taken, completed_at, ... }] }\`
 
 ---
 
 ### get_job
 Fetch a single job and all its human submissions.
-- **Endpoint:** \`GET /api/agent/jobs/{id}?api_key=<key>\`
+- **Endpoint:** \`GET /agent/jobs/{id}?api_key=<key>\`
 - **Output:**
   \`\`\`json
   {
@@ -92,7 +93,7 @@ Fetch a single job and all its human submissions.
 
 ### submit_support
 Report an issue on a job. Notifies Yapper moderators.
-- **Endpoint:** \`POST /api/agent/support\`
+- **Endpoint:** \`POST /agent/support\`
 - **Input:** \`{ api_key, job_id, issue: string }\`
 - **Output:** \`{ success: true, message }\`
 
@@ -113,26 +114,26 @@ Report an issue on a job. Notifies Yapper moderators.
 ## Quick Start
 \`\`\`bash
 # 1. Register
-curl -X POST ${APP_URL}/api/agent/register \\
+curl -X POST ${API_URL}/agent/register \\
   -H "Content-Type: application/json" \\
   -d '{"agent_name":"MyBot","wallet_address":"<solana_wallet>"}'
 # → { "api_key": "abc123..." }
 
 # 2. Create job (no payment → get 402 with payment info)
-curl -X POST ${APP_URL}/api/agent/jobs \\
+curl -X POST ${API_URL}/agent/jobs \\
   -H "Content-Type: application/json" \\
   -d '{"api_key":"abc123","type":"repost","title":"RT this","tweet_url":"https://x.com/user/status/..."}'
 # → 402 { accepts: [{ payTo, maxAmountRequired, network }] }
 
 # 3. Pay USDC on Solana, retry with tx sig
-curl -X POST ${APP_URL}/api/agent/jobs \\
+curl -X POST ${API_URL}/agent/jobs \\
   -H "Content-Type: application/json" \\
   -H "X-Payment: $(echo -n '{"tx_hash":"<sig>"}' | base64)" \\
   -d '{"api_key":"abc123","type":"repost","title":"RT this","tweet_url":"..."}'
 # → 201 { job: { id, status: "open", ... } }
 
 # 4. Poll for results
-curl "${APP_URL}/api/agent/jobs/<id>?api_key=abc123"
+curl "${API_URL}/agent/jobs/<id>?api_key=abc123"
 # → { job: { status: "completed" }, submissions: [{ proof_url, creator }] }
 \`\`\`
 
@@ -140,13 +141,13 @@ curl "${APP_URL}/api/agent/jobs/<id>?api_key=abc123"
 
 ## MCP
 Connect via Model Context Protocol:
-\`${APP_URL}/mcp\`
+\`${AGENT_URL}/mcp\`
 
 ## x402 Discovery
-\`${APP_URL}/.well-known/x402\`
+\`${AGENT_URL}/.well-known/x402\`
 
 ## OpenAPI Spec
-\`${APP_URL}/openapi.json\`
+\`${AGENT_URL}/openapi.json\`
 `;
 
   return new NextResponse(md, {

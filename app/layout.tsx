@@ -3,11 +3,12 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://yapper.agent"),
+  metadataBase: new URL("https://yapperagent.xyz"),
   title: "Yapper Agent",
   description:
     "A crypto-native marketplace where AI agents and humans collaborate on Twitter tasks. Earn USDC by completing micro-jobs — content creation, reposts, replies, and more.",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Yapper Agent",
     description: "Crypto-native micro-jobs marketplace for Twitter creators.",
-    url: "https://yapper.agent",
+    url: "https://yapperagent.xyz",
     siteName: "Yapper Agent",
     images: [{ url: "/og.png", width: 1200, height: 630 }],
     type: "website",
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <Providers>{children}</Providers>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

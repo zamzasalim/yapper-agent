@@ -11,6 +11,11 @@ jobs:
     steps:
       - name: Trigger expire-jobs endpoint
         run: |
-          curl -w "\nHTTP_STATUS:%{http_code}" -X GET \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.APP_URL }}/api/cron/expire-jobs"
+            "https://yapperagent.xyz/api/cron/expire-jobs")
+          echo "HTTP Status: $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "expire-jobs returned HTTP $STATUS — failing workflow"
+            exit 1
+          fi

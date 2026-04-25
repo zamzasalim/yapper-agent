@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { notifyNewJob } from "@/lib/telegram";
 
 const ADMINS = ["Autosultan_team", "0xhnfdm"];
 
@@ -23,7 +24,7 @@ export async function POST(
 
     const { data: job } = await db
       .from("jobs")
-      .select("id, status, type, deadline_hours")
+      .select("id, status, type, title, price_usdc, deadline_hours, is_agent_job")
       .eq("id", id)
       .maybeSingle();
 
@@ -55,6 +56,20 @@ export async function POST(
 
     // Clean up any in-flight campaign completions
     await db.from("job_completions").delete().eq("job_id", id);
+
+    // Notify Telegram channel (skip for agent jobs — they poll the API instead)
+    if (restoredStatus === "open" && !(job as any).is_agent_job) {
+      const messageId = await notifyNewJob({
+        id:             job.id,
+        title:          (job as any).title,
+        type:           job.type,
+        price_usdc:     (job as any).price_usdc,
+        deadline_hours: job.deadline_hours ?? 24,
+      });
+      if (messageId) {
+        await db.from("jobs").update({ telegram_message_id: String(messageId) }).eq("id", id);
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
