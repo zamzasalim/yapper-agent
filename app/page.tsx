@@ -156,7 +156,6 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/marketplace" className="btn-primary text-base px-6 py-3 w-full sm:w-auto">
               Browse Creators
-              <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/post-job" className="btn-outline text-base px-6 py-3 w-full sm:w-auto">
               Post a Job
@@ -400,7 +399,6 @@ export default function HomePage() {
               className="inline-flex items-center justify-center gap-1.5 bg-white text-blue-600 hover:bg-blue-50 font-semibold px-6 py-3 text-sm rounded-lg transition-colors"
             >
               Join Channel
-              <ArrowRight className="w-4 h-4" />
             </a>
             <a
               href={`https://t.me/${process.env.TELEGRAM_BOT_USERNAME ?? "yapper_agent_bot"}`}

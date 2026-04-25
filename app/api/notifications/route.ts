@@ -26,6 +26,30 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ notifications: data ?? [] });
 }
 
+/** PATCH /api/notifications?handle=xxx — mark all notifications as read for a user */
+export async function PATCH(req: NextRequest) {
+  const handle = req.nextUrl.searchParams.get("handle");
+  if (!handle) return NextResponse.json({ error: "handle required" }, { status: 400 });
+
+  const db = createServerClient();
+  const { data: user } = await db
+    .from("users")
+    .select("id")
+    .eq("twitter_handle", handle)
+    .maybeSingle();
+
+  if (!user) return NextResponse.json({ success: true });
+
+  const { error } = await db
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
+
 /** POST /api/notifications — create a notification.
  *  Accepts { user_id, job_id?, message } OR { handle, job_id?, message }
  */

@@ -2,7 +2,7 @@
 
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useState, useEffect, useRef } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, CheckCheck, X } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -49,6 +49,11 @@ export function NotificationBell() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   }
 
+  async function handleMarkAllRead() {
+    await fetch(`/api/notifications?handle=${encodeURIComponent(handle)}`, { method: "PATCH" });
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  }
+
   if (!isConnected || !handle) return null;
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -72,10 +77,19 @@ export function NotificationBell() {
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
           <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
             <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>Notifications</span>
-            <button onClick={() => setOpen(false)} style={{ color: "var(--text-3)" }}
-              className="hover:text-[var(--text-1)] transition-colors">
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAllRead} title="Mark all as read"
+                  style={{ color: "var(--text-3)" }}
+                  className="hover:text-[var(--text-1)] transition-colors">
+                  <CheckCheck className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} style={{ color: "var(--text-3)" }}
+                className="hover:text-[var(--text-1)] transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           <div className="max-h-72 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
             {notifications.length === 0 ? (
