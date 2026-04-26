@@ -1,4 +1,7 @@
-import { ArrowRight } from "lucide-react";
+"use client";
+
+import { ArrowRight, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
@@ -17,8 +20,8 @@ const NAV = [
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-20 py-10 border-b border-neutral-800 last:border-0">
-      <h2 className="text-xl font-bold text-white mb-5">{title}</h2>
+    <section id={id} className="scroll-mt-20 py-10 border-b border-neutral-200 dark:border-neutral-800 last:border-0">
+      <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-5">{title}</h2>
       {children}
     </section>
   );
@@ -41,39 +44,48 @@ function Code({ children, lang = "" }: { children: string; lang?: string }) {
 
 function Param({ name, type, required, desc }: { name: string; type: string; required?: boolean; desc: string }) {
   return (
-    <div className="flex gap-3 py-2.5 border-b border-neutral-800 last:border-0">
+    <div className="flex gap-3 py-2.5 border-b border-neutral-200 dark:border-neutral-800 last:border-0">
       <div className="min-w-[140px]">
-        <code className="text-xs text-blue-400 font-bold">{name}</code>
-        {required && <span className="ml-1.5 text-[9px] text-red-400 font-semibold">required</span>}
+        <code className="text-xs text-blue-500 dark:text-blue-400 font-bold">{name}</code>
+        {required && <span className="ml-1.5 text-[9px] text-red-500 dark:text-red-400 font-semibold">required</span>}
       </div>
       <div className="min-w-[60px]">
         <code className="text-[10px] text-neutral-500">{type}</code>
       </div>
-      <p className="text-xs text-neutral-400 leading-relaxed">{desc}</p>
+      <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">{desc}</p>
     </div>
   );
 }
 
 export default function DocsPage() {
-  return (
-    <div className="min-h-screen bg-neutral-950 text-white font-[family-name:var(--font-geist-sans)]">
+  const { theme, toggle } = useTheme();
 
-      {/* Nav — all cross-domain links use <a> */}
-      <nav className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur px-4 sm:px-6 py-4">
+  return (
+    <div className="min-h-screen bg-white dark:bg-neutral-950 text-neutral-900 dark:text-white font-[family-name:var(--font-geist-sans)]">
+
+      {/* Nav */}
+      <nav className="sticky top-0 z-50 border-b border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-950/95 backdrop-blur px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="Yapper Agent" className="w-7 h-7" />
             <span className="font-bold text-sm">
               Yapper<span className="text-blue-500"> Agent</span>
-              <span className="ml-2 text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">
+              <span className="ml-2 text-[10px] font-medium text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
                 API Docs
               </span>
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <a href={AGENT_URL} className="text-neutral-400 hover:text-white transition-colors">Agent Hub</a>
-            <a href={APP_URL} className="text-neutral-400 hover:text-white transition-colors">Main App</a>
+            <a href={AGENT_URL} className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Agent Hub</a>
+            <a href={APP_URL} className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">Main App</a>
+            <button
+              onClick={toggle}
+              className="p-1.5 rounded-lg text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              aria-label="Toggle dark mode"
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
           </div>
         </div>
       </nav>
@@ -89,14 +101,14 @@ export default function DocsPage() {
                 <li key={n.id}>
                   <a
                     href={`#${n.id}`}
-                    className="text-sm text-neutral-400 hover:text-white transition-colors block py-1"
+                    className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors block py-1"
                   >
                     {n.label}
                   </a>
                 </li>
               ))}
             </ul>
-            <div className="mt-8 pt-6 border-t border-neutral-800 space-y-2">
+            <div className="mt-8 pt-6 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
               <a href={`${AGENT_URL}/.well-known/x402`} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
                 x402 Discovery <ArrowRight className="w-3 h-3" />
@@ -107,7 +119,7 @@ export default function DocsPage() {
               </a>
               <a href={`${AGENT_URL}/skill.md`} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
-                File Skill.md<ArrowRight className="w-3 h-3" />
+                Skill File <ArrowRight className="w-3 h-3" />
               </a>
               <a href={`${AGENT_URL}/mcp`} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
@@ -121,7 +133,7 @@ export default function DocsPage() {
         <main className="flex-1 min-w-0">
 
           <Section id="overview" title="Overview">
-            <p className="text-neutral-400 text-sm leading-relaxed mb-4">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed mb-4">
               The Yapper Agent API lets AI agents hire real humans on X (Twitter) for social
               engagement tasks. Agents pay in USDC on Solana via the x402 protocol or MPP,
               humans complete the job and submit proof, and the agent fetches the results.
@@ -132,25 +144,25 @@ export default function DocsPage() {
                 { label: "Network",   value: "Solana Mainnet" },
                 { label: "Currency",  value: "USDC" },
               ].map((i) => (
-                <div key={i.label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+                <div key={i.label} className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3">
                   <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">{i.label}</p>
-                  <code className="text-xs text-white">{i.value}</code>
+                  <code className="text-xs text-neutral-900 dark:text-white">{i.value}</code>
                 </div>
               ))}
             </div>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 text-xs text-blue-300">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 text-xs text-blue-600 dark:text-blue-300">
               All agent endpoints require an <code className="font-bold">api_key</code> obtained from{" "}
               <code className="font-bold">POST /agent/register</code>.
             </div>
           </Section>
 
           <Section id="authentication" title="Authentication">
-            <p className="text-neutral-400 text-sm leading-relaxed mb-4">
-              Register once to receive a permanent <code className="text-blue-400">api_key</code>.
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed mb-4">
+              Register once to receive a permanent <code className="text-blue-500 dark:text-blue-400">api_key</code>.
               Pass it in every request body (POST) or as a query param (GET).
             </p>
 
-            <h3 className="text-sm font-bold text-white mb-2">Register</h3>
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white mb-2">Register</h3>
             <Code lang="http">{`POST ${API_URL}/agent/register
 
 {
@@ -165,7 +177,7 @@ export default function DocsPage() {
   "api_key": "64-char-hex"  // store this permanently
 }`}</Code>
 
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-300">
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
               Store your <code className="font-bold">api_key</code> securely. There is no way to recover it - if lost, register a new agent.
             </div>
           </Section>
@@ -175,28 +187,28 @@ export default function DocsPage() {
             {/* POST /agent/jobs */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded">POST</span>
-                <code className="text-sm text-white">/agent/jobs</code>
+                <span className="text-xs font-bold text-blue-500 dark:text-blue-400 bg-blue-500/10 px-2 py-1 rounded">POST</span>
+                <code className="text-sm text-neutral-900 dark:text-white">/agent/jobs</code>
                 <span className="text-xs text-neutral-500">Create a job</span>
               </div>
-              <p className="text-neutral-400 text-sm mb-3">
-                Creates a job for humans to complete. Requires an <code className="text-blue-400">X-Payment</code> header
-                with a paid Solana transaction. If omitted, returns <code className="text-amber-400">402</code> with payment details.
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-3">
+                Creates a job for humans to complete. Requires an <code className="text-blue-500 dark:text-blue-400">X-Payment</code> header
+                with a paid Solana transaction. If omitted, returns <code className="text-amber-600 dark:text-amber-400">402</code> with payment details.
               </p>
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mb-3">
-                <div className="px-4 py-2 border-b border-neutral-800 text-[10px] font-semibold text-neutral-500 uppercase tracking-widest">Parameters</div>
+              <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden mb-3">
+                <div className="px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 text-[10px] font-semibold text-neutral-500 uppercase tracking-widest">Parameters</div>
                 <div className="px-4 py-1">
                   <Param name="api_key"        type="string"  required  desc="Your agent API key" />
                   <Param name="type"           type="string"  required  desc="repost | like_reply | content | campaign | custom" />
                   <Param name="title"          type="string"  required  desc="Job title" />
-                  <Param name="description"    type="string"           desc="Detailed job description" />
-                  <Param name="tweet_url"      type="string"           desc="Required for repost and like_reply jobs" />
-                  <Param name="price_usdc"     type="number"           desc="Custom price. Defaults: repost $0.50, like_reply $0.20, content/campaign $5.00" />
-                  <Param name="deadline_hours" type="number"           desc="Job deadline in hours. Default: 24" />
-                  <Param name="num_creators"   type="number"           desc="Slots for campaign jobs. Default: 1" />
-                  <Param name="require_blue"   type="boolean"          desc="Require creator to have X blue tick. Default: false" />
-                  <Param name="min_followers"  type="number"           desc="Minimum follower count required. Default: 0" />
-                  <Param name="content_brief" type="string"           desc="Creative brief for content/campaign jobs" />
+                  <Param name="description"    type="string"            desc="Detailed job description" />
+                  <Param name="tweet_url"      type="string"            desc="Required for repost and like_reply jobs" />
+                  <Param name="price_usdc"     type="number"            desc="Custom price. Defaults: repost $0.50, like_reply $0.20, content/campaign $5.00" />
+                  <Param name="deadline_hours" type="number"            desc="Job deadline in hours. Default: 24" />
+                  <Param name="num_creators"   type="number"            desc="Slots for campaign jobs. Default: 1" />
+                  <Param name="require_blue"   type="boolean"           desc="Require creator to have X blue tick. Default: false" />
+                  <Param name="min_followers"  type="number"            desc="Minimum follower count required. Default: 0" />
+                  <Param name="content_brief"  type="string"            desc="Creative brief for content/campaign jobs" />
                 </div>
               </div>
               <Code lang="http">{`POST ${API_URL}/agent/jobs
@@ -218,8 +230,8 @@ Content-Type: application/json
             {/* GET /agent/jobs */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">GET</span>
-                <code className="text-sm text-white">/agent/jobs</code>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">GET</span>
+                <code className="text-sm text-neutral-900 dark:text-white">/agent/jobs</code>
                 <span className="text-xs text-neutral-500">List all jobs (recovery)</span>
               </div>
               <Code lang="http">{`GET ${API_URL}/agent/jobs?api_key=abc123
@@ -231,8 +243,8 @@ Content-Type: application/json
             {/* GET /agent/jobs/[id] */}
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">GET</span>
-                <code className="text-sm text-white">/agent/jobs/{"{id}"}</code>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">GET</span>
+                <code className="text-sm text-neutral-900 dark:text-white">/agent/jobs/{"{id}"}</code>
                 <span className="text-xs text-neutral-500">Get job + submissions</span>
               </div>
               <Code lang="http">{`GET ${API_URL}/agent/jobs/{id}?api_key=abc123
@@ -260,8 +272,8 @@ Content-Type: application/json
             {/* POST /agent/support */}
             <div className="mb-2">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded">POST</span>
-                <code className="text-sm text-white">/agent/support</code>
+                <span className="text-xs font-bold text-blue-500 dark:text-blue-400 bg-blue-500/10 px-2 py-1 rounded">POST</span>
+                <code className="text-sm text-neutral-900 dark:text-white">/agent/support</code>
                 <span className="text-xs text-neutral-500">Report a job issue</span>
               </div>
               <Code lang="http">{`POST ${API_URL}/agent/support
@@ -277,12 +289,12 @@ Content-Type: application/json
           </Section>
 
           <Section id="x402" title="x402 Protocol">
-            <p className="text-neutral-400 text-sm leading-relaxed mb-4">
-              Yapper uses the <strong className="text-white">x402 protocol</strong> for machine-to-machine payments.
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed mb-4">
+              Yapper uses the <strong className="text-neutral-900 dark:text-white">x402 protocol</strong> for machine-to-machine payments.
               The flow is: attempt the request » receive payment details on 402 » pay » retry with proof.
             </p>
 
-            <h3 className="text-sm font-bold text-white mb-2">Discovery</h3>
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white mb-2">Discovery</h3>
             <Code lang="http">{`GET ${AGENT_URL}/.well-known/x402
 
 → 200
@@ -307,7 +319,7 @@ Content-Type: application/json
   }]
 }`}</Code>
 
-            <h3 className="text-sm font-bold text-white mb-2 mt-6">Payment Flow</h3>
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white mb-2 mt-6">Payment Flow</h3>
             <Code lang="http">{`// Step 1 — call without X-Payment header
 POST ${API_URL}/agent/jobs
 → 402 {
@@ -323,13 +335,13 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
 → 201 { "job": { ... } }`}</Code>
 
             <p className="text-xs text-neutral-500 mt-3">
-              <code className="text-neutral-400">maxAmountRequired</code> is in micro-USDC (6 decimals).
+              <code className="text-neutral-500 dark:text-neutral-400">maxAmountRequired</code> is in micro-USDC (6 decimals).
               500000 = $0.50 USDC. The TX must transfer at least this amount to the platform wallet.
             </p>
           </Section>
 
           <Section id="mcp" title="Model Context Protocol (MCP)">
-            <p className="text-neutral-400 text-sm leading-relaxed mb-4">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed mb-4">
               Connect Yapper as an MCP server. The endpoint implements JSON-RPC 2.0 over HTTP
               (Streamable HTTP transport, protocol version 2024-11-05).
             </p>
@@ -344,28 +356,28 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
   }
 }`}</Code>
 
-            <h3 className="text-sm font-bold text-white mb-3 mt-6">Available Tools</h3>
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white mb-3 mt-6">Available Tools</h3>
             <div className="space-y-2">
               {[
-                { name: "register_agent",   args: "agent_name, wallet_address?",           ret: "api_key, agent_id" },
-                { name: "get_payment_info", args: "type, price_usdc?",                     ret: "amount, payTo, network" },
-                { name: "create_job",       args: "api_key, type, title, tx_hash, ...",    ret: "job id, status" },
-                { name: "list_jobs",        args: "api_key",                               ret: "array of jobs" },
-                { name: "get_job",          args: "api_key, job_id",                       ret: "job + submissions[]" },
-                { name: "submit_support",   args: "api_key, job_id, issue",                ret: "success message" },
+                { name: "register_agent",   args: "agent_name, wallet_address?",        ret: "api_key, agent_id" },
+                { name: "get_payment_info", args: "type, price_usdc?",                  ret: "amount, payTo, network" },
+                { name: "create_job",       args: "api_key, type, title, tx_hash, ...", ret: "job id, status" },
+                { name: "list_jobs",        args: "api_key",                            ret: "array of jobs" },
+                { name: "get_job",          args: "api_key, job_id",                    ret: "job + submissions[]" },
+                { name: "submit_support",   args: "api_key, job_id, issue",             ret: "success message" },
               ].map((t) => (
-                <div key={t.name} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
-                  <code className="text-sm font-bold text-violet-400 min-w-[160px]">{t.name}</code>
+                <div key={t.name} className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                  <code className="text-sm font-bold text-violet-600 dark:text-violet-400 min-w-[160px]">{t.name}</code>
                   <code className="text-xs text-neutral-500 flex-1">{t.args}</code>
-                  <span className="text-xs text-neutral-600">→ {t.ret}</span>
+                  <span className="text-xs text-neutral-400 dark:text-neutral-600">→ {t.ret}</span>
                 </div>
               ))}
             </div>
           </Section>
 
           <Section id="job-types" title="Job Types & Pricing">
-            <div className="border border-neutral-800 rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-4 bg-neutral-800 px-5 py-3 text-[10px] font-semibold text-neutral-400 uppercase tracking-widest">
+            <div className="border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-4 bg-neutral-100 dark:bg-neutral-800 px-5 py-3 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">
                 <span>Type</span>
                 <span>Price</span>
                 <span>ID Prefix</span>
@@ -380,13 +392,13 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
               ].map((j, i) => (
                 <div
                   key={j.type}
-                  className={`grid grid-cols-4 px-5 py-3 bg-neutral-950 items-start gap-2 text-xs ${
-                    i < 4 ? "border-b border-neutral-800" : ""
+                  className={`grid grid-cols-4 px-5 py-3 bg-white dark:bg-neutral-950 items-start gap-2 text-xs ${
+                    i < 4 ? "border-b border-neutral-200 dark:border-neutral-800" : ""
                   }`}
                 >
-                  <code className="text-blue-400 font-bold">{j.type}</code>
-                  <span className="font-bold text-white">{j.price}</span>
-                  <code className="text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded w-fit">{j.id}</code>
+                  <code className="text-blue-500 dark:text-blue-400 font-bold">{j.type}</code>
+                  <span className="font-bold text-neutral-900 dark:text-white">{j.price}</span>
+                  <code className="text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded w-fit">{j.id}</code>
                   <span className="text-neutral-500">{j.notes}</span>
                 </div>
               ))}
@@ -394,8 +406,8 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
           </Section>
 
           <Section id="errors" title="Error Codes">
-            <div className="border border-neutral-800 rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-3 bg-neutral-800 px-5 py-3 text-[10px] font-semibold text-neutral-400 uppercase tracking-widest">
+            <div className="border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-3 bg-neutral-100 dark:bg-neutral-800 px-5 py-3 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">
                 <span>Status</span>
                 <span>Code / Cause</span>
                 <span>Action</span>
@@ -411,14 +423,14 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
               ].map((e, i) => (
                 <div
                   key={e.status}
-                  className={`grid grid-cols-3 px-5 py-3 bg-neutral-950 text-xs gap-2 ${
-                    i < 6 ? "border-b border-neutral-800" : ""
+                  className={`grid grid-cols-3 px-5 py-3 bg-white dark:bg-neutral-950 text-xs gap-2 ${
+                    i < 6 ? "border-b border-neutral-200 dark:border-neutral-800" : ""
                   }`}
                 >
                   <code className={`font-bold ${
-                    e.status.startsWith("4") ? "text-amber-400" : "text-red-400"
+                    e.status.startsWith("4") ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"
                   }`}>{e.status}</code>
-                  <span className="text-neutral-400">{e.cause}</span>
+                  <span className="text-neutral-600 dark:text-neutral-400">{e.cause}</span>
                   <span className="text-neutral-500">{e.action}</span>
                 </div>
               ))}
@@ -429,17 +441,17 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-800 py-6 mt-8">
+      <footer className="border-t border-neutral-200 dark:border-neutral-800 py-6 mt-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="Yapper Agent" className="w-6 h-6" />
             <span className="font-bold text-sm">
               Yapper<span className="text-blue-500"> Agent</span>
-              <span className="ml-2 text-[10px] text-neutral-600">API Docs</span>
+              <span className="ml-2 text-[10px] text-neutral-400">API Docs</span>
             </span>
           </div>
-          <a href="#" className="text-sm text-neutral-500 hover:text-white transition-colors font-mono">↑</a>
+          <a href="#" className="text-sm text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors font-mono">↑</a>
         </div>
       </footer>
     </div>
