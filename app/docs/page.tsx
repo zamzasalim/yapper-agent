@@ -1,4 +1,4 @@
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
@@ -62,9 +62,8 @@ export default function DocsPage() {
       <nav className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yapper Agent" className="w-7 h-7" />
             <span className="font-bold text-sm">
               Yapper<span className="text-blue-500"> Agent</span>
               <span className="ml-2 text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">
@@ -433,9 +432,8 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
       <footer className="border-t border-neutral-800 py-6 mt-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yapper Agent" className="w-6 h-6" />
             <span className="font-bold text-sm">
               Yapper<span className="text-blue-500"> Agent</span>
               <span className="ml-2 text-[10px] text-neutral-600">API Docs</span>

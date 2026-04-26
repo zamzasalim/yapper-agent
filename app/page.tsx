@@ -440,9 +440,8 @@ export default function HomePage() {
       <footer className="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yapper Agent" className="w-6 h-6" />
             <span className="font-bold text-sm text-neutral-900 dark:text-white">
               Yapper<span className="text-blue-600"> Agent</span>
             </span>

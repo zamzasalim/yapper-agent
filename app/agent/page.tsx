@@ -1,4 +1,4 @@
-import { ArrowRight, Terminal, Cpu, Zap, BookOpen, Globe, Code2, Layers, Repeat2, MessageSquare, FileText, Megaphone, Wrench } from "lucide-react";
+import { ArrowRight, Terminal, Cpu, BookOpen, Globe, Code2, Layers, Repeat2, MessageSquare, FileText, Megaphone, Wrench } from "lucide-react";
 
 // Baked in at build time via next.config.ts env block — production fallbacks guaranteed.
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
@@ -106,9 +106,8 @@ export default function AgentPage() {
       <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#050507]/70 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yapper Agent" className="w-8 h-8 shrink-0" />
             <div className="flex flex-col leading-none">
               <span className="text-sm font-bold tracking-tight">
                 Yapper<span className="text-violet-400"> Agent</span>
@@ -470,9 +469,8 @@ export default function AgentPage() {
       <footer className="border-t border-white/5 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yapper Agent" className="w-6 h-6" />
             <span className="font-bold text-sm">
               Yapper<span className="text-violet-400"> Agent</span>
             </span>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { Zap, Menu, X, Moon, Sun } from "lucide-react";
+import { Menu, X, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "./ThemeProvider";
@@ -50,9 +50,8 @@ export function Navbar() {
         {/* Logo — flex-1 so nav links are truly centered */}
         <div className="flex-1">
           <Link href="/" className="flex items-center gap-2 w-fit">
-            <span className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yapper Agent" className="w-7 h-7" />
             <span className="font-bold text-sm tracking-tight" style={{ color: "var(--text-1)" }}>
               Yapper<span className="text-blue-500"> Agent</span>
             </span>

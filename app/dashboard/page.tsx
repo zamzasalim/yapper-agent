@@ -1,14 +1,14 @@
 "use client";
 
 import { Navbar } from "@/components/Navbar";
-import { useAppKit, useAppKitAccount, useDisconnect } from "@reown/appkit/react";
+import { useAppKit, useAppKitAccount, useAppKitProvider, useDisconnect } from "@reown/appkit/react";
+import type { Provider } from "@reown/appkit-adapter-solana/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   Wallet,
   CheckCircle2,
   Clock,
-  TrendingUp,
   Zap,
   ArrowRight,
   Copy,
@@ -22,6 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { buildClaimTx } from "@/lib/contract";
+import { PublicKey } from "@solana/web3.js";
 import { MarqueeName } from "@/components/MarqueeName";
 
 const PAGE_SIZE = 5;
@@ -164,6 +166,13 @@ export default function DashboardPage() {
   const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
   const [telegramTimedOut, setTelegramTimedOut]     = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [claimable, setClaimable]               = useState<number | null>(null);
+  const [pendingBalance, setPendingBalance]     = useState<number | null>(null);
+  const [claiming, setClaiming]                 = useState(false);
+  const [claimTx, setClaimTx]                   = useState<string | null>(null);
+
+  const { walletProvider } = useAppKitProvider<Provider>("solana");
 
   const [applicantsModal, setApplicantsModal]     = useState<{ jobId: string; jobTitle: string; jobType: string; jobStatus: JobStatus; jobRating: number | null } | null>(null);
   const [applicants, setApplicants]               = useState<ApplicantRecord[]>([]);
@@ -316,6 +325,48 @@ export default function DashboardPage() {
       }
     } finally {
       setSubmittingRating(false);
+    }
+  }
+
+  // Fetch claimable (on-chain) and pending (not yet credited) balances
+  useEffect(() => {
+    const wallet = profile?.wallet_address || reownAddress;
+    if (!wallet || wallet === "pending") return;
+    fetch(`/api/user/claimable?wallet=${encodeURIComponent(wallet)}`)
+      .then((r) => r.json())
+      .then((d) => setClaimable(d.claimable_usdc ?? 0))
+      .catch(() => {});
+  }, [profile?.wallet_address, reownAddress]);
+
+  useEffect(() => {
+    if (!twitterHandle) return;
+    fetch(`/api/user/pending-balance?handle=${encodeURIComponent(twitterHandle)}`)
+      .then((r) => r.json())
+      .then((d) => setPendingBalance(d.pending_usdc ?? 0))
+      .catch(() => {});
+  }, [twitterHandle]);
+
+  async function handleClaim() {
+    const wallet = profile?.wallet_address || reownAddress;
+    if (!wallet || !walletProvider) return;
+    setClaiming(true);
+    setClaimTx(null);
+    try {
+      const creatorPubkey = new PublicKey(wallet);
+      const tx = await buildClaimTx(creatorPubkey);
+      // Reown Solana provider signs the transaction
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const signed = await (walletProvider as any).signTransaction(tx);
+      const { connection: conn } = await import("@/lib/solana");
+      const sig = await conn.sendRawTransaction(signed.serialize());
+      await conn.confirmTransaction(sig, "confirmed");
+      setClaimTx(sig);
+      setClaimable(0);
+    } catch (e) {
+      console.error("claim failed", e);
+      alert("Claim failed. Check console for details.");
+    } finally {
+      setClaiming(false);
     }
   }
 
@@ -472,9 +523,10 @@ export default function DashboardPage() {
     ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}`
     : null;
 
-  const totalEarned = profile?.total_earned_usdc ?? 0;
-  const completed   = profile?.jobs_completed ?? 0;
-  const active      = jobs.filter((j) => j.status === "in_progress").length;
+  const totalEarned      = profile?.total_earned_usdc ?? 0;
+  const completed        = profile?.jobs_completed ?? 0;
+  const active           = jobs.filter((j) => j.status === "in_progress").length;
+  const pendingApproval  = jobs.filter((j) => j.status === "pending_approval").length;
 
   return (
     <>
@@ -759,23 +811,88 @@ export default function DashboardPage() {
         {!loading && (
           <>
             {/* ── Stats ────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-              {[
-                { label: "Total Earned",   value: `$${totalEarned.toFixed(1)} USDC`, icon: TrendingUp,  color: "text-green-600",  bg: "bg-green-50 dark:bg-green-950"   },
-                { label: "Jobs Completed", value: completed.toString(),               icon: CheckCircle2, color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950"     },
-                { label: "Active Jobs",    value: active.toString(),                  icon: Clock,        color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950"   },
-                { label: "Platform Fee",   value: "0%",                               icon: Zap,          color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950"  },
-              ].map((s) => (
-                <div key={s.label} className="card p-4 flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
-                    <s.icon className={`w-5 h-5 ${s.color}`} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-1.5">{s.label}</p>
-                    <p className="text-base font-bold text-neutral-900 dark:text-white leading-none truncate">{s.value}</p>
+            <div className="grid grid-cols-3 gap-4 mb-8">
+
+              {/* Earnings card — 2/3 */}
+              <div className="card p-5 col-span-2">
+                <div className="flex items-baseline justify-between mb-3">
+                  <p className="text-[11px] text-neutral-400 dark:text-neutral-500 uppercase tracking-wider font-semibold">Earnings</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className="text-2xl font-extrabold text-neutral-900 dark:text-white leading-none">${totalEarned.toFixed(2)}</p>
+                    <span className="text-xs text-neutral-400 dark:text-neutral-500">USDC</span>
                   </div>
                 </div>
-              ))}
+
+                <div className="space-y-1.5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400">Pending</span>
+                    </div>
+                    <span className="text-xs font-semibold text-orange-500 tabular-nums">
+                      {pendingBalance === null ? "—" : `$${pendingBalance.toFixed(2)}`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400">Claimable</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleClaim}
+                        disabled={claiming || !claimable}
+                        className="inline-flex items-center justify-center border border-neutral-200 dark:border-neutral-700 bg-transparent rounded-lg font-semibold transition-colors hover:border-neutral-300 hover:bg-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800 whitespace-nowrap text-[11px] px-2 py-0.5 text-green-600 dark:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {claiming ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Claim"}
+                      </button>
+                      <span className="text-xs font-semibold text-green-600 dark:text-green-400 tabular-nums">
+                        {claimable === null ? "—" : `$${claimable.toFixed(2)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {claimTx && (
+                    <a
+                      href={`https://solscan.io/tx/${claimTx}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-500 transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Tx confirmed
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Jobs card — 1/3 */}
+              <div className="card p-5 col-span-1">
+                <div className="flex items-baseline justify-between mb-3">
+                  <p className="text-[11px] text-neutral-400 dark:text-neutral-500 uppercase tracking-wider font-semibold">Jobs</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className="text-2xl font-extrabold text-neutral-900 dark:text-white leading-none">{completed}</p>
+                    <span className="text-xs text-neutral-400 dark:text-neutral-500">done</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400">Active</span>
+                    </div>
+                    <span className="text-xs font-semibold text-green-600 dark:text-green-400 tabular-nums">{active}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400">Under Review</span>
+                    </div>
+                    <span className="text-xs font-semibold text-orange-500 tabular-nums">{pendingApproval}</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             {/* ── Job history ───────────────────────────────────────── */}
