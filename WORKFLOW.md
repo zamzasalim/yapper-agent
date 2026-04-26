@@ -20,6 +20,7 @@ flowchart TD
     A7 --> EDITPROF[Edit Profile modal\nCustom display_name + avatar_url\nPATCH /api/user]
     A7 --> NOTIF[Notification bell in Navbar\nVisible only on /dashboard\nGET /api/notifications\nbadge count - polls every 30s]
     NOTIF --> NOTIF_LIST[Dropdown: notification list\ne.g. Your custom job XH-xxxx was rejected\nor @client wants to hire you directly]
+    NOTIF_LIST --> NOTIF_READALL[CheckCheck button in header\nPATCH /api/notifications?handle=xxx\nMarks all as read - clears red badge]
 
     %% ── CLIENT: POST JOB ────────────────────────────────────────
     A7 --> CL1[Post Job page]
@@ -66,11 +67,14 @@ flowchart TD
     CR5 & CR8 & CR9 --> CR10[Creator does the work]
     CR10 --> CR11[Submit proof\nPOST /api/jobs/:id/verify-proof]
     CR11 --> CR12{Job type}
-    CR12 -->|Retweet| CR13[ScrapeBadger\ncheck retweet exists]
+    CR12 -->|Retweet| CR13A{In-memory\nretweeters cache?}
+    CR13A -->|Cache hit - handle found| CR15
+    CR13A -->|Cache miss or not found| CR13B[ScrapeBadger\nfetch retweeters list\nmerge into cache]
+    CR13B -->|Found in fresh list| CR15
+    CR13B -->|Not found| PROOFERR([Retry later\ncache accumulates\nover time])
     CR12 -->|Like Reply Content Campaign Custom| CR14[Validate proof URL\nmatches creator handle]
-    CR13 -->|Not found| PROOFERR([Retry later])
     CR14 -->|Wrong account| PROOFERR
-    CR13 & CR14 -->|Verified| CR15{Single or Campaign?}
+    CR13A & CR14 -->|Verified| CR15{Single or Campaign?}
 
     CR15 -->|Single| CR16[job: completed\ncompleted_at set\nstats incremented]
     CR15 -->|Campaign| CR17[completion row: completed\nstats incremented per slot]
@@ -225,8 +229,8 @@ flowchart TD
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
-    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
-    class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
+    class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,NOTIF_READALL,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
+    class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13A,CR13B,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND admin
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY,TG_DISCONNECT telegram
     class JOBDONE,RESTORED,REFUNDED done
