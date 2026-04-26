@@ -35,11 +35,61 @@ export async function fetchTwitterUserStats(
   }
 }
 
-/** Check if `handle` has retweeted `tweetId`. Paginates up to 5 pages. */
+// ── Retweeters cache ──────────────────────────────────────────────────────────
+// Module-level cache per tweet_id. Persists across requests within the same
+// serverless function instance (warm invocations). Falls back to API on cold start.
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface RetweetersEntry {
+  handles: Set<string>; // lowercase
+  fetchedAt: number;
+}
+
+const retweetersCache = new Map<string, RetweetersEntry>();
+
+function getCacheEntry(tweetId: string): Set<string> | null {
+  const entry = retweetersCache.get(tweetId);
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) {
+    retweetersCache.delete(tweetId);
+    return null;
+  }
+  return entry.handles;
+}
+
+function mergeIntoCache(tweetId: string, usernames: string[]) {
+  const existing = retweetersCache.get(tweetId);
+  if (existing) {
+    usernames.forEach((u) => existing.handles.add(u.toLowerCase()));
+  } else {
+    retweetersCache.set(tweetId, {
+      handles: new Set(usernames.map((u) => u.toLowerCase())),
+      fetchedAt: Date.now(),
+    });
+  }
+}
+
+/**
+ * Check if `handle` has retweeted `tweetId`.
+ *
+ * Flow:
+ * 1. Check in-memory cache — if found, return immediately (no API call).
+ * 2. Cache miss or handle not found → fetch retweeters from ScrapeBadger,
+ *    merge results into cache, then re-check.
+ * 3. After fetch, cache is populated for subsequent verifications of the
+ *    same tweet (other creators benefit from the already-fetched list).
+ */
 export async function checkRetweeted(tweetId: string, handle: string): Promise<boolean> {
+  const lc = handle.toLowerCase();
+
+  // Step 1: cache hit
+  const cached = getCacheEntry(tweetId);
+  if (cached?.has(lc)) return true;
+
+  // Step 2: fetch from API and merge into cache
   const apiKey = process.env.SCRAPEBADGER_API_KEY ?? "";
   if (!apiKey) return false;
-  const lc = handle.toLowerCase();
+
   let cursor: string | undefined;
   for (let page = 0; page < 5; page++) {
     const url = new URL(`https://scrapebadger.com/v1/twitter/tweets/tweet/${tweetId}/retweeters`);
@@ -49,10 +99,15 @@ export async function checkRetweeted(tweetId: string, handle: string): Promise<b
       if (!res.ok) return false;
       const json = await res.json();
       const users: Array<{ username: string }> = json.data ?? [];
+
+      // Merge page into cache so future verifications reuse it
+      mergeIntoCache(tweetId, users.map((u) => u.username));
+
       if (users.some((u) => u.username.toLowerCase() === lc)) return true;
       cursor = json.next_cursor;
       if (!cursor) break;
     } catch { return false; }
   }
+
   return false;
 }
