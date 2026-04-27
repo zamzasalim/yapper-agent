@@ -39,7 +39,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (completionIds.length > 0) {
-      const { error } = await db.from("job_completions").update(meta).in("id", completionIds);
+      // Cast as any: credited_at/credit_tx are migration-added columns, not yet in generated types.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (db as any).from("job_completions").update(meta).in("id", completionIds);
       if (error) errors.push(error.message);
     }
 

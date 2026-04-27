@@ -4,9 +4,8 @@ import { ADMINS } from "@/lib/admins";
 
 /**
  * GET /api/admin/credits/pending?admin_handle=xxx
- * Returns completed job_completions (and single-creator jobs) that have not
- * yet been credited on-chain (credited_at IS NULL).
- * Grouped so admin can see: creator wallet, total USDC owed, job list.
+ * Returns completed job_completions (campaign slots) and single-creator jobs
+ * that have not yet been credited on-chain (credited_at IS NULL).
  */
 export async function GET(req: NextRequest) {
   const handle = req.nextUrl.searchParams.get("admin_handle") ?? "";
@@ -16,13 +15,14 @@ export async function GET(req: NextRequest) {
 
   const db = createServerClient();
 
-  // Multi-creator (campaign) completions not yet credited
-  const { data: campaignRows, error: e1 } = await db
+  // Campaign completions (multi-slot jobs use job_completions rows)
+  // Cast as any: credited_at is a migration-added column, not yet in generated types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: campaignRows, error: e1 } = await (db as any)
     .from("job_completions")
     .select(`
       id,
       job_id,
-      credited_at,
       jobs ( id, title, type, price_usdc ),
       users ( twitter_handle, display_name, wallet_address )
     `)
@@ -31,30 +31,28 @@ export async function GET(req: NextRequest) {
 
   if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
 
-  // Single-creator jobs completed but not yet credited
-  const { data: singleRows, error: e2 } = await db
+  // Single-creator jobs: creator stored on jobs.creator_id (max_creators = 1 or null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: singleRows, error: e2 } = await (db as any)
     .from("jobs")
     .select(`
       id, title, type, price_usdc, creator_id, credited_at,
       users!jobs_creator_id_fkey ( twitter_handle, display_name, wallet_address )
     `)
     .eq("status", "completed")
-    .eq("is_agent_job", false)
     .is("credited_at", null)
     .not("creator_id", "is", null)
-    .is("max_creators", null); // single-creator jobs have no max_creators or max_creators=1
+    .or("max_creators.is.null,max_creators.lte.1");
 
   if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
 
-  // Normalise into a flat list of { job_id, title, type, creator_handle, wallet, amount_usdc, source_id, source_type }
+  // Normalise into flat list
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pending: any[] = [];
 
-  for (const row of (campaignRows ?? [])) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const job  = (row as any).jobs;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = (row as any).users;
+  for (const row of ((campaignRows as any[]) ?? [])) {
+    const job  = row.jobs;
+    const user = row.users;
     if (!job || !user?.wallet_address) continue;
     pending.push({
       source_id:      row.id,
@@ -69,9 +67,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  for (const row of (singleRows ?? [])) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = (row as any).users;
+  for (const row of ((singleRows as any[]) ?? [])) {
+    const user = row.users;
     if (!user?.wallet_address) continue;
     pending.push({
       source_id:      row.id,
