@@ -49,13 +49,29 @@ export function getClaimRecordPDA(creatorWallet: PublicKey): PublicKey {
   )[0];
 }
 
-// ── Anchor instruction discriminators ────────────────────────────────────────
-// sha256("global:<instruction_name>")[0..8] — precomputed, stable after compile
+// ── Byte helpers (Uint8Array only — no Buffer polyfill needed) ───────────────
 
-const IX = {
-  initialize:    Buffer.from([175, 175, 109,  31,  13, 152, 155, 237]),
-  creditCreator: Buffer.from([ 79, 161, 203,  36,  79,  55,  92, 104]),
-  claim:         Buffer.from([ 62, 198, 214, 193, 213, 159, 108, 210]),
+function concatU8(...arrays: Uint8Array[]): Uint8Array {
+  const total = arrays.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const arr of arrays) { out.set(arr, offset); offset += arr.length; }
+  return out;
+}
+
+function u64LE(value: bigint): Uint8Array {
+  const buf = new Uint8Array(8);
+  new DataView(buf.buffer).setBigUint64(0, value, true);
+  return buf;
+}
+
+// ── Anchor instruction discriminators ────────────────────────────────────────
+// sha256("global:<instruction_name>")[0..8] — precomputed from Node.js, stable after compile
+
+const DISC = {
+  initialize:    new Uint8Array([175, 175, 109,  31,  13, 152, 155, 237]),
+  creditCreator: new Uint8Array([ 79, 161, 203,  36,  79,  55,  92, 104]),
+  claim:         new Uint8Array([ 62, 198, 214, 193, 213, 159, 108, 210]),
 };
 
 // ── Instruction builders ──────────────────────────────────────────────────────
@@ -79,7 +95,7 @@ export async function buildInitializeTx(adminPubkey: PublicKey): Promise<Transac
       { pubkey: SystemProgram.programId,       isSigner: false, isWritable: false },
       { pubkey: SYSVAR_RENT_PUBKEY,            isSigner: false, isWritable: false },
     ],
-    data: IX.initialize,
+    data: Buffer.from(DISC.initialize),
   });
 
   const tx = new Transaction().add(ix);
@@ -104,9 +120,7 @@ export async function buildCreditCreatorTx(
   const claimRecord = getClaimRecordPDA(creatorWallet);
   const adminUsdc   = await getAssociatedTokenAddress(USDC_MINT, adminPubkey);
 
-  const amountMicro = BigInt(Math.round(amountUsdc * 1_000_000));
-  const amountBuf = Buffer.alloc(8);
-  new DataView(amountBuf.buffer, amountBuf.byteOffset, 8).setBigUint64(0, amountMicro, true);
+  const data = concatU8(DISC.creditCreator, u64LE(BigInt(Math.round(amountUsdc * 1_000_000))));
 
   const ix = new TransactionInstruction({
     programId: PROGRAM_ID,
@@ -120,7 +134,7 @@ export async function buildCreditCreatorTx(
       { pubkey: TOKEN_PROGRAM_ID,         isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId,  isSigner: false, isWritable: false },
     ],
-    data: Buffer.concat([IX.creditCreator, amountBuf]),
+    data: Buffer.from(data),
   });
 
   const tx = new Transaction().add(ix);
@@ -150,7 +164,7 @@ export async function buildClaimTx(creatorWallet: PublicKey): Promise<Transactio
       { pubkey: creatorUsdc,   isSigner: false, isWritable: true  }, // creator_usdc
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
-    data: IX.claim,
+    data: Buffer.from(DISC.claim),
   });
 
   const tx = new Transaction().add(ix);
