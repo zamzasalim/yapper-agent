@@ -50,21 +50,12 @@ export function getClaimRecordPDA(creatorWallet: PublicKey): PublicKey {
 }
 
 // ── Anchor instruction discriminators ────────────────────────────────────────
-// sha256("global:<instruction_name>")[0..8]
-// These are stable once the program is compiled.
-
-import { createHash } from "crypto";
-
-function discriminator(name: string): Buffer {
-  return Buffer.from(
-    createHash("sha256").update(`global:${name}`).digest()
-  ).slice(0, 8);
-}
+// sha256("global:<instruction_name>")[0..8] — precomputed, stable after compile
 
 const IX = {
-  initialize:     discriminator("initialize"),
-  creditCreator:  discriminator("credit_creator"),
-  claim:          discriminator("claim"),
+  initialize:    Buffer.from([175, 175, 109,  31,  13, 152, 155, 237]),
+  creditCreator: Buffer.from([ 79, 161, 203,  36,  79,  55,  92, 104]),
+  claim:         Buffer.from([ 62, 198, 214, 193, 213, 159, 108, 210]),
 };
 
 // ── Instruction builders ──────────────────────────────────────────────────────
@@ -114,8 +105,8 @@ export async function buildCreditCreatorTx(
   const adminUsdc   = await getAssociatedTokenAddress(USDC_MINT, adminPubkey);
 
   const amountMicro = BigInt(Math.round(amountUsdc * 1_000_000));
-  const amountBuf   = Buffer.alloc(8);
-  amountBuf.writeBigUInt64LE(amountMicro);
+  const amountBuf = Buffer.alloc(8);
+  new DataView(amountBuf.buffer, amountBuf.byteOffset, 8).setBigUint64(0, amountMicro, true);
 
   const ix = new TransactionInstruction({
     programId: PROGRAM_ID,
@@ -171,7 +162,7 @@ export async function buildClaimTx(creatorWallet: PublicKey): Promise<Transactio
 
 // ── On-chain reads ────────────────────────────────────────────────────────────
 
-const CLAIM_RECORD_DISCRIMINATOR = discriminator("account:ClaimRecord");
+const CLAIM_RECORD_DISCRIMINATOR = Buffer.from([57, 229, 0, 9, 65, 62, 96, 7]);
 
 /**
  * Fetch a creator's claimable USDC amount from on-chain.
