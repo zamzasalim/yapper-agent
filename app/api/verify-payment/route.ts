@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Connection } from "@solana/web3.js";
 import { createServerClient } from "@/lib/supabase";
+import { getStatePDA } from "@/lib/contract";
 
-const USDC_MINT_STR = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const PLATFORM_WALLET_STR =
-  process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "CzQZDvbjHHZDXxDeGUX2KTorQhiZnJvt6z6V2QtfMDU2";
-const SOLANA_RPC =
-  process.env.NEXT_PUBLIC_SOLANA_RPC ?? "https://api.mainnet-beta.solana.com";
+const USDC_MINT_STR   = process.env.NEXT_PUBLIC_USDC_MINT ?? "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const VAULT_OWNER_STR = getStatePDA().toBase58(); // state PDA is the vault token account authority
+const SOLANA_RPC      = process.env.NEXT_PUBLIC_SOLANA_RPC ?? "https://api.mainnet-beta.solana.com";
 
 /**
  * POST /api/verify-payment
@@ -14,7 +13,7 @@ const SOLANA_RPC =
  *
  * Verifies that a Solana transaction:
  * 1. Is confirmed and succeeded
- * 2. Transferred at least `expected_usdc` USDC to the platform wallet
+ * 2. Transferred at least `expected_usdc` USDC to the escrow vault
  * 3. Has not been used for another job already
  */
 export async function POST(req: NextRequest) {
@@ -74,13 +73,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check USDC balance delta on platform wallet using token balance snapshots.
+    // 3. Check USDC balance delta on escrow vault using token balance snapshots.
     //    preTokenBalances / postTokenBalances contain per-account token state before/after.
     const pre = tx.meta?.preTokenBalances?.find(
-      (b) => b.mint === USDC_MINT_STR && b.owner === PLATFORM_WALLET_STR
+      (b) => b.mint === USDC_MINT_STR && b.owner === VAULT_OWNER_STR
     );
     const post = tx.meta?.postTokenBalances?.find(
-      (b) => b.mint === USDC_MINT_STR && b.owner === PLATFORM_WALLET_STR
+      (b) => b.mint === USDC_MINT_STR && b.owner === VAULT_OWNER_STR
     );
 
     const preAmt  = pre?.uiTokenAmount?.uiAmount  ?? 0;

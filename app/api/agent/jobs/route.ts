@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const db = createServerClient();
   const { data: jobs, error } = await db
     .from("jobs")
-    .select("id, created_at, type, status, title, price_usdc, max_creators, slots_taken, deadline_hours, is_paid, completed_at")
+    .select("id, created_at, type, status, title, price_usdc, max_creators, slots_taken, deadline_hours, credited_at, completed_at")
     .eq("client_id", agent.id)
     .order("created_at", { ascending: false });
 

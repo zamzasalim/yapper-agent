@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { useAppKit, useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
+import type { Provider } from "@reown/appkit-adapter-solana/react";
 import { Navbar } from "@/components/Navbar";
 import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
   Zap, Download, ExternalLink, Users, Trash2, EyeOff, Eye,
   X, Copy, Check, Search, ChevronLeft, ChevronRight, CalendarDays, Link2,
+  Coins, Wallet2,
 } from "lucide-react";
+import { PublicKey } from "@solana/web3.js";
+import { buildCreditCreatorTx, buildInitializeTx, buildSetAdmin2Tx, buildWithdrawTx, getVaultPDA } from "@/lib/contract";
 
 import { ADMINS } from "@/lib/admins";
 
@@ -54,9 +58,22 @@ interface CompletedJob {
   price_usdc: number;
   proof_url: string | null;
   is_paid: boolean;
+  credited_at: string | null;
   additional_info: AdditionalInfo | null;
   client:  { twitter_handle: string; display_name: string } | null;
   creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
+}
+
+interface CreditItem {
+  source_id:      string;
+  source_type:    "job" | "completion";
+  job_id:         string;
+  title:          string;
+  type:           string;
+  creator_handle: string;
+  creator_name:   string;
+  wallet:         string;
+  amount_usdc:    number;
 }
 
 interface CancelledJob {
@@ -95,13 +112,7 @@ function parseDesc(description: string) {
   return { brief: brief?.trim() ?? "", meta };
 }
 
-function timeAgo(iso: string) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
+
 
 const TYPE_LABEL: Record<string, string> = {
   content: "Content", repost: "Retweet", like_reply: "Like & Reply",
@@ -169,7 +180,8 @@ async function downloadJobExcel(job: CompletedJob) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { open } = useAppKit();
-  const { isConnected, embeddedWalletInfo, status } = useAppKitAccount();
+  const { isConnected, embeddedWalletInfo, status, address: walletAddress } = useAppKitAccount();
+  const { walletProvider } = useAppKitProvider<Provider>("solana");
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const isRestoring = status === "connecting" || status === "reconnecting";
@@ -178,7 +190,7 @@ export default function AdminPage() {
 
   const isAdmin = ADMINS.some((a) => a.toLowerCase() === twitterHandle.toLowerCase());
 
-  const [tab, setTab]                   = useState<"pending" | "active" | "completed" | "cancelled">("pending");
+  const [tab, setTab]                   = useState<"pending" | "active" | "completed" | "cancelled" | "credits">("pending");
   const [pending, setPending]           = useState<PendingJob[]>([]);
   const [active, setActive]             = useState<ActiveJob[]>([]);
   const [completed, setCompleted]       = useState<CompletedJob[]>([]);
@@ -193,11 +205,10 @@ export default function AdminPage() {
   const [activeTypeFilter, setActiveTypeFilter]       = useState("all");
   const [activeStatusFilter, setActiveStatusFilter]   = useState("all");
   const [completedTypeFilter, setCompletedTypeFilter] = useState("all");
-  const [completedPaidFilter, setCompletedPaidFilter] = useState("all");
+  const [completedCreditedFilter, setCompletedCreditedFilter] = useState("all");
   const [detailModal, setDetailModal]           = useState<CompletedJob | null>(null);
   const [detailPage, setDetailPage]             = useState(0);
   const [copiedWallet, setCopiedWallet]         = useState<string | null>(null);
-  const [markingPaid, setMarkingPaid]           = useState<string | null>(null);
   const [activeSearch, setActiveSearch]         = useState("");
   const [activePage, setActivePage]             = useState(0);
   const [completedSearch, setCompletedSearch]   = useState("");
@@ -218,6 +229,28 @@ export default function AdminPage() {
   const [extendDateValue, setExtendDateValue]         = useState("");
   const [extending, setExtending]                     = useState(false);
 
+  // ── Credits tab state ──────────────────────────────────────────────────────
+  const [creditItems, setCreditItems]       = useState<CreditItem[]>([]);
+  const [loadingCredits, setLoadingCredits] = useState(false);
+  const [selectedCredits, setSelectedCredits] = useState<Set<string>>(new Set());
+  const [crediting, setCrediting]           = useState(false);
+  const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number } | null>(null);
+  const [vaultBalance, setVaultBalance]         = useState<number | null>(null);
+  const [withdrawAmount, setWithdrawAmount]     = useState("");
+  const [withdrawing, setWithdrawing]           = useState(false);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [withdrawResult, setWithdrawResult]     = useState<string | null>(null);
+  const [expandedTypes, setExpandedTypes]         = useState<Set<string>>(new Set());
+  const [creditJobPage, setCreditJobPage]         = useState(0);
+  const [creditCreatorPages, setCreditCreatorPages] = useState<Record<string, number>>({});
+  const [initializing, setInitializing]     = useState(false);
+  const [initResult, setInitResult]         = useState<string | null>(null);
+  const [admin2Input, setAdmin2Input]       = useState("");
+  // "loading" = checking on-chain | "none" = not init | "old" = needs set_admin2 | "new" = fully initialized
+  const [initState, setInitState]           = useState<"loading" | "none" | "old" | "new">("loading");
+  const [settingAdmin2, setSettingAdmin2]   = useState(false);
+  const [setAdmin2Result, setSetAdmin2Result] = useState<string | null>(null);
+
   function copyWallet(address: string, jobId: string) {
     navigator.clipboard.writeText(address);
     setCopiedWallet(jobId);
@@ -230,23 +263,144 @@ export default function AdminPage() {
     setTimeout(() => setCopiedWallet(null), 1500);
   }
 
-  async function handleTogglePaid(job: CompletedJob) {
-    setMarkingPaid(job.id);
+  async function handleInitialize() {
+    if (!walletAddress || !walletProvider) return;
+    setInitializing(true);
+    setInitResult(null);
     try {
-      const res = await fetch(`/api/admin/jobs/${job.id}?admin_handle=${twitterHandle}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_paid: !job.is_paid }),
-      });
-      if (res.ok) {
-        setCompleted((prev) =>
-          prev.map((j) => j.id === job.id ? { ...j, is_paid: !job.is_paid } : j)
-        );
-      }
-    } finally {
-      setMarkingPaid(null);
+      const adminPubkey  = new PublicKey(walletAddress);
+      const admin2Pubkey = new PublicKey(admin2Input.trim());
+      const tx = await buildInitializeTx(adminPubkey, admin2Pubkey);
+      const signed = await walletProvider.signTransaction(tx);
+      const { connection: conn } = await import("@/lib/solana");
+      const sig = await conn.sendRawTransaction(signed.serialize());
+      const latestBlockhash = await conn.getLatestBlockhash();
+      await conn.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
+      setInitResult(`✓ Initialized. admin=${walletAddress.slice(0,6)}… admin2=${admin2Input.slice(0,6)}…`);
+      setInitState("new");
+    } catch (e: unknown) {
+      setInitResult(`✗ ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setInitializing(false);
+  }
+
+  async function handleSetAdmin2() {
+    if (!walletAddress || !walletProvider) return;
+    setSettingAdmin2(true);
+    setSetAdmin2Result(null);
+    try {
+      const adminPubkey  = new PublicKey(walletAddress);
+      const admin2Pubkey = new PublicKey(admin2Input.trim());
+      const tx = await buildSetAdmin2Tx(adminPubkey, admin2Pubkey);
+      const signed = await walletProvider.signTransaction(tx);
+      const { connection: conn } = await import("@/lib/solana");
+      const sig = await conn.sendRawTransaction(signed.serialize());
+      const latestBlockhash = await conn.getLatestBlockhash();
+      await conn.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
+      setSetAdmin2Result(`✓ Admin2 set to ${admin2Input.slice(0,6)}…`);
+      setInitState("new");
+    } catch (e: unknown) {
+      setSetAdmin2Result(`✗ ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setSettingAdmin2(false);
+  }
+
+  async function fetchVaultBalance() {
+    try {
+      const { connection: conn } = await import("@/lib/solana");
+      const vault = getVaultPDA();
+      const bal = await conn.getTokenAccountBalance(vault);
+      setVaultBalance(Number(bal.value.uiAmount ?? 0));
+    } catch {
+      setVaultBalance(null);
     }
   }
+
+  function getWithdrawAmount(): number {
+    const parsed = parseFloat(withdrawAmount);
+    return withdrawAmount && !isNaN(parsed) && parsed > 0 ? parsed : (vaultBalance ?? 0);
+  }
+
+  async function handleWithdraw() {
+    if (!walletAddress || !walletProvider || !vaultBalance || vaultBalance <= 0) return;
+    const amount = getWithdrawAmount();
+    if (amount <= 0) return;
+    setWithdrawing(true);
+    setWithdrawResult(null);
+    try {
+      const adminPubkey = new PublicKey(walletAddress);
+      const tx = await buildWithdrawTx(adminPubkey, amount);
+      const signed = await walletProvider.signTransaction(tx);
+      const { connection: conn } = await import("@/lib/solana");
+      const sig = await conn.sendRawTransaction(signed.serialize());
+      const latestBlockhash = await conn.getLatestBlockhash();
+      await conn.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
+      setWithdrawResult(`✓ Withdrawn $${amount.toFixed(2)} USDC`);
+      setWithdrawAmount("");
+      fetchVaultBalance();
+    } catch (e: unknown) {
+      setWithdrawResult(`✗ ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setWithdrawing(false);
+  }
+
+  async function handleBatchCredit() {
+    if (selectedCredits.size === 0 || !walletProvider) return;
+
+    setCrediting(true);
+    setCreditResult(null);
+
+    // Group selected items by creator wallet — accumulate amounts
+    const selected = creditItems.filter((c) => selectedCredits.has(c.source_id));
+    const byWallet = new Map<string, { items: CreditItem[]; total: number }>();
+    for (const item of selected) {
+      const existing = byWallet.get(item.wallet);
+      if (existing) {
+        existing.items.push(item);
+        existing.total += item.amount_usdc;
+      } else {
+        byWallet.set(item.wallet, { items: [item], total: item.amount_usdc });
+      }
+    }
+
+    let ok = 0; let fail = 0;
+    const confirmedItems: { source_id: string; source_type: string }[] = [];
+    const adminPubkey = new PublicKey(walletAddress!);
+
+    for (const [wallet, { items, total }] of byWallet.entries()) {
+      try {
+        const creatorPubkey = new PublicKey(wallet);
+        const tx = await buildCreditCreatorTx(adminPubkey, creatorPubkey, total);
+        const signed = await walletProvider.signTransaction(tx);
+        const { connection: conn } = await import("@/lib/solana");
+        const sig = await conn.sendRawTransaction(signed.serialize());
+        const latestBlockhash = await conn.getLatestBlockhash();
+        await conn.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
+        items.forEach((i) => confirmedItems.push({ source_id: i.source_id, source_type: i.source_type }));
+        ok++;
+      } catch (e) {
+        console.error("credit_creator failed for wallet", wallet, e);
+        fail++;
+      }
+    }
+
+    // Mark as credited in DB
+    if (confirmedItems.length > 0) {
+      await fetch("/api/admin/credits/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_handle: twitterHandle, items: confirmedItems }),
+      });
+      // Remove credited items from UI list
+      const doneIds = new Set(confirmedItems.map((i) => i.source_id));
+      setCreditItems((prev) => prev.filter((c) => !doneIds.has(c.source_id)));
+      setSelectedCredits(new Set());
+    }
+
+    setCrediting(false);
+    setCreditResult({ ok, fail });
+  }
+
 
   useEffect(() => {
     if (!isAdmin || !twitterHandle) return;
@@ -290,9 +444,30 @@ export default function AdminPage() {
       .finally(() => setLoadingX(false));
   }, [isAdmin, twitterHandle, tab]);
 
+  useEffect(() => {
+    if (!isAdmin || !twitterHandle || tab !== "credits") return;
+    setLoadingCredits(true);
+    fetch(`/api/admin/credits/pending?admin_handle=${twitterHandle}`)
+      .then((r) => r.json())
+      .then((d) => setCreditItems(d.pending ?? []))
+      .finally(() => setLoadingCredits(false));
+    // Check on-chain state: none=74 bytes not present, old=74 bytes, new=106 bytes
+    import("@/lib/solana").then(({ connection }) => {
+      import("@/lib/contract").then(({ getStatePDA }) => {
+        connection.getAccountInfo(getStatePDA()).then((info) => {
+          if (!info) setInitState("none");
+          else if (info.data.length >= 106) setInitState("new");
+          else setInitState("old");
+        }).catch(() => setInitState("none"));
+      });
+    });
+    // Fetch vault USDC balance
+    fetchVaultBalance();
+  }, [isAdmin, twitterHandle, tab]);
+
   useEffect(() => { setPendingPage(0); }, [pendingTypeFilter, pendingSearch]);
   useEffect(() => { setActivePage(0); }, [activeTypeFilter, activeStatusFilter, activeSearch]);
-  useEffect(() => { setCompletedPage(0); }, [completedTypeFilter, completedPaidFilter, completedSearch]);
+  useEffect(() => { setCompletedPage(0); }, [completedTypeFilter, completedCreditedFilter, completedSearch]);
   useEffect(() => { setCancelledPage(0); }, [cancelledTypeFilter, cancelledSearch]);
 
   async function handleToggleHidden(jobId: string, currentHidden: boolean) {
@@ -549,7 +724,456 @@ export default function AdminPage() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setTab("credits")}
+            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
+              tab === "credits"
+                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
+                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
+            }`}
+          >
+            Credits
+            {creditItems.length > 0 && (
+              <span className="ml-2 text-[10px] font-bold bg-purple-500 text-white rounded-full px-1.5 py-0.5">
+                {creditItems.length}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* ── CREDITS TAB ── */}
+        {tab === "credits" && (
+          <div className="space-y-4">
+            {/* Vault balance + withdraw cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Vault balance */}
+              <div className="card p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center shrink-0">
+                    <Coins className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-neutral-400 tracking-wide font-semibold">Vault Balance</p>
+                    <a
+                      href={`https://solscan.io/account/${getVaultPDA().toBase58()}?cluster=devnet`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-sm font-bold text-neutral-900 dark:text-white hover:text-blue-500 transition-colors"
+                    >
+                      {vaultBalance === null ? "—" : `${vaultBalance.toFixed(2)} USDC`}
+                    </a>
+                  </div>
+                </div>
+                <button onClick={fetchVaultBalance} className="btn-outline text-xs px-2 py-1">Refresh</button>
+              </div>
+
+              {/* Withdraw */}
+              <div className="card p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950 flex items-center justify-center shrink-0">
+                    <Download className="w-4 h-4 text-red-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <p className="text-[10px] text-neutral-400 tracking-wide font-semibold">Withdraw Vault</p>
+                      <span className="text-[10px] text-neutral-400">
+                        (<span className={
+                          withdrawResult
+                            ? withdrawResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"
+                            : "text-orange-500"
+                        }>
+                          {withdrawResult ? withdrawResult : "LEAVE BLANK = ALL"}
+                        </span>)
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1 mt-0.5">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={withdrawAmount}
+                        onChange={e => { setWithdrawAmount(e.target.value); setWithdrawResult(null); }}
+                        placeholder="0.00"
+                        disabled={withdrawing}
+                        className="text-sm font-bold bg-transparent border-b border-neutral-300 dark:border-neutral-700 outline-none p-0 w-16 text-neutral-900 dark:text-white placeholder-neutral-300 dark:placeholder-neutral-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm font-bold text-neutral-900 dark:text-white">USDC</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWithdrawConfirm(true)}
+                  disabled={withdrawing || !walletAddress || !vaultBalance || vaultBalance <= 0}
+                  className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50 !text-white !bg-orange-500 hover:!bg-orange-600 !border-orange-500 whitespace-nowrap flex items-center gap-1 shrink-0"
+                >
+                  {withdrawing && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {withdrawing ? "Withdrawing…" : "Withdraw"}
+                </button>
+              </div>
+            </div>
+
+            {/* Batch action bar */}
+            <div className="card p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Wallet2 className="w-4 h-4 text-purple-500 shrink-0" />
+                <span className="text-xs font-mono text-neutral-600 dark:text-neutral-300">
+                  {walletAddress
+                    ? <>Signing wallet: <span className="text-purple-400">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span></>
+                    : <span className="text-neutral-500 dark:text-neutral-400">No wallet connected</span>
+                  }
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-neutral-400">{selectedCredits.size} selected</span>
+                <button
+                  onClick={handleBatchCredit}
+                  disabled={crediting || selectedCredits.size === 0}
+                  className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {crediting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Coins className="w-3.5 h-3.5" />}
+                  {crediting ? "Signing…" : "Batch Credit"}
+                </button>
+              </div>
+            </div>
+
+            {/* Initialize program (one-time setup) */}
+            {initState === "none" && (
+              <details className="card p-4 text-xs text-neutral-500 dark:text-neutral-400">
+                <summary className="cursor-pointer select-none font-medium">⚙ Initialize escrow program (one-time)</summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-neutral-400 dark:text-neutral-500">Connect admin wallet (admin1), enter admin2 wallet address, then Initialize. Both wallets can sign Batch Credit.</p>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      value={admin2Input}
+                      onChange={(e) => setAdmin2Input(e.target.value)}
+                      placeholder="Admin2 wallet address (base58)"
+                      className="input text-xs font-mono w-full"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleInitialize}
+                        disabled={initializing || !walletAddress || !admin2Input.trim()}
+                        className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50"
+                      >
+                        {initializing ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
+                        {initializing ? "Initializing…" : "Initialize"}
+                      </button>
+                      {initResult && <span className={initResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}>{initResult}</span>}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            )}
+
+            {/* Upgrade old single-admin state to multi-admin */}
+            {initState === "old" && (
+              <details className="card p-4 text-xs text-neutral-500 dark:text-neutral-400">
+                <summary className="cursor-pointer select-none font-medium">⚙ Upgrade escrow: set admin2</summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-neutral-400 dark:text-neutral-500">Program is initialized (single-admin). Connect admin1 wallet and enter admin2 address to enable dual-admin signing.</p>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      value={admin2Input}
+                      onChange={(e) => setAdmin2Input(e.target.value)}
+                      placeholder="Admin2 wallet address (base58)"
+                      className="input text-xs font-mono w-full"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleSetAdmin2}
+                        disabled={settingAdmin2 || !walletAddress || !admin2Input.trim()}
+                        className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50"
+                      >
+                        {settingAdmin2 ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
+                        {settingAdmin2 ? "Upgrading…" : "Set Admin2"}
+                      </button>
+                      {setAdmin2Result && <span className={setAdmin2Result.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}>{setAdmin2Result}</span>}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            )}
+
+            {creditResult && (
+              <div className={`rounded-xl px-4 py-3 text-sm font-medium ${creditResult.fail === 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"}`}>
+                {creditResult.ok} creator(s) credited on-chain.{creditResult.fail > 0 && ` ${creditResult.fail} failed — check console.`}
+              </div>
+            )}
+
+            {loadingCredits && (
+              <div className="flex items-center justify-center py-20 text-neutral-400">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span className="text-sm">Loading…</span>
+              </div>
+            )}
+
+            {!loadingCredits && creditItems.length === 0 && (
+              <div className="card p-12 text-center text-neutral-400 dark:text-neutral-500">
+                <Coins className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No pending credits. All creators have been paid on-chain.</p>
+              </div>
+            )}
+
+            {!loadingCredits && creditItems.length > 0 && (() => {
+              // Group by job_id, preserve insertion order (API returns newest first)
+              const groups: Record<string, CreditItem[]> = {};
+              for (const item of creditItems) {
+                (groups[item.job_id] ??= []).push(item);
+              }
+              const jobKeys = Object.keys(groups);
+
+              function toggleJob(jobId: string) {
+                setExpandedTypes((prev) => {
+                  const next = new Set(prev);
+                  next.has(jobId) ? next.delete(jobId) : next.add(jobId);
+                  return next;
+                });
+              }
+              function toggleGroupSelect(_jobId: string, items: CreditItem[]) {
+                const ids = items.map((i) => i.source_id);
+                const allSelected = ids.every((id) => selectedCredits.has(id));
+                setSelectedCredits((prev) => {
+                  const next = new Set(prev);
+                  ids.forEach((id) => allSelected ? next.delete(id) : next.add(id));
+                  return next;
+                });
+              }
+
+              const CREDIT_PAGE_SIZE = 20;
+              const jobTotalPages = Math.ceil(jobKeys.length / CREDIT_PAGE_SIZE);
+              const jobPage = Math.min(creditJobPage, Math.max(0, jobTotalPages - 1));
+              const jobPageKeys = jobKeys.slice(jobPage * CREDIT_PAGE_SIZE, (jobPage + 1) * CREDIT_PAGE_SIZE);
+
+              return (
+                <>
+                <div className="card overflow-hidden">
+                  {/* Select all */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={selectedCredits.size === creditItems.length && creditItems.length > 0}
+                      onChange={(e) => setSelectedCredits(e.target.checked ? new Set(creditItems.map((c) => c.source_id)) : new Set())}
+                      className="rounded"
+                    />
+                    <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                      Select all ({creditItems.length})
+                    </span>
+                    {selectedCredits.size > 0 && (
+                      <span className="text-xs text-purple-500 font-semibold ml-auto">
+                        Total: ${creditItems.filter((c) => selectedCredits.has(c.source_id)).reduce((s, c) => s + c.amount_usdc, 0).toFixed(2)} USDC
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Per-job groups (paginated) */}
+                  {jobPageKeys.map((jobId) => {
+                    const items = groups[jobId];
+                    const rep = items[0];
+                    const isOpen = expandedTypes.has(jobId);
+                    const groupIds = items.map((i) => i.source_id);
+                    const allGroupSelected = groupIds.every((id) => selectedCredits.has(id));
+                    const someGroupSelected = groupIds.some((id) => selectedCredits.has(id));
+                    const groupTotal = items.reduce((s, c) => s + c.amount_usdc, 0);
+
+                    const creatorPage = creditCreatorPages[jobId] ?? 0;
+                    const creatorTotalPages = Math.ceil(items.length / CREDIT_PAGE_SIZE);
+                    const creatorPageSafe = Math.min(creatorPage, Math.max(0, creatorTotalPages - 1));
+                    const pageItems = items.slice(creatorPageSafe * CREDIT_PAGE_SIZE, (creatorPageSafe + 1) * CREDIT_PAGE_SIZE);
+
+                    return (
+                      <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                        {/* Group header */}
+                        <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-900 cursor-pointer select-none"
+                          onClick={() => toggleJob(jobId)}>
+                          <input
+                            type="checkbox"
+                            checked={allGroupSelected}
+                            ref={(el) => { if (el) el.indeterminate = someGroupSelected && !allGroupSelected; }}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => toggleGroupSelect(jobId, items)}
+                            className="rounded shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono font-bold text-neutral-500 dark:text-neutral-400 shrink-0">
+                                {fmtJobId(rep.type, rep.job_id)}
+                              </span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 shrink-0">
+                                {TYPE_LABEL[rep.type] ?? rep.type}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[260px]">
+                              {rep.title}
+                            </p>
+                          </div>
+                          <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-full px-1.5 py-0.5 font-semibold shrink-0">
+                            {items.length} creator{items.length > 1 ? "s" : ""}
+                          </span>
+                          <span className="text-xs text-green-600 dark:text-green-400 font-semibold shrink-0">
+                            ${groupTotal.toFixed(2)}
+                          </span>
+                          <ChevronRight className={`w-3.5 h-3.5 text-neutral-400 transition-transform shrink-0 ${isOpen ? "rotate-90" : ""}`} />
+                        </div>
+
+                        {/* Expanded table */}
+                        {isOpen && (
+                          <>
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-neutral-100 dark:border-neutral-800 text-[10px] text-neutral-400 uppercase tracking-wide">
+                                <th className="w-8 px-4 py-2 text-left" />
+                                <th className="px-3 py-2 text-left">Creator</th>
+                                <th className="px-3 py-2 text-left">Wallet</th>
+                                <th className="px-3 py-2 text-right">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                              {pageItems.map((item) => (
+                                <tr key={item.source_id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors">
+                                  <td className="px-4 py-2.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCredits.has(item.source_id)}
+                                      onChange={(e) => {
+                                        const next = new Set(selectedCredits);
+                                        e.target.checked ? next.add(item.source_id) : next.delete(item.source_id);
+                                        setSelectedCredits(next);
+                                      }}
+                                      className="rounded"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    <p className="font-semibold text-neutral-900 dark:text-white">@{item.creator_handle}</p>
+                                    <p className="text-[10px] text-neutral-400">{item.creator_name}</p>
+                                  </td>
+                                  <td className="px-3 py-2.5 font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</td>
+                                  <td className="px-3 py-2.5 text-right font-bold text-green-600 dark:text-green-400">${item.amount_usdc.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {/* Inner pagination */}
+                          {creatorTotalPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-2 border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+                              <span className="text-[10px] text-neutral-400">
+                                {creatorPageSafe * CREDIT_PAGE_SIZE + 1}–{Math.min((creatorPageSafe + 1) * CREDIT_PAGE_SIZE, items.length)} of {items.length}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => setCreditCreatorPages((p) => ({ ...p, [jobId]: creatorPageSafe - 1 }))}
+                                  disabled={creatorPageSafe === 0}
+                                  className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-30 transition-colors"
+                                >
+                                  <ChevronLeft className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="text-[10px] font-medium text-neutral-500 px-1">{creatorPageSafe + 1}/{creatorTotalPages}</span>
+                                <button
+                                  onClick={() => setCreditCreatorPages((p) => ({ ...p, [jobId]: creatorPageSafe + 1 }))}
+                                  disabled={creatorPageSafe >= creatorTotalPages - 1}
+                                  className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-30 transition-colors"
+                                >
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Outer pagination */}
+                {jobTotalPages > 1 && (
+                  <div className="flex items-center justify-between px-1 mt-3">
+                    <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                      {jobPage * CREDIT_PAGE_SIZE + 1}–{Math.min((jobPage + 1) * CREDIT_PAGE_SIZE, jobKeys.length)} of {jobKeys.length} jobs
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCreditJobPage(jobPage - 1)}
+                        disabled={jobPage === 0}
+                        className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400 px-2">{jobPage + 1} / {jobTotalPages}</span>
+                      <button
+                        onClick={() => setCreditJobPage(jobPage + 1)}
+                        disabled={jobPage >= jobTotalPages - 1}
+                        className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-30 transition-colors"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── Withdraw Confirm Modal ── */}
+        {showWithdrawConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setShowWithdrawConfirm(false)} />
+            <div className="relative card p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950 flex items-center justify-center shrink-0">
+                  <Download className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-neutral-900 dark:text-white text-sm">Confirm Withdraw?</h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    {withdrawAmount && parseFloat(withdrawAmount) > 0
+                      ? `Withdraw $${parseFloat(withdrawAmount).toFixed(2)} USDC from escrow vault.`
+                      : "This will move ALL USDC from the escrow vault to your connected wallet."
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-4 py-3 flex flex-col gap-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Amount</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">{getWithdrawAmount().toFixed(2)} USDC</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Destination</span>
+                  <span className="font-mono text-neutral-600 dark:text-neutral-300">
+                    {walletAddress ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}` : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Source</span>
+                  <span className="font-mono text-neutral-600 dark:text-neutral-300">Escrow Vault</span>
+                </div>
+              </div>
+
+              {(!withdrawAmount || !(parseFloat(withdrawAmount) > 0)) && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                  ⚠ Creators with pending claims will not be able to claim until vault is REFUNDED
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowWithdrawConfirm(false)}
+                  className="btn-outline text-xs px-4 py-2 flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { setShowWithdrawConfirm(false); handleWithdraw(); }}
+                  className="btn-primary text-xs px-4 py-2 flex-1 !bg-red-600 hover:!bg-red-700 !border-red-600"
+                >
+                  Confirm Withdraw
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── PENDING TAB ── */}
         {tab === "pending" && (
@@ -856,21 +1480,22 @@ export default function AdminPage() {
               const q = completedSearch.toLowerCase();
               const filtered = completed.filter((j) => {
                 const matchType = completedTypeFilter === "all" || j.type === completedTypeFilter;
-                const matchPaid =
-                  completedPaidFilter === "all" ||
-                  (completedPaidFilter === "paid"   &&  j.is_paid) ||
-                  (completedPaidFilter === "unpaid" && !j.is_paid);
+                const isCredited = j.credited_at !== null;
+                const matchCredited =
+                  completedCreditedFilter === "all" ||
+                  (completedCreditedFilter === "credited" &&  isCredited) ||
+                  (completedCreditedFilter === "pending"  && !isCredited);
                 const matchSearch = !q ||
                   fmtJobId(j.type, j.id).toLowerCase().includes(q) ||
                   j.title.toLowerCase().includes(q) ||
                   (j.client?.twitter_handle ?? "").toLowerCase().includes(q) ||
                   (j.creator?.twitter_handle ?? "").toLowerCase().includes(q);
-                return matchType && matchPaid && matchSearch;
+                return matchType && matchCredited && matchSearch;
               });
               const totalPages = Math.ceil(filtered.length / ADMIN_PAGE_SIZE);
               const page = Math.min(completedPage, Math.max(0, totalPages - 1));
               const pageData = filtered.slice(page * ADMIN_PAGE_SIZE, (page + 1) * ADMIN_PAGE_SIZE);
-              const unpaidTotal = filtered.filter((j) => !j.is_paid).reduce((s, j) => s + j.price_usdc, 0);
+              const pendingCreditTotal = filtered.filter((j) => !j.credited_at).reduce((s, j) => s + j.price_usdc, 0);
 
               async function handleBulkExport() {
                 const XLSX = await import("xlsx");
@@ -887,7 +1512,7 @@ export default function AdminPage() {
                   "Client Handle":  j.client?.twitter_handle  ?? "",
                   "Posted At":      fmtDate(j.created_at),
                   "Completed At":   j.completed_at ? fmtDate(j.completed_at) : "—",
-                  "Paid":           j.is_paid ? "Yes" : "No",
+                  "Credited":       j.credited_at ? fmtDate(j.credited_at) : "No",
                   ...(j.additional_info?.wallet   ? { "Extra Wallet":   j.additional_info.wallet }   : {}),
                   ...(j.additional_info?.email    ? { "Email":          j.additional_info.email }    : {}),
                   ...(j.additional_info?.discord  ? { "Discord":        j.additional_info.discord }  : {}),
@@ -926,17 +1551,17 @@ export default function AdminPage() {
                         </button>
                       ))}
                       <span className="text-neutral-300 dark:text-neutral-700 text-xs select-none">|</span>
-                      {[{ val: "all", label: "All" }, { val: "paid", label: "Paid" }, { val: "unpaid", label: "Unpaid" }].map(({ val, label }) => (
-                        <button key={val} onClick={() => setCompletedPaidFilter(val)}
-                          className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${completedPaidFilter === val ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
+                      {[{ val: "all", label: "All" }, { val: "credited", label: "Credited" }, { val: "pending", label: "Pending" }].map(({ val, label }) => (
+                        <button key={val} onClick={() => setCompletedCreditedFilter(val)}
+                          className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${completedCreditedFilter === val ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
                           {label}
                         </button>
                       ))}
-                      {unpaidTotal > 0 && (
+                      {pendingCreditTotal > 0 && (
                         <>
                           <span className="text-neutral-300 dark:text-neutral-700 text-xs select-none">|</span>
                           <span className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold whitespace-nowrap shrink-0">
-                            <Clock className="w-3 h-3" /> Unpaid: ${unpaidTotal.toFixed(1)} USDC
+                            <Clock className="w-3 h-3" /> Pending: ${pendingCreditTotal.toFixed(1)} USDC
                           </span>
                         </>
                       )}
@@ -952,7 +1577,7 @@ export default function AdminPage() {
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Posted</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Completed</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Amount</th>
-                          <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Paid</th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Credit</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
@@ -970,17 +1595,13 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3 font-bold text-neutral-900 dark:text-white whitespace-nowrap">${job.price_usdc.toFixed(1)}</td>
                             <td className="px-4 py-3">
-                              {job.is_paid
-                                ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">Paid</span>
-                                : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border border-neutral-200 dark:border-neutral-700">Unpaid</span>
+                              {job.credited_at
+                                ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">Credited</span>
+                                : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Pending</span>
                               }
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1 justify-end">
-                                <button onClick={() => handleTogglePaid(job)} disabled={markingPaid === job.id} title={job.is_paid ? "Mark Unpaid" : "Mark Paid"}
-                                  className={`p-1.5 rounded-lg transition-colors ${job.is_paid ? "text-green-500 hover:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" : "text-neutral-300 dark:text-neutral-700 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950"}`}>
-                                  {markingPaid === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                                </button>
                                 <button onClick={() => job.creator?.wallet_address && copyAllWallets(job.id, job.creator.wallet_address)} disabled={!job.creator?.wallet_address} title="Copy Wallet"
                                   className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                                   {copiedWallet === `all-${job.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}

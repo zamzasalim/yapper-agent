@@ -336,7 +336,7 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
 
             <p className="text-xs text-neutral-500 mt-3">
               <code className="text-neutral-500 dark:text-neutral-400">maxAmountRequired</code> is in micro-USDC (6 decimals).
-              500000 = $0.50 USDC. The TX must transfer at least this amount to the platform wallet.
+              500000 = $0.50 USDC. The TX must transfer at least this amount to the escrow vault.
             </p>
           </Section>
 

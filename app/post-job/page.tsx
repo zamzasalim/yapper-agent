@@ -13,9 +13,9 @@ import {
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
 import { Zap, Copy, Check } from "lucide-react";
+import { getVaultPDA } from "@/lib/contract";
 
-const PLATFORM_WALLET_ADDRESS =
-  process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "CzQZDvbjHHZDXxDeGUX2KTorQhiZnJvt6z6V2QtfMDU2";
+const VAULT_ADDRESS = getVaultPDA().toBase58();
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
 const DOCS_URL  = process.env.NEXT_PUBLIC_DOCS_URL  ?? "https://docs.yapperagent.xyz";
 
@@ -90,7 +90,7 @@ function PaymentModal({
         </p>
         <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl px-3 py-2.5 mb-1">
           <p className="text-[11px] font-mono text-neutral-700 dark:text-neutral-300 flex-1 break-all leading-relaxed">
-            {PLATFORM_WALLET_ADDRESS}
+            {VAULT_ADDRESS}
           </p>
           <button onClick={onCopy} className="shrink-0 text-neutral-400 hover:text-blue-600 transition-colors ml-1">
             {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
@@ -534,7 +534,7 @@ function PostJobForm() {
   }
 
   function handleCopyWallet() {
-    navigator.clipboard.writeText(PLATFORM_WALLET_ADDRESS);
+    navigator.clipboard.writeText(VAULT_ADDRESS);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

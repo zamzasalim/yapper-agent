@@ -1,8 +1,10 @@
 import { connection } from "@/lib/solana";
+import { getStatePDA, getVaultPDA } from "@/lib/contract";
 
-const USDC_MINT_STR      = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const PLATFORM_WALLET_STR =
-  process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "CzQZDvbjHHZDXxDeGUX2KTorQhiZnJvt6z6V2QtfMDU2";
+const USDC_MINT_STR   = process.env.NEXT_PUBLIC_USDC_MINT ?? "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const VAULT_OWNER_STR = getStatePDA().toBase58();
+const VAULT_ADDRESS   = getVaultPDA().toBase58();
+const SOLANA_NETWORK  = process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet" ? "solana-devnet" : "solana-mainnet";
 
 /** Minimum job prices in USDC — agents can always specify higher via price_usdc. */
 export const JOB_PRICES_USDC: Record<string, number> = {
@@ -55,8 +57,8 @@ export async function verifyX402Payment(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payer: string | undefined = (tx.transaction.message.accountKeys[0] as any)?.pubkey?.toString();
 
-    const pre  = tx.meta?.preTokenBalances?.find(b => b.mint === USDC_MINT_STR && b.owner === PLATFORM_WALLET_STR);
-    const post = tx.meta?.postTokenBalances?.find(b => b.mint === USDC_MINT_STR && b.owner === PLATFORM_WALLET_STR);
+    const pre  = tx.meta?.preTokenBalances?.find(b => b.mint === USDC_MINT_STR && b.owner === VAULT_OWNER_STR);
+    const post = tx.meta?.postTokenBalances?.find(b => b.mint === USDC_MINT_STR && b.owner === VAULT_OWNER_STR);
     const delta = (post?.uiTokenAmount?.uiAmount ?? 0) - (pre?.uiTokenAmount?.uiAmount ?? 0);
 
     if (delta < expectedUsdc - 0.001) {
@@ -76,9 +78,9 @@ export function x402Body(resource: string, amountUsdc: number, description: stri
     accepts: [
       {
         scheme:            "exact",
-        network:           "solana-mainnet",
+        network:           SOLANA_NETWORK,
         asset:             USDC_MINT_STR,
-        payTo:             PLATFORM_WALLET_STR,
+        payTo:             VAULT_ADDRESS,
         maxAmountRequired: String(Math.round(amountUsdc * 1_000_000)),
         resource,
         description,

@@ -2,7 +2,7 @@
 
 import { createAppKit } from "@reown/appkit/react";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
-import { solana } from "@reown/appkit/networks";
+import { solana, solanaDevnet } from "@reown/appkit/networks";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -22,9 +22,11 @@ if (projectId) {
       ? window.location.origin
       : (process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz");
 
+  const isDevnet = process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet";
+
   createAppKit({
     adapters: [solanaAdapter],
-    networks: [solana],
+    networks: isDevnet ? [solanaDevnet, solana] : [solana, solanaDevnet],
     projectId,
     features: { analytics: true },
     metadata: {

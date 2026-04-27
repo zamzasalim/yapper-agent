@@ -216,6 +216,12 @@ select.input-field { color-scheme: light dark; }
   80%, 100% { transform: translateX(calc(-100% + 12ch)); }
 }
 
+/* ── Marquee left-to-right (status text in withdraw card) ────────────────── */
+@keyframes marquee-ltr {
+  0%, 20%   { transform: translateX(0); }
+  80%, 100% { transform: translateX(calc(-100% + 18ch)); }
+}
+
 /* ── Live dot ─────────────────────────────────────────────────────────────── */
 .dot-live {
   display: inline-block;

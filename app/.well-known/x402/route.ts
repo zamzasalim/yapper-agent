@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { getVaultPDA } from "@/lib/contract";
 
-const APP_URL         = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
-const PLATFORM_WALLET = process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "CzQZDvbjHHZDXxDeGUX2KTorQhiZnJvt6z6V2QtfMDU2";
-const USDC_MINT       = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const APP_URL        = process.env.NEXT_PUBLIC_APP_URL ?? "https://yapperagent.xyz";
+const VAULT_ADDRESS  = getVaultPDA().toBase58();
+const USDC_MINT      = process.env.NEXT_PUBLIC_USDC_MINT ?? "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet" ? "solana-devnet" : "solana-mainnet";
 
 /** GET /.well-known/x402 — x402 protocol discovery */
 export async function GET() {
@@ -26,9 +28,9 @@ export async function GET() {
         accepts: [
           {
             scheme:            "exact",
-            network:           "solana-mainnet",
+            network:           SOLANA_NETWORK,
             asset:             USDC_MINT,
-            payTo:             PLATFORM_WALLET,
+            payTo:             VAULT_ADDRESS,
             maxTimeoutSeconds: 300,
             extra:             { name: "USDC", version: "1" },
           },

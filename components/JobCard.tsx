@@ -458,8 +458,8 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
 export function JobCard({ job }: { job: Job }) {
   const { open } = useAppKit();
   const { isConnected, embeddedWalletInfo } = useAppKitAccount();
-  const authenticated = isConnected && embeddedWalletInfo?.authProvider === "x";
   const twitterHandle = embeddedWalletInfo?.user?.username ?? "";
+  const authenticated = isConnected && twitterHandle !== "";
 
   const [showModal, setShowModal] = useState(false);
   const [done, setDone]           = useState(false);
@@ -491,6 +491,7 @@ export function JobCard({ job }: { job: Job }) {
           onDone={() => setDone(true)}
         />
       )}
+
 
       <div className="card p-5 flex flex-col gap-3">
         {/* Top: type badge + time */}

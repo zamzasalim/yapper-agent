@@ -34,7 +34,7 @@ flowchart TD
     CL2 -->|Content or Campaign\ntier pricing| CL4[Select tier - multi except Super CT\nNano CT 5 Small CT 25 Big CT 50 Super CT custom gt 50\nPrice = sum of selected tiers\nPreset or custom deadline]
     CL2 -->|Custom\nadmin approval| CL5[Free-form brief\nNo payment yet]
 
-    CL3 & CL4 --> CL6[Send USDC to platform wallet]
+    CL3 & CL4 --> CL6[Send USDC to escrow vault PDA]
     CL6 --> CL7[POST /api/verify-payment\nSolana RPC check]
     CL7 -->|Invalid TX| CL6
     CL7 -->|Valid TX| CL8[POST /api/jobs\nstatus: open]
@@ -135,9 +135,27 @@ flowchart TD
     AUTOCOMPLETE --> AD5
 
     %% ── ADMIN: COMPLETED TAB ────────────────────────────────────
-    AD5[Admin - Completed tab\nsearch + type + paid filter + pagination]
+    AD5[Admin - Completed tab\nsearch + type + credited filter + pagination]
     AD5 --> AD6[View Details modal\ncreator handle + proof + wallet\nCampaign: completions array\nper-slot creator + proof + wallet]
-    AD6 --> AD7([Manual USDC payout\nMark Paid + Copy Wallet\nExport Excel per job or bulk])
+    AD6 --> AD7([Export Excel per job or bulk\nCredited badge shown when credited_at is set])
+
+    %% ── ESCROW: CREDITS TAB ─────────────────────────────────────
+    AD5 -.->|completed not yet credited| ESCROW_PEND
+    JOBDONE -.->|accumulates in| ESCROW_PEND
+
+    ESCROW_PEND[Admin - Credits tab\nList completed jobs where credited_at IS NULL\nGrouped by job: job ID + title + type + creator list]
+    ESCROW_PEND --> ESC1[Admin connects Phantom\nadmin wallet in browser]
+    ESC1 --> ESC2[Checkbox-select creators\nTotal USDC auto-calculated\nVault balance shown for sufficiency check]
+    ESC2 --> ESC3[Click Batch Credit\nbuildCreditCreatorTx per creator\nPhantom signs + submits]
+    ESC3 --> ESC4[ClaimRecord PDA per creator updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm\ncredited_at + credit_tx set in DB]
+    ESC4 --> ESC5([Credits locked in vault\ncreator can now claim USDC])
+
+    %% ── CREATOR: CLAIM ──────────────────────────────────────────
+    ESC5 --> CR_CLAIM
+    CR_CLAIM[Creator Dashboard\nClaimable Balance card visible when balance gt 0\nGET /api/user/claimable → fetchClaimable reads ClaimRecord on-chain]
+    CR_CLAIM --> CR_CLAIM2[Click Claim\nbuildClaimTx signed via Reown embedded wallet]
+    CR_CLAIM2 --> CR_CLAIM3[USDC: vault PDA → creator wallet\nClaimRecord.amount reset to 0]
+    CR_CLAIM3 --> CR_CLAIM4([Creator receives USDC\nTx viewable on Solscan])
 
     %% ── ADMIN: CANCELLED TAB ────────────────────────────────────
     AD_CAN[Admin - Cancelled tab\nsearch + type filter + pagination]
@@ -176,7 +194,7 @@ flowchart TD
         direction TB
         AG1[POST /api/agent/register\nagent_name + wallet_address\nReturns permanent api_key]
         AG1 --> AG2[POST /api/agent/jobs\napi_key + job fields in body]
-        AG2 -->|No X-Payment header| AG3[402 response\nx402Body: network solana-mainnet\nasset USDC - payTo platform wallet\nmaxAmountRequired in micro-USDC]
+        AG2 -->|No X-Payment header| AG3[402 response\nx402Body: network devnet or mainnet from env\nasset USDC - payTo vault PDA\nmaxAmountRequired in micro-USDC]
         AG3 --> AG4[Agent pays USDC on Solana\nRetries with X-Payment header\nbase64 json tx_hash OR raw sig]
         AG4 --> AG5{Payment valid?}
         AG5 -->|No| AG3
@@ -231,7 +249,9 @@ flowchart TD
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
     class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,NOTIF_READALL,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13A,CR13B,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
-    class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND admin
+    class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4 admin
+    class ESC5,CR_CLAIM4 done
+    class CR_CLAIM,CR_CLAIM2,CR_CLAIM3 creator
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY,TG_DISCONNECT telegram
     class JOBDONE,RESTORED,REFUNDED done
     class CRERR,PROOFERR err

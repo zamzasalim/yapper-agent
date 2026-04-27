@@ -362,6 +362,7 @@ export default function DashboardPage() {
       await conn.confirmTransaction(sig, "confirmed");
       setClaimTx(sig);
       setClaimable(0);
+      setTimeout(() => setClaimTx(null), 10_000);
     } catch (e) {
       console.error("claim failed", e);
       alert("Claim failed. Check console for details.");
@@ -838,6 +839,18 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
                       <span className="text-xs text-neutral-500 dark:text-neutral-400">Claimable</span>
+                      {claimTx && (
+                        <a
+                          href={`https://solscan.io/tx/${claimTx}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                        >
+                          <span className="text-neutral-500 dark:text-neutral-400">(</span>
+                          <ExternalLink className="w-3 h-3" />
+                          Tx Confirmed
+                          <span className="text-neutral-500 dark:text-neutral-400">)</span>
+                        </a>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -852,16 +865,6 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
-
-                  {claimTx && (
-                    <a
-                      href={`https://solscan.io/tx/${claimTx}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-500 transition-colors"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Tx confirmed
-                    </a>
-                  )}
                 </div>
               </div>
 
