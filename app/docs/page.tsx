@@ -141,7 +141,7 @@ export default function DocsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               {[
                 { label: "Base URL",  value: API_URL },
-                { label: "Network",   value: "Solana Mainnet" },
+                { label: "Network",   value: "Solana (devnet → mainnet)" },
                 { label: "Currency",  value: "USDC" },
               ].map((i) => (
                 <div key={i.label} className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl px-4 py-3">
@@ -312,9 +312,9 @@ Content-Type: application/json
     },
     "accepts": [{
       "scheme": "exact",
-      "network": "solana-mainnet",
-      "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-      "payTo": "<platform_wallet>"
+      "network": "solana-devnet",
+      "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+      "payTo": "<vault_pda>"
     }]
   }]
 }`}</Code>
@@ -324,7 +324,7 @@ Content-Type: application/json
 POST ${API_URL}/agent/jobs
 → 402 {
     "x402Version": 1,
-    "accepts": [{ "payTo": "...", "maxAmountRequired": "500000", "network": "solana-mainnet" }]
+    "accepts": [{ "payTo": "<vault_pda>", "maxAmountRequired": "500000", "network": "solana-devnet" }]
   }
 
 // Step 2 — pay 0.50 USDC to payTo on Solana, get tx signature
@@ -336,7 +336,7 @@ X-Payment: base64({"tx_hash":"<tx_signature>"})
 
             <p className="text-xs text-neutral-500 mt-3">
               <code className="text-neutral-500 dark:text-neutral-400">maxAmountRequired</code> is in micro-USDC (6 decimals).
-              500000 = $0.50 USDC. The TX must transfer at least this amount to the escrow vault.
+              500000 = $0.50 USDC. The TX must transfer at least this amount to the vault PDA (<code className="text-neutral-500 dark:text-neutral-400">payTo</code> in the 402 response).
             </p>
           </Section>
 

@@ -39,7 +39,7 @@ const T = {
       steps: [
         { step: "01", title: "Connect & Verify",  desc: "Sign in with your X account, your wallet is created automatically, no extra setup needed." },
         { step: "02", title: "Accept a Job",       desc: "Browse open jobs on the platform or accept directly from the Telegram bot."               },
-        { step: "03", title: "Get Paid in USDC",   desc: "Submit proof. Our team verifies & sends USDC 100% straight to your wallet."               },
+        { step: "03", title: "Claim Your USDC",     desc: "Submit proof. Admin verifies & credits the escrow vault. Claim USDC anytime from your dashboard."               },
       ],
     },
     partnership: {
@@ -55,7 +55,7 @@ const T = {
       badge: "FAQ", title: "Questions Answered",
       items: [
         { q: "Who Can Join as a Creator?",          a: "Anyone with a X account. Requirements vary per job, some need a blue tick or minimum followers, some are open to all. Check each listing before you accept." },
-        { q: "How do I Receive Payment?",            a: "A Solana wallet is auto-created when you connect your X account. After proof is verified, our team sends USDC straight to your wallet. 0% fee, 100% yours." },
+        { q: "How do I Receive Payment?",            a: "A Solana wallet is auto-created when you connect your X account. After proof is verified, admin credits the escrow vault on-chain. You then claim USDC anytime from the Claimable Balance card in your dashboard. 0% fee, 100% yours." },
         { q: "How does Proof Submission Work?",      a: "Retweet jobs are verified automatically. All other types (Like & Reply, Content, Campaign, Custom), paste the URL of your post. It must match your creator handle." },
         { q: "What is a Content Creation Job?",      a: "Write an original post about a topic set by the client, a project, product or story. Requirements & context are in the brief. You earn based on your follower count tier." },
         { q: "What is a Campaign Job?",              a: "A job open to multiple creators at once. Each creator earns the full price, nothing is split. Slots close once filled, everyone submit proof independently." },
@@ -101,7 +101,7 @@ const T = {
       steps: [
         { step: "01", title: "Hubungkan & Verifikasi", desc: "Login dengan akun X kamu, wallet dibuat otomatis, tidak perlu setup tambahan."            },
         { step: "02", title: "Terima Pekerjaan",        desc: "Jelajahi pekerjaan terbuka di platform atau terima langsung dari bot Telegram."          },
-        { step: "03", title: "Dibayar USDC",            desc: "Kirim bukti. Tim kami verifikasi & kirim USDC 100% langsung ke wallet kamu."             },
+        { step: "03", title: "Klaim USDC Kamu",         desc: "Kirim bukti. Admin verifikasi & kreditkan ke escrow vault. Klaim USDC kapan saja dari dashboard kamu."             },
       ],
     },
     partnership: {
@@ -117,7 +117,7 @@ const T = {
       badge: "FAQ", title: "Pertanyaan Terjawab",
       items: [
         { q: "Siapa yang Bisa Bergabung sebagai Kreator?",  a: "Siapa pun yang punya akun X. Persyaratan berbeda tiap pekerjaan, ada yang butuh centang biru atau minimal pengikut, ada yang terbuka untuk semua. Cek setiap listing sebelum menerima." },
-        { q: "Bagaimana Cara Menerima Pembayaran?",          a: "Wallet Solana dibuat otomatis saat kamu menghubungkan akun X. Setelah bukti diverifikasi, tim kami mengirim USDC langsung ke wallet kamu. Biaya 0%, 100% milik kamu." },
+        { q: "Bagaimana Cara Menerima Pembayaran?",          a: "Wallet Solana dibuat otomatis saat kamu menghubungkan akun X. Setelah bukti diverifikasi, admin mengkreditkan escrow vault on-chain. Kamu lalu klaim USDC kapan saja dari kartu Claimable Balance di dashboard. Biaya 0%, 100% milik kamu." },
         { q: "Bagaimana Pengiriman Bukti Bekerja?",          a: "Pekerjaan Retweet diverifikasi otomatis. Semua jenis lain (Like & Reply, Konten, Kampanye, Kustom), tempel URL postingan kamu. Harus sesuai dengan handle kreator kamu." },
         { q: "Apa itu Pekerjaan Pembuatan Konten?",          a: "Tulis postingan orisinal tentang topik yang ditetapkan klien, sebuah proyek, produk, atau cerita. Persyaratan & konteks ada di brief. Kamu mendapat bayaran berdasarkan tier jumlah pengikut." },
         { q: "Apa itu Pekerjaan Kampanye?",                  a: "Pekerjaan yang terbuka untuk beberapa kreator sekaligus. Setiap kreator mendapat bayaran penuh, tidak dibagi. Slot ditutup setelah penuh, semua kirim bukti secara mandiri." },
