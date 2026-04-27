@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { LanguageProvider } from "@/lib/i18n";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -35,7 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-scroll-behavior="smooth" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <Providers>{children}</Providers>
+          <LanguageProvider>
+            <Providers>{children}</Providers>
+          </LanguageProvider>
         </ThemeProvider>
         <SpeedInsights />
         <Analytics />

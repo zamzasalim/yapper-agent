@@ -8,17 +8,12 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "./ThemeProvider";
 import { NotificationBell } from "./NotificationBell";
+import { useLanguage } from "@/lib/i18n";
 
 const AuthButton = dynamic(
   () => import("./AuthButton").then((m) => ({ default: m.AuthButton })),
   { ssr: false, loading: () => <div className="skeleton w-24 h-8 rounded-lg" /> }
 );
-
-const NAV_LINKS = [
-  { href: "/marketplace", label: "Creators" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/post-job", label: "Post Job" },
-];
 
 function ThemeToggle() {
   const { theme, toggle } = useTheme();
@@ -33,9 +28,32 @@ function ThemeToggle() {
   );
 }
 
+function LangToggle() {
+  const { lang, toggle } = useLanguage();
+  return (
+    <button
+      onClick={toggle}
+      className="flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors hover:bg-[var(--surface-2)]"
+      style={{ borderColor: "var(--border)", color: "var(--text-2)" }}
+      aria-label="Toggle language"
+    >
+      <span className={lang === "en" ? "text-blue-500" : "text-[var(--text-3)]"}>EN</span>
+      <span className="opacity-30 mx-0.5">/</span>
+      <span className={lang === "id" ? "text-blue-500" : "text-[var(--text-3)]"}>ID</span>
+    </button>
+  );
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useLanguage();
+
+  const NAV_LINKS = [
+    { href: "/marketplace", label: t.nav.creators  },
+    { href: "/jobs",        label: t.nav.jobs       },
+    { href: "/post-job",    label: t.nav.offerJobs  },
+  ];
 
   return (
     <nav
@@ -47,7 +65,7 @@ export function Navbar() {
       }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-        {/* Logo — flex-1 so nav links are truly centered */}
+        {/* Logo */}
         <div className="flex-1">
           <Link href="/" className="flex items-center gap-2 w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -58,7 +76,7 @@ export function Navbar() {
           </Link>
         </div>
 
-        {/* Desktop links — center */}
+        {/* Desktop links */}
         <div className="hidden md:flex items-center gap-1">
           {NAV_LINKS.map((link) => (
             <Link
@@ -76,9 +94,10 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Right side — flex-1 justify-end */}
+        {/* Right side */}
         <div className="flex-1 flex items-center justify-end gap-2">
           {pathname === "/dashboard" && <NotificationBell />}
+          <LangToggle />
           <ThemeToggle />
           <AuthButton />
 
@@ -118,7 +137,7 @@ export function Navbar() {
             onClick={() => setMobileOpen(false)}
             className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-2)] hover:bg-[var(--surface-2)]"
           >
-            Dashboard
+            {t.nav.dashboard}
           </Link>
         </div>
       )}
