@@ -265,6 +265,8 @@ export default function AdminPage() {
   const [initState, setInitState]           = useState<"loading" | "none" | "old" | "new">("loading");
   const [settingAdmin2, setSettingAdmin2]   = useState(false);
   const [setAdmin2Result, setSetAdmin2Result] = useState<string | null>(null);
+  const [onChainAdmin, setOnChainAdmin]     = useState<string | null>(null);
+  const [onChainAdmin2, setOnChainAdmin2]   = useState<string | null>(null);
 
   function copyWallet(address: string, jobId: string) {
     navigator.clipboard.writeText(address);
@@ -473,14 +475,26 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((d) => setCreditItems(d.pending ?? []))
       .finally(() => setLoadingCredits(false));
-    // Check on-chain state: none=74 bytes not present, old=74 bytes, new=106 bytes
+    // Check on-chain state: none=not present, old=74 bytes (no admin2), new=106+ bytes
+    // State layout: 8 disc | 32 admin | 32 usdc_mint | 1 bump | 1 vault_bump | 32 admin2 | ...
     import("@/lib/solana").then(({ connection }) => {
       import("@/lib/contract").then(({ getStatePDA }) => {
-        connection.getAccountInfo(getStatePDA()).then((info) => {
-          if (!info) setInitState("none");
-          else if (info.data.length >= 106) setInitState("new");
-          else setInitState("old");
-        }).catch(() => setInitState("none"));
+        import("@solana/web3.js").then(({ PublicKey }) => {
+          connection.getAccountInfo(getStatePDA()).then((info) => {
+            if (!info) {
+              setInitState("none");
+            } else if (info.data.length >= 106) {
+              setInitState("new");
+              setOnChainAdmin(new PublicKey(info.data.slice(8, 40)).toBase58());
+              setOnChainAdmin2(new PublicKey(info.data.slice(74, 106)).toBase58());
+            } else {
+              setInitState("old");
+              if (info.data.length >= 40) {
+                setOnChainAdmin(new PublicKey(info.data.slice(8, 40)).toBase58());
+              }
+            }
+          }).catch(() => setInitState("none"));
+        });
       });
     });
     // Fetch vault USDC balance
@@ -848,27 +862,51 @@ export default function AdminPage() {
             </div>
 
             {/* Batch action bar */}
-            <div className="card p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Wallet2 className="w-4 h-4 text-purple-500 shrink-0" />
-                <span className="text-xs font-mono text-neutral-600 dark:text-neutral-300">
-                  {walletAddress
-                    ? <>Signing wallet: <span className="text-purple-400">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span></>
-                    : <span className="text-neutral-500 dark:text-neutral-400">No wallet connected</span>
-                  }
-                </span>
+            <div className="card p-4 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Wallet2 className="w-4 h-4 text-purple-500 shrink-0" />
+                  <span className="text-xs font-mono text-neutral-600 dark:text-neutral-300">
+                    {walletAddress
+                      ? <>Signing wallet: <span className="text-purple-400">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span></>
+                      : <span className="text-neutral-500 dark:text-neutral-400">No wallet connected</span>
+                    }
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-neutral-400">{selectedCredits.size} selected</span>
+                  <button
+                    onClick={handleBatchCredit}
+                    disabled={crediting || selectedCredits.size === 0}
+                    className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {crediting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Coins className="w-3.5 h-3.5" />}
+                    {crediting ? "Signing…" : "Batch Credit"}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">{selectedCredits.size} selected</span>
-                <button
-                  onClick={handleBatchCredit}
-                  disabled={crediting || selectedCredits.size === 0}
-                  className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {crediting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Coins className="w-3.5 h-3.5" />}
-                  {crediting ? "Signing…" : "Batch Credit"}
-                </button>
-              </div>
+              {/* On-chain admin info */}
+              {(onChainAdmin || initState === "loading") && (
+                <div className="border-t border-neutral-100 dark:border-neutral-800 pt-2.5 flex flex-col gap-1">
+                  {onChainAdmin && (
+                    <p className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+                      On-chain admin1: <span className={walletAddress?.toLowerCase() === onChainAdmin.toLowerCase() ? "text-green-600 dark:text-green-400 font-semibold" : "text-neutral-400"}>{onChainAdmin.slice(0,6)}…{onChainAdmin.slice(-4)}</span>
+                      {walletAddress?.toLowerCase() === onChainAdmin.toLowerCase() && <span className="ml-1 text-green-600 dark:text-green-400">✓ connected</span>}
+                    </p>
+                  )}
+                  {onChainAdmin2 && (
+                    <p className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+                      On-chain admin2: <span className={walletAddress?.toLowerCase() === onChainAdmin2.toLowerCase() ? "text-green-600 dark:text-green-400 font-semibold" : "text-neutral-400"}>{onChainAdmin2.slice(0,6)}…{onChainAdmin2.slice(-4)}</span>
+                      {walletAddress?.toLowerCase() === onChainAdmin2.toLowerCase() && <span className="ml-1 text-green-600 dark:text-green-400">✓ connected</span>}
+                    </p>
+                  )}
+                  {walletAddress && onChainAdmin && walletAddress.toLowerCase() !== onChainAdmin.toLowerCase() && (!onChainAdmin2 || walletAddress.toLowerCase() !== onChainAdmin2.toLowerCase()) && (
+                    <p className="text-[11px] text-red-500 font-semibold">
+                      ⚠ Connected wallet does not match admin1{onChainAdmin2 ? " or admin2" : ""} — batch credit will fail.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Initialize program (one-time setup) */}
