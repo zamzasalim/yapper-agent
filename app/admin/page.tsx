@@ -39,7 +39,18 @@ interface ActiveJob {
   is_hidden: boolean;
   deadline_hours: number;
   deadline_override?: string | null;
+  max_creators?: number | null;
+  slots_taken?: number | null;
   client: { twitter_handle: string; display_name: string } | null;
+}
+
+interface ActiveCreator {
+  twitter_handle: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_verified_blue: boolean;
+  status: string;
+  proof_url: string | null;
 }
 
 interface AdditionalInfo {
@@ -228,6 +239,9 @@ export default function AdminPage() {
   const [extendModal, setExtendModal]                 = useState<{ id: string; currentDeadline: Date } | null>(null);
   const [extendDateValue, setExtendDateValue]         = useState("");
   const [extending, setExtending]                     = useState(false);
+  const [activeDetailModal, setActiveDetailModal]     = useState<ActiveJob | null>(null);
+  const [activeModalCreators, setActiveModalCreators] = useState<ActiveCreator[]>([]);
+  const [loadingActiveCreators, setLoadingActiveCreators] = useState(false);
 
   // ── Credits tab state ──────────────────────────────────────────────────────
   const [creditItems, setCreditItems]       = useState<CreditItem[]>([]);
@@ -502,6 +516,19 @@ export default function AdminPage() {
       }
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleOpenActiveDetail(job: ActiveJob) {
+    setActiveDetailModal(job);
+    setActiveModalCreators([]);
+    setLoadingActiveCreators(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/applicants`);
+      const { applicants } = await res.json();
+      setActiveModalCreators(applicants ?? []);
+    } finally {
+      setLoadingActiveCreators(false);
     }
   }
 
@@ -1374,6 +1401,7 @@ export default function AdminPage() {
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Posted</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Deadline</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Status</th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Slots</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Amount</th>
                           <th className="px-4 py-3" />
                         </tr>
@@ -1404,9 +1432,33 @@ export default function AdminPage() {
                                   {job.is_hidden ? <><EyeOff className="w-2.5 h-2.5" /> Hidden</> : job.status === "in_progress" ? "In Progress" : "Open"}
                                 </span>
                               </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {(() => {
+                                  const max = job.max_creators ?? 1;
+                                  const taken = job.slots_taken ?? 0;
+                                  const remaining = max - taken;
+                                  if (max <= 1) {
+                                    return taken === 1
+                                      ? <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">1 / 1</span>
+                                      : <span className="text-neutral-300 dark:text-neutral-600 text-[10px]">0 / 1</span>;
+                                  }
+                                  return (
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="text-[10px] font-semibold text-neutral-700 dark:text-neutral-300">{taken} / {max}</span>
+                                      {remaining > 0 && (
+                                        <span className="text-[9px] text-green-600 dark:text-green-400 font-medium">{remaining} left</span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </td>
                               <td className="px-4 py-3 font-bold text-neutral-900 dark:text-white whitespace-nowrap">${job.price_usdc.toFixed(1)}</td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-1 justify-end">
+                                  <button onClick={() => handleOpenActiveDetail(job)} title="View Creators"
+                                    className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
+                                    <Users className="w-3.5 h-3.5" />
+                                  </button>
                                   <button onClick={() => handleToggleHidden(job.id, job.is_hidden)} disabled={toggling === job.id} title={job.is_hidden ? "Show" : "Hide"}
                                     className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
                                     {toggling === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : job.is_hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -1822,6 +1874,99 @@ export default function AdminPage() {
           </>
         )}
       </div>
+
+      {/* ── Active Job Creators Modal ── */}
+      {activeDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setActiveDetailModal(null)}>
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate max-w-[320px]">{activeDetailModal.title}</p>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
+                  {fmtJobId(activeDetailModal.type, activeDetailModal.id)} · {TYPE_LABEL[activeDetailModal.type] ?? activeDetailModal.type}
+                  {(activeDetailModal.max_creators ?? 1) > 1 && (
+                    <span className="ml-2 text-neutral-500 dark:text-neutral-400">
+                      · {activeDetailModal.slots_taken ?? 0}/{activeDetailModal.max_creators} slots
+                      {((activeDetailModal.max_creators ?? 1) - (activeDetailModal.slots_taken ?? 0)) > 0 && (
+                        <span className="ml-1 text-green-600 dark:text-green-400">
+                          ({(activeDetailModal.max_creators ?? 1) - (activeDetailModal.slots_taken ?? 0)} remaining)
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button onClick={() => setActiveDetailModal(null)}
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-auto">
+              {loadingActiveCreators ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-neutral-400">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Loading…</span>
+                </div>
+              ) : activeModalCreators.length === 0 ? (
+                <div className="text-center py-16 text-neutral-400 dark:text-neutral-500">
+                  <Users className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No creators have accepted this job yet.</p>
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-neutral-50 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">#</th>
+                      <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">Handle</th>
+                      <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">Status</th>
+                      <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">Proof</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {activeModalCreators.map((creator, i) => (
+                      <tr key={creator.twitter_handle} className="bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                        <td className="px-4 py-2.5 text-neutral-400 dark:text-neutral-500">{i + 1}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-neutral-800 dark:text-neutral-200 whitespace-nowrap">@{creator.twitter_handle}</span>
+                            {creator.is_verified_blue && <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0" />}
+                          </div>
+                          {creator.display_name && (
+                            <p className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate max-w-[140px]">{creator.display_name}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                            creator.status === "completed"   ? "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
+                            : creator.status === "in_progress" ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                            : creator.status === "missed"      ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border-neutral-200 dark:border-neutral-700"
+                            : "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                          }`}>
+                            {creator.status === "in_progress" ? "Working" : creator.status === "accepted" ? "Accepted" : creator.status === "completed" ? "Done" : creator.status === "missed" ? "Missed" : creator.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {creator.proof_url ? (
+                            <a href={creator.proof_url} target="_blank" rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline flex items-center gap-1 whitespace-nowrap">
+                              <ExternalLink className="w-3 h-3" /> Proof
+                            </a>
+                          ) : <span className="text-neutral-300 dark:text-neutral-600">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Pending Job Detail Modal ── */}
       {pendingDetailModal && (() => {

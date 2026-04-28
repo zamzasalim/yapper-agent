@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       .select(
         `id, created_at, type, status, title, description, price_usdc,
          is_agent_job, is_hidden, deadline_hours, deadline_override, require_blue, min_followers,
+         max_creators, slots_taken,
          client:users!client_id(twitter_handle, display_name, avatar_url)`
       )
       .order("created_at", { ascending: false });
