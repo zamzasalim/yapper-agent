@@ -15,6 +15,7 @@ type Creator = {
   jobsDone: number;
   tags: string[];
   verified: boolean;
+  customContentRate?: number | null;
 };
 
 const FILTERS = [

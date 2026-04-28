@@ -15,10 +15,12 @@ interface Creator {
   jobsDone: number;
   tags: string[];
   verified: boolean;
+  customContentRate?: number | null;
 }
 
 export function CreatorCard({ creator }: { creator: Creator }) {
-  const price = getPriceTier(creator.followers);
+  const tierPrice = getPriceTier(creator.followers);
+  const displayRate = creator.customContentRate != null ? -1 : tierPrice;
   const initials = creator.name
     .split(" ")
     .map((w) => w[0])
@@ -64,7 +66,7 @@ export function CreatorCard({ creator }: { creator: Creator }) {
 
         <div className="shrink-0 text-right">
           <p className="font-bold text-sm text-neutral-900 dark:text-white">
-            {price === -1 ? "Rate ↗" : `$${price}`}
+            {displayRate === -1 ? "Rate ↗" : `$${displayRate}`}
           </p>
           <p className="text-xs text-neutral-400 dark:text-neutral-500">per job</p>
         </div>
@@ -103,7 +105,10 @@ export function CreatorCard({ creator }: { creator: Creator }) {
       </div>
 
       {/* CTA */}
-      <Link href={`/post-job?creator=${creator.handle}&followers=${creator.followers}`} className="btn-primary text-xs px-4 py-2.5 mt-auto">
+      <Link
+        href={`/post-job?creator=${creator.handle}&followers=${creator.followers}${creator.customContentRate != null ? `&customRate=${creator.customContentRate}` : ""}`}
+        className="btn-primary text-xs px-4 py-2.5 mt-auto"
+      >
         Hire @{creator.handle}
         <ArrowRight className="w-3.5 h-3.5" />
       </Link>

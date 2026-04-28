@@ -30,6 +30,7 @@ export type Database = {
           jobs_completed: number;
           rating: number;
           niches: string[];
+          custom_content_rate: number | null;
         };
         Insert: {
           id: string;
@@ -53,6 +54,7 @@ export type Database = {
           jobs_completed?: number;
           rating?: number;
           niches?: string[];
+          custom_content_rate?: number | null;
         };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
         Relationships: [];

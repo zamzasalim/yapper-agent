@@ -291,6 +291,10 @@ function PostJobForm() {
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
   const prefilledFollowers = parseInt(searchParams?.get("followers") ?? "-1", 10);
+  const prefilledCustomRate = (() => {
+    const v = parseFloat(searchParams?.get("customRate") ?? "");
+    return isNaN(v) ? null : v;
+  })();
 
   // Common
   const [jobType, setJobType]         = useState<JobType>("content");
@@ -378,6 +382,8 @@ function PostJobForm() {
   const unitPrice: number = (() => {
     if (fixedPrice !== undefined) return fixedPrice;
     if (jobType === "custom") return parseFloat(customPrice) || 0;
+    // direct hire with custom rate overrides the standard tier price
+    if (prefilledCreator && prefilledCustomRate !== null && jobType === "content") return prefilledCustomRate;
     // content / campaign: sum of selected tier prices
     if (hasMacro) return parseFloat(customPrice) || 0;
     return sumTierPrice;
@@ -540,7 +546,10 @@ function PostJobForm() {
   }
 
   // ── Validation ──
-  const macroCustomValid = !hasMacro || parseFloat(customPrice) > 50;
+  const macroCustomValid =
+    !hasMacro ||
+    (prefilledCreator !== "" && prefilledCustomRate !== null) ||
+    parseFloat(customPrice) > 50;
   const canSubmit = (() => {
     if (!title.trim()) return false;
     switch (jobType) {
@@ -1076,13 +1085,18 @@ function PostJobForm() {
                   <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5 flex items-center gap-1">
                     <Lock className="w-3 h-3" />
                     Tier auto-selected based on @{prefilledCreator}&apos;s follower count.
+                    {prefilledCustomRate !== null && (
+                      <span className="ml-1 text-blue-500 dark:text-blue-400 font-semibold">
+                        · Custom rate ${prefilledCustomRate} applied.
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
             )}
 
             {/* Custom price input — only when Macro is selected */}
-            {showTier && hasMacro && (
+            {showTier && hasMacro && !(prefilledCreator && prefilledCustomRate !== null) && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
                   Custom Price per Creator (USDC) *

@@ -25,8 +25,8 @@ flowchart TD
     %% ── CLIENT: POST JOB ────────────────────────────────────────
     A7 --> CL1[Post Job page]
     A7 --> MKPL[Creator Marketplace\n/marketplace]
-    MKPL --> DIRECTHIRE[Click Hire at creator\nopens /post-job?creator=handle and followers=n]
-    DIRECTHIRE --> CL1_DH[Post Job - Direct Hire mode\nJob type locked to Content\nCampaign option hidden\nnumCreators fixed at 1\nTier auto-selected and locked\nbased on creator follower count]
+    MKPL --> DIRECTHIRE[Click Hire at creator\nopens /post-job?creator=handle and followers=n\nappends customRate=X if admin has set one]
+    DIRECTHIRE --> CL1_DH[Post Job - Direct Hire mode\nJob type locked to Content\nCampaign option hidden\nnumCreators fixed at 1\nTier auto-selected and locked\nbased on creator follower count\nIf customRate param present: overrides\ntier price - bypasses standard amount]
     CL1_DH --> CL2
 
     CL1 --> CL2{Job Type}
@@ -96,6 +96,12 @@ flowchart TD
     RV1 --> RV2[POST /api/jobs/:id/rate\n1-5 stars - job must be completed\nSingle: rating stored on job row\nCampaign: pass creator_handle - per-slot rating\nstored in job_completions - avg recalculated\nfrom both single-job and campaign ratings]
 
     JOBDONE --> AD5
+
+    %% ── ADMIN: CREATORS TAB (CUSTOM RATE) ──────────────────────
+    CRTAB[Admin - Creators tab\nSearch all creators by handle or name\nSee current custom_content_rate per creator]
+    CRTAB --> CRTAB_SET[Set or Edit rate\nPATCH /api/admin/creators\nStores custom_content_rate in users table]
+    CRTAB_SET --> CRTAB_FX([Creator card shows Rate ↗\nActual rate revealed only in\npost-job direct-hire form\nvia customRate URL param])
+    CRTAB --> CRTAB_CLR[Clear rate\nPATCH with rate: null\ncustom_content_rate = NULL\nReverts to follower-tier price]
 
     %% ── ADMIN: PENDING TAB ──────────────────────────────────────
     CL9 --> AD_PEND
@@ -249,6 +255,7 @@ flowchart TD
     %% ── NAVIGATION (dotted) ─────────────────────────────────────
     A7 -.->|Connect flow| TG1
     TGNOTIFY -.->|Inline button| TG5
+    A7 -.->|Admin only| CRTAB
     A7 -.->|Admin only| AD_PEND
     A7 -.->|Admin only| AD_ACT
     A7 -.->|Admin only| AD5
@@ -258,7 +265,8 @@ flowchart TD
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
     class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,NOTIF_READALL,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13A,CR13B,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
-    class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4 admin
+    class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4,CRTAB,CRTAB_SET,CRTAB_CLR admin
+    class CRTAB_FX done
     class ESC5,CR_CLAIM4 done
     class CR_CLAIM,CR_CLAIM2,CR_CLAIM3 creator
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TGNOTIFY,TG_DISCONNECT telegram

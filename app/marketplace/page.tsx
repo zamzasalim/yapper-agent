@@ -10,7 +10,7 @@ async function getCreators() {
     const db = createServerClient();
     const { data, error } = await db
       .from("users")
-      .select("id, twitter_handle, display_name, twitter_followers, avatar_url, rating, jobs_completed, is_verified_blue, niches")
+      .select("id, twitter_handle, display_name, twitter_followers, avatar_url, rating, jobs_completed, is_verified_blue, niches, custom_content_rate")
       .eq("role", "creator")
       .order("twitter_followers", { ascending: false })
       .limit(30);
@@ -34,6 +34,7 @@ export default async function MarketplacePage() {
     jobsDone: c.jobs_completed ?? 0,
     tags: (c.niches as string[] | null) ?? [],
     verified: c.is_verified_blue ?? false,
+    customContentRate: c.custom_content_rate ?? null,
   }));
 
   const isLive = raw !== null;
