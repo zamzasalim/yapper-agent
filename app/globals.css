@@ -243,6 +243,12 @@ select.input-field { color-scheme: light dark; }
   80%, 100% { transform: translateX(calc(-100% + 18ch)); }
 }
 
+/* ── Ticker right (tweet testimonials marquee) ────────────────────────────── */
+@keyframes ticker-ltr {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
 /* ── Live dot ─────────────────────────────────────────────────────────────── */
 .dot-live {
   display: inline-block;

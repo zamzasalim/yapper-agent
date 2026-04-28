@@ -291,10 +291,7 @@ function PostJobForm() {
   const searchParams = useSearchParams();
   const prefilledCreator = searchParams?.get("creator") ?? "";
   const prefilledFollowers = parseInt(searchParams?.get("followers") ?? "-1", 10);
-  const prefilledCustomRate = (() => {
-    const v = parseFloat(searchParams?.get("customRate") ?? "");
-    return isNaN(v) ? null : v;
-  })();
+  const prefilledCustomRate = searchParams?.get("customRate") === "true";
 
   // Common
   const [jobType, setJobType]         = useState<JobType>("content");
@@ -360,7 +357,8 @@ function PostJobForm() {
   // ── Price calc ──
   const fixedPrice   = FIXED_PRICE[jobType];
   const activeTiers  = CREATOR_TIERS.filter((t) => selectedTiers.includes(t.value));
-  const hasMacro     = activeTiers.some((t) => t.price === -1);
+  const isActualMacro = activeTiers.some((t) => t.price === -1);
+  const hasMacro      = isActualMacro || (!!prefilledCreator && prefilledCustomRate);
   const sumTierPrice = hasMacro ? -1 : activeTiers.reduce((s, t) => s + t.price, 0);
 
   function toggleTier(value: string) {
@@ -382,9 +380,6 @@ function PostJobForm() {
   const unitPrice: number = (() => {
     if (fixedPrice !== undefined) return fixedPrice;
     if (jobType === "custom") return parseFloat(customPrice) || 0;
-    // direct hire with custom rate overrides the standard tier price
-    if (prefilledCreator && prefilledCustomRate !== null && jobType === "content") return prefilledCustomRate;
-    // content / campaign: sum of selected tier prices
     if (hasMacro) return parseFloat(customPrice) || 0;
     return sumTierPrice;
   })();
@@ -548,8 +543,7 @@ function PostJobForm() {
   // ── Validation ──
   const macroCustomValid =
     !hasMacro ||
-    (prefilledCreator !== "" && prefilledCustomRate !== null) ||
-    parseFloat(customPrice) > 50;
+    (isActualMacro ? parseFloat(customPrice) > 50 : parseFloat(customPrice) > 0);
   const canSubmit = (() => {
     if (!title.trim()) return false;
     switch (jobType) {
@@ -1084,26 +1078,28 @@ function PostJobForm() {
                 {prefilledCreator && (
                   <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1.5 flex items-center gap-1">
                     <Lock className="w-3 h-3" />
-                    Tier auto-selected based on @{prefilledCreator}&apos;s follower count.
-                    {prefilledCustomRate !== null && (
-                      <span className="ml-1 text-blue-500 dark:text-blue-400 font-semibold">
-                        · Custom rate ${prefilledCustomRate} applied.
-                      </span>
-                    )}
+                    {prefilledCustomRate
+                      ? <>Tier locked for follower requirement. Enter the agreed price below.</>
+                      : <>Tier auto-selected based on @{prefilledCreator}&apos;s follower count.</>
+                    }
                   </p>
                 )}
               </div>
             )}
 
             {/* Custom price input — only when Macro is selected */}
-            {showTier && hasMacro && !(prefilledCreator && prefilledCustomRate !== null) && (
+            {showTier && hasMacro && (
               <div>
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Custom Price per Creator (USDC) *
+                  {prefilledCustomRate ? "Agreed Price (USDC) *" : "Custom Price per Creator (USDC) *"}
                 </label>
-                <input className="input-field" type="number" min="51" placeholder="min. $51"
-                  value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} />
-                {customPrice && parseFloat(customPrice) <= 50 && (
+                <input
+                  className="input-field" type="number"
+                  min={isActualMacro ? "51" : "0.01"}
+                  placeholder={prefilledCustomRate ? "Enter agreed price" : "min. $51"}
+                  value={customPrice} onChange={(e) => setCustomPrice(e.target.value)}
+                />
+                {!prefilledCustomRate && customPrice && parseFloat(customPrice) <= 50 && (
                   <p className="text-[10px] text-red-500 mt-1">
                     Super CT minimum is $51 USDC (above Big CT at $50).
                   </p>

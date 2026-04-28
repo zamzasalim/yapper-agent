@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest) {
   if (!isAdmin(admin_handle))
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
-  const body = await req.json() as { handle: string; rate: number | null };
+  const body = await req.json() as { handle: string; rate: boolean | null };
   if (!body.handle)
     return NextResponse.json({ error: "handle required" }, { status: 400 });
 

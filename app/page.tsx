@@ -32,6 +32,59 @@ const CHART_BARS = [
   { day: "Sun", pct: 100, highlight: true },
 ];
 
+const TWEET_CARDS = [
+  {
+    handle: "ranimth07",
+    name: "Ranim",
+    statusId: "1947266104461504938",
+    text: "Baru aja cair $8 USDC dari Yapper Agent! Content creation job gampang banget, langsung ke wallet Solana 🔥 #Web3 #YapperAgent",
+    likes: 31,
+    retweets: 14,
+    time: "3h",
+    color: "from-blue-400 to-violet-500",
+  },
+  {
+    handle: "Starsfivejkt",
+    name: "Stars Five",
+    statusId: "2005910844744581540",
+    text: "Finally a Web3 platform that actually pays! Just completed my first retweet job on @yapperagent and got USDC instantly 💰",
+    likes: 18,
+    retweets: 8,
+    time: "5h",
+    color: "from-pink-400 to-rose-500",
+  },
+  {
+    handle: "bozzxyz",
+    name: "Bozz",
+    statusId: "2022153428999471157",
+    text: "Yapper Agent is the real deal. No BS fees, instant USDC payout on Solana. Already did 5 jobs this week 🚀",
+    likes: 45,
+    retweets: 22,
+    time: "1d",
+    color: "from-emerald-400 to-teal-500",
+  },
+  {
+    handle: "MunchMunc_21",
+    name: "Munch Munc",
+    statusId: "1948599261546860664",
+    text: "Completed 3 jobs on @yapperagent today! Love how transparent everything is — progress bar, deadlines, auto-payment 🙌",
+    likes: 27,
+    retweets: 11,
+    time: "2d",
+    color: "from-amber-400 to-orange-500",
+  },
+  {
+    handle: "Autosultan_team",
+    name: "Autosultan",
+    statusId: "1978485387015438680",
+    text: "For creators looking to monetize in Web3 — @yapperagent is a no-brainer. 0% fee, USDC payment, and legit jobs 💎",
+    likes: 52,
+    retweets: 28,
+    time: "4h",
+    color: "from-violet-400 to-purple-600",
+  },
+];
+
 function HeroCards() {
   const [secs, setSecs] = useState(23 * 3600 + 59 * 60 + 41);
   useEffect(() => {
@@ -189,14 +242,41 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats bar */}
-      <section className="border-y border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
-          {t.stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="text-2xl sm:text-3xl font-extrabold text-neutral-900 dark:text-white">{s.value}</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{s.label}</p>
-            </div>
+      {/* Tweet Testimonials Marquee */}
+      <section className="border-y border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 overflow-hidden py-5">
+        <div
+          className="flex w-max"
+          style={{ animation: "ticker-ltr 40s linear infinite", willChange: "transform" }}
+        >
+          {[...TWEET_CARDS, ...TWEET_CARDS].map((tw, i) => (
+            <a
+              key={i}
+              href={`https://x.com/${tw.handle}/status/${tw.statusId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-3 w-64 shrink-0 card p-3.5 flex flex-col gap-2 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${tw.color} flex items-center justify-center shrink-0 text-white font-bold text-xs`}>
+                    {tw.handle.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-xs text-neutral-900 dark:text-white leading-none">{tw.name}</p>
+                    <p className="text-[10px] text-neutral-400">@{tw.handle}</p>
+                  </div>
+                </div>
+                <svg className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              </div>
+              <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed line-clamp-3">{tw.text}</p>
+              <div className="flex items-center gap-3 text-[10px] text-neutral-400 dark:text-neutral-500 mt-auto">
+                <span>♥ {tw.likes}</span>
+                <span>↩ {tw.retweets}</span>
+                <span className="ml-auto">{tw.time}</span>
+              </div>
+            </a>
           ))}
         </div>
       </section>

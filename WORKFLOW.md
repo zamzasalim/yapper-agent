@@ -25,8 +25,8 @@ flowchart TD
     %% ── CLIENT: POST JOB ────────────────────────────────────────
     A7 --> CL1[Post Job page]
     A7 --> MKPL[Creator Marketplace\n/marketplace]
-    MKPL --> DIRECTHIRE[Click Hire at creator\nopens /post-job?creator=handle and followers=n\nappends customRate=X if admin has set one]
-    DIRECTHIRE --> CL1_DH[Post Job - Direct Hire mode\nJob type locked to Content\nCampaign option hidden\nnumCreators fixed at 1\nTier auto-selected and locked\nbased on creator follower count\nIf customRate param present: overrides\ntier price - bypasses standard amount]
+    MKPL --> DIRECTHIRE[Click Hire at creator\nopens /post-job?creator=handle and followers=n\nappends customRate=true if creator has custom rate flag set]
+    DIRECTHIRE --> CL1_DH[Post Job - Direct Hire mode\nJob type locked to Content\nCampaign option hidden\nnumCreators fixed at 1\nTier auto-selected and locked\nbased on creator follower count\nIf customRate=true param: hasMacro=true\nfree-form agreed price input shown below tier\nno standard tier amount applied - client enters negotiated value]
     CL1_DH --> CL2
 
     CL1 --> CL2{Job Type}
@@ -98,10 +98,10 @@ flowchart TD
     JOBDONE --> AD5
 
     %% ── ADMIN: CREATORS TAB (CUSTOM RATE) ──────────────────────
-    CRTAB[Admin - Creators tab\nSearch all creators by handle or name\nSee current custom_content_rate per creator]
-    CRTAB --> CRTAB_SET[Set or Edit rate\nPATCH /api/admin/creators\nStores custom_content_rate in users table]
-    CRTAB_SET --> CRTAB_FX([Creator card shows Rate ↗\nActual rate revealed only in\npost-job direct-hire form\nvia customRate URL param])
-    CRTAB --> CRTAB_CLR[Clear rate\nPATCH with rate: null\ncustom_content_rate = NULL\nReverts to follower-tier price]
+    CRTAB[Admin - Creators tab\nSearch all creators by handle or name\nPaginated list 10 per page\nSee boolean custom rate flag per creator]
+    CRTAB --> CRTAB_SET[Toggle custom rate flag ON\nPATCH /api/admin/creators\nbody: rate: true\ncustom_content_rate = TRUE in users table]
+    CRTAB_SET --> CRTAB_FX([Creator card shows Rate ↗ instead of tier price\nHire link appends customRate=true\nAgreed price entered by client in post-job form])
+    CRTAB --> CRTAB_CLR[Toggle custom rate flag OFF\nPATCH /api/admin/creators\nbody: rate: null\ncustom_content_rate = NULL\nReverts to follower-tier price on card]
 
     %% ── ADMIN: PENDING TAB ──────────────────────────────────────
     CL9 --> AD_PEND

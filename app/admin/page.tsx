@@ -279,14 +279,13 @@ export default function AdminPage() {
     display_name: string | null;
     avatar_url: string | null;
     twitter_followers: number;
-    custom_content_rate: number | null;
+    custom_content_rate: boolean | null;
   }
   const [creators, setCreators]             = useState<AdminCreator[]>([]);
   const [loadingCreators, setLoadingCreators] = useState(false);
   const [creatorSearch, setCreatorSearch]   = useState("");
-  const [editingHandle, setEditingHandle]   = useState<string | null>(null);
-  const [rateInput, setRateInput]           = useState("");
-  const [savingRate, setSavingRate]         = useState(false);
+  const [savingRate, setSavingRate]         = useState<string | null>(null);
+  const [creatorPage, setCreatorPage]       = useState(0);
 
   function copyWallet(address: string, jobId: string) {
     navigator.clipboard.writeText(address);
@@ -578,28 +577,23 @@ export default function AdminPage() {
   useEffect(() => { setCompletedPage(0); }, [completedTypeFilter, completedCreditedFilter, completedSearch]);
   useEffect(() => { setCancelledPage(0); }, [cancelledTypeFilter, cancelledSearch]);
   useEffect(() => { setCreditJobPage(0); }, [creditTypeFilter]);
+  useEffect(() => { setCreatorPage(0); }, [creatorSearch]);
 
-  async function handleSaveRate(handle: string, rateStr: string) {
-    setSavingRate(true);
-    const rate = rateStr.trim() === "" ? null : Number(rateStr);
-    if (rateStr.trim() !== "" && (isNaN(rate!) || rate! < 0)) {
-      setSavingRate(false);
-      return;
-    }
+  async function handleToggleCustomRate(handle: string, enable: boolean) {
+    setSavingRate(handle);
     try {
       const res = await fetch(`/api/admin/creators?admin_handle=${twitterHandle}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handle, rate }),
+        body: JSON.stringify({ handle, rate: enable ? true : null }),
       });
       if (res.ok) {
         setCreators((prev) =>
-          prev.map((c) => c.twitter_handle === handle ? { ...c, custom_content_rate: rate } : c)
+          prev.map((c) => c.twitter_handle === handle ? { ...c, custom_content_rate: enable ? true : null } : c)
         );
-        setEditingHandle(null);
       }
     } finally {
-      setSavingRate(false);
+      setSavingRate(null);
     }
   }
 
@@ -905,12 +899,15 @@ export default function AdminPage() {
             c.twitter_handle.toLowerCase().includes(creatorSearch.toLowerCase()) ||
             (c.display_name ?? "").toLowerCase().includes(creatorSearch.toLowerCase())
           );
+          const PAGE_SIZE = 10;
+          const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+          const paginated = filtered.slice(creatorPage * PAGE_SIZE, (creatorPage + 1) * PAGE_SIZE);
           return (
             <div className="space-y-4">
               <div className="card p-4">
-                <h2 className="font-bold text-sm text-neutral-900 dark:text-white mb-1">Custom Content Rate</h2>
+                <h2 className="font-bold text-sm text-neutral-900 dark:text-white mb-1">Custom Rate Creators</h2>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-                  Override the automatic tier rate for specific creators on Content jobs. Leave blank to revert to the default tier rate.
+                  Mark creators whose Content job price is negotiated case-by-case. When hired directly, the client enters the agreed price instead of the standard tier rate.
                 </p>
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
@@ -932,82 +929,76 @@ export default function AdminPage() {
                 ) : filtered.length === 0 ? (
                   <p className="text-center py-8 text-sm text-neutral-400">No creators found.</p>
                 ) : (
-                  <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                    {filtered.map((c) => {
-                      const tierRate = getPriceTier(c.twitter_followers);
-                      const tierLabel = tierRate === -1 ? "Rate ↗" : `$${tierRate}`;
-                      const isEditing = editingHandle === c.twitter_handle;
-                      return (
-                        <div key={c.twitter_handle} className="py-3 flex items-center gap-3">
-                          {c.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={c.avatar_url} alt={c.display_name ?? c.twitter_handle}
-                              className="w-8 h-8 rounded-full object-cover shrink-0 border border-neutral-200 dark:border-neutral-700" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shrink-0 text-white font-bold text-xs">
-                              {(c.twitter_handle).slice(0, 2).toUpperCase()}
+                  <>
+                    <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                      {paginated.map((c) => {
+                        const tierRate = getPriceTier(c.twitter_followers);
+                        const tierLabel = tierRate === -1 ? "Rate ↗" : `$${tierRate}`;
+                        const isCustom = !!c.custom_content_rate;
+                        const isSaving = savingRate === c.twitter_handle;
+                        return (
+                          <div key={c.twitter_handle} className="py-3 flex items-center gap-3">
+                            {c.avatar_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={c.avatar_url} alt={c.display_name ?? c.twitter_handle}
+                                className="w-8 h-8 rounded-full object-cover shrink-0 border border-neutral-200 dark:border-neutral-700" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shrink-0 text-white font-bold text-xs">
+                                {(c.twitter_handle).slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">
+                                {c.display_name ?? c.twitter_handle}
+                              </p>
+                              <p className="text-xs text-neutral-400">@{c.twitter_handle} · tier: {tierLabel}</p>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">
-                              {c.display_name ?? c.twitter_handle}
-                            </p>
-                            <p className="text-xs text-neutral-400">@{c.twitter_handle} · tier: {tierLabel}</p>
-                          </div>
-                          {isEditing ? (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                placeholder="e.g. 15"
-                                className="input-field w-24 text-sm py-1.5"
-                                value={rateInput}
-                                onChange={(e) => setRateInput(e.target.value)}
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => handleSaveRate(c.twitter_handle, rateInput)}
-                                disabled={savingRate}
-                                className="btn-primary text-xs px-3 py-1.5"
-                              >
-                                {savingRate ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
-                              </button>
-                              <button
-                                onClick={() => setEditingHandle(null)}
-                                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
                             <div className="flex items-center gap-3 shrink-0">
-                              <span className={`text-sm font-bold ${c.custom_content_rate != null ? "text-blue-600 dark:text-blue-400" : "text-neutral-400"}`}>
-                                {c.custom_content_rate != null ? `$${c.custom_content_rate}` : "—"}
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setEditingHandle(c.twitter_handle);
-                                  setRateInput(c.custom_content_rate != null ? String(c.custom_content_rate) : "");
-                                }}
-                                className="text-xs text-blue-500 hover:underline font-medium"
-                              >
-                                {c.custom_content_rate != null ? "Edit" : "Set"}
-                              </button>
-                              {c.custom_content_rate != null && (
-                                <button
-                                  onClick={() => handleSaveRate(c.twitter_handle, "")}
-                                  className="text-xs text-red-400 hover:text-red-600 hover:underline font-medium"
-                                >
-                                  Clear
-                                </button>
+                              {isCustom && (
+                                <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
+                                  Custom Rate
+                                </span>
                               )}
+                              <button
+                                onClick={() => handleToggleCustomRate(c.twitter_handle, !isCustom)}
+                                disabled={isSaving}
+                                className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                                  isCustom
+                                    ? "border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+                                    : "border-blue-200 dark:border-blue-800 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                }`}
+                              >
+                                {isSaving
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : isCustom ? "Remove" : "Set Custom"}
+                              </button>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                        <button
+                          onClick={() => setCreatorPage((p) => Math.max(0, p - 1))}
+                          disabled={creatorPage === 0}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-500 disabled:opacity-40 hover:border-neutral-300 transition-colors"
+                        >
+                          ← Prev
+                        </button>
+                        <span className="text-xs text-neutral-400">
+                          Page {creatorPage + 1} of {totalPages} · {filtered.length} creators
+                        </span>
+                        <button
+                          onClick={() => setCreatorPage((p) => Math.min(totalPages - 1, p + 1))}
+                          disabled={creatorPage >= totalPages - 1}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-500 disabled:opacity-40 hover:border-neutral-300 transition-colors"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

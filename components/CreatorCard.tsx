@@ -15,7 +15,7 @@ interface Creator {
   jobsDone: number;
   tags: string[];
   verified: boolean;
-  customContentRate?: number | null;
+  customContentRate?: boolean | null;
 }
 
 export function CreatorCard({ creator }: { creator: Creator }) {
@@ -106,7 +106,7 @@ export function CreatorCard({ creator }: { creator: Creator }) {
 
       {/* CTA */}
       <Link
-        href={`/post-job?creator=${creator.handle}&followers=${creator.followers}${creator.customContentRate != null ? `&customRate=${creator.customContentRate}` : ""}`}
+        href={`/post-job?creator=${creator.handle}&followers=${creator.followers}${creator.customContentRate ? "&customRate=true" : ""}`}
         className="btn-primary text-xs px-4 py-2.5 mt-auto"
       >
         Hire @{creator.handle}
