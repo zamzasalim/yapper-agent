@@ -6,13 +6,13 @@ seeds = true
 skip-lint = false
 
 [programs.localnet]
-yapper_escrow = "72PiBn2fvzj7iYDS5qxhgcTWVkyvwpxTj2e8sZKBgd6E"
+yapper_escrow = "7Kzwk5x4WKmQ8U9yc3TRcAsmuLBu1NSiQBaBPK4a5gTi"
 
 [programs.devnet]
-yapper_escrow = "72PiBn2fvzj7iYDS5qxhgcTWVkyvwpxTj2e8sZKBgd6E"
+yapper_escrow = "7Kzwk5x4WKmQ8U9yc3TRcAsmuLBu1NSiQBaBPK4a5gTi"
 
 [programs.mainnet]
-yapper_escrow = "72PiBn2fvzj7iYDS5qxhgcTWVkyvwpxTj2e8sZKBgd6E"
+yapper_escrow = "7Kzwk5x4WKmQ8U9yc3TRcAsmuLBu1NSiQBaBPK4a5gTi"
 
 [registry]
 url = "https://api.apr.dev"

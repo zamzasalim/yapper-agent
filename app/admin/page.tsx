@@ -11,7 +11,7 @@ import {
   Coins, Wallet2,
 } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
-import { buildCreditCreatorTx, buildInitializeTx, buildSetAdmin2Tx, buildWithdrawTx, getVaultPDA } from "@/lib/contract";
+import { buildCreditCreatorTx, buildInitializeTx, buildSendUsdcTx, buildSetAdmin2Tx, buildWithdrawTx, getVaultPDA } from "@/lib/contract";
 
 import { ADMINS } from "@/lib/admins";
 
@@ -267,6 +267,10 @@ export default function AdminPage() {
   const [setAdmin2Result, setSetAdmin2Result] = useState<string | null>(null);
   const [onChainAdmin, setOnChainAdmin]     = useState<string | null>(null);
   const [onChainAdmin2, setOnChainAdmin2]   = useState<string | null>(null);
+  const [sendRecipient, setSendRecipient]   = useState("");
+  const [sendAmount, setSendAmount]         = useState("");
+  const [sending, setSending]               = useState(false);
+  const [sendResult, setSendResult]         = useState<string | null>(null);
 
   function copyWallet(address: string, jobId: string) {
     navigator.clipboard.writeText(address);
@@ -359,6 +363,30 @@ export default function AdminPage() {
       setWithdrawResult(`✗ ${e instanceof Error ? e.message : String(e)}`);
     }
     setWithdrawing(false);
+  }
+
+  async function handleSendUsdc() {
+    if (!walletAddress || !walletProvider || !sendRecipient.trim() || !sendAmount) return;
+    const amount = parseFloat(sendAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    setSending(true);
+    setSendResult(null);
+    try {
+      const { PublicKey } = await import("@solana/web3.js");
+      const fromPubkey = new PublicKey(walletAddress);
+      const toPubkey   = new PublicKey(sendRecipient.trim());
+      const tx = await buildSendUsdcTx(fromPubkey, toPubkey, amount);
+      const signed = await walletProvider.signTransaction(tx);
+      const { connection: conn } = await import("@/lib/solana");
+      const sig = await conn.sendRawTransaction(signed.serialize());
+      const latestBlockhash = await conn.getLatestBlockhash();
+      await conn.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
+      setSendResult(`✓ Sent $${amount.toFixed(2)} USDC — sig: ${sig.slice(0,12)}…`);
+      setSendAmount("");
+    } catch (e: unknown) {
+      setSendResult(`✗ ${e instanceof Error ? e.message.slice(0, 120) : String(e)}`);
+    }
+    setSending(false);
   }
 
   async function handleBatchCredit() {
@@ -860,6 +888,53 @@ export default function AdminPage() {
                 </button>
               </div>
             </div>
+
+            {/* Send USDC (devnet helper) */}
+            <details className="card p-4 text-xs">
+              <summary className="cursor-pointer select-none font-semibold text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
+                <ArrowRight className="w-3.5 h-3.5 text-blue-500" />
+                Send USDC (devnet helper)
+              </summary>
+              <div className="mt-3 flex flex-col gap-3">
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                  Transfer USDC directly from the connected wallet to any address. Useful for funding test wallets.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <input
+                    value={sendRecipient}
+                    onChange={(e) => { setSendRecipient(e.target.value); setSendResult(null); }}
+                    placeholder="Recipient wallet address (base58)"
+                    disabled={sending}
+                    className="input text-xs font-mono w-full"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={sendAmount}
+                      onChange={(e) => { setSendAmount(e.target.value); setSendResult(null); }}
+                      placeholder="Amount USDC"
+                      disabled={sending}
+                      className="input text-xs w-32 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button
+                      onClick={handleSendUsdc}
+                      disabled={sending || !walletAddress || !sendRecipient.trim() || !sendAmount || parseFloat(sendAmount) <= 0}
+                      className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
+                      {sending ? "Sending…" : "Send"}
+                    </button>
+                  </div>
+                  {sendResult && (
+                    <p className={`text-[11px] font-medium break-all ${sendResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}`}>
+                      {sendResult}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </details>
 
             {/* Batch action bar */}
             <div className="card p-4 flex flex-col gap-3">

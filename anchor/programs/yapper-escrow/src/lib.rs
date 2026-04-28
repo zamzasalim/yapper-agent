@@ -2,7 +2,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("72PiBn2fvzj7iYDS5qxhgcTWVkyvwpxTj2e8sZKBgd6E");
+declare_id!("7Kzwk5x4WKmQ8U9yc3TRcAsmuLBu1NSiQBaBPK4a5gTi");
 
 // ── Program ───────────────────────────────────────────────────────────────────
 

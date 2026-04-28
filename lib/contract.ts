@@ -19,13 +19,14 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
 } from "@solana/spl-token";
 import { connection } from "@/lib/solana";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
 export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_ESCROW_PROGRAM_ID ?? "11111111111111111111111111111111"
+  process.env.NEXT_PUBLIC_ESCROW_PROGRAM_ID ?? "7Kzwk5x4WKmQ8U9yc3TRcAsmuLBu1NSiQBaBPK4a5gTi"
 );
 
 // Mainnet USDC: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
@@ -266,6 +267,43 @@ export async function buildClaimTx(creatorWallet: PublicKey): Promise<Transactio
   const { blockhash } = await connection.getLatestBlockhash();
   tx.recentBlockhash = blockhash;
   tx.feePayer = creatorWallet;
+  return tx;
+}
+
+/**
+ * Build a plain USDC transfer — from any wallet to any wallet.
+ * Used by the admin page to fund the vault or send devnet USDC directly.
+ */
+export async function buildSendUsdcTx(
+  fromPubkey: PublicKey,
+  toPubkey: PublicKey,
+  amountUsdc: number
+): Promise<Transaction> {
+  const fromAta = await getAssociatedTokenAddress(USDC_MINT, fromPubkey);
+  const toAta   = await getAssociatedTokenAddress(USDC_MINT, toPubkey);
+
+  const tx = new Transaction();
+
+  const toAtaInfo = await connection.getAccountInfo(toAta);
+  if (!toAtaInfo) {
+    tx.add(createAssociatedTokenAccountInstruction(
+      fromPubkey, toAta, toPubkey, USDC_MINT,
+      TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+    ));
+  }
+
+  tx.add(createTransferInstruction(
+    fromAta,
+    toAta,
+    fromPubkey,
+    BigInt(Math.round(amountUsdc * 1_000_000)),
+    [],
+    TOKEN_PROGRAM_ID,
+  ));
+
+  const { blockhash } = await connection.getLatestBlockhash();
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = fromPubkey;
   return tx;
 }
 
