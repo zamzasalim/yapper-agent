@@ -108,7 +108,7 @@ function fmtJobId(type: string, id: string) {
 const STATUS_STYLE: Record<string, string> = {
   completed:        "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400",
   in_progress:      "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400",
-  open:             "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400",
+  open:             "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400",
   cancelled:        "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400",
   pending_approval: "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400",
   missed:           "bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400",
@@ -117,7 +117,7 @@ const STATUS_STYLE: Record<string, string> = {
 const STATUS_TEXT: Record<string, string> = {
   completed:        "text-green-600 dark:text-green-400",
   in_progress:      "text-blue-600 dark:text-blue-400",
-  open:             "text-amber-600 dark:text-amber-400",
+  open:             "text-teal-600 dark:text-teal-400",
   cancelled:        "text-red-600 dark:text-red-400",
   pending_approval: "text-violet-600 dark:text-violet-400",
   missed:           "text-orange-600 dark:text-orange-400",
