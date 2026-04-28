@@ -76,14 +76,14 @@ flowchart TD
     CR14 -->|Wrong account| PROOFERR
     CR13A & CR14 -->|Verified| CR15{Single or Campaign?}
 
-    CR15 -->|Single| CR16[job: completed\ncompleted_at set\nstats incremented]
-    CR15 -->|Campaign| CR17[completion row: completed\nstats incremented per slot]
+    CR15 -->|Single| CR16[job: completed\ncompleted_at set\nstats incremented\nDashboard: Under Review]
+    CR15 -->|Campaign| CR17[completion row: completed\nstats incremented per slot\nDashboard: Under Review]
     CR17 --> CR18{All slots done?}
     CR18 -->|No| CR19[Waiting for others]
     CR18 -->|Yes| CR20[job: completed\ncompleted_at set]
     CR20 --> NOTIF_CAMPAIGN_DONE[POST /api/notifications\nNotify client: all creators\ncompleted your campaign]
     NOTIF_CAMPAIGN_DONE -.->|client sees in bell| NOTIF
-    CR16 & CR20 --> JOBDONE[[Job Completed]]
+    CR16 & CR20 --> JOBDONE[[Job Completed\nDashboard: Under Review\nuntil admin batch credits]]
 
     %% ── POST-COMPLETION ─────────────────────────────────────────
     JOBDONE --> EX1{Custom job\nextra fields?}
@@ -147,7 +147,7 @@ flowchart TD
     ESCROW_PEND --> ESC1[Admin connects Phantom\nadmin wallet in browser]
     ESC1 --> ESC2[Checkbox-select creators\nTotal USDC auto-calculated\nVault balance shown for sufficiency check]
     ESC2 --> ESC3[Click Batch Credit\nbuildCreditCreatorTx per creator\nPhantom signs + submits]
-    ESC3 --> ESC4[ClaimRecord PDA per creator updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm\ncredited_at + credit_tx set in DB]
+    ESC3 --> ESC4[ClaimRecord PDA per creator updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm\ncredited_at + credit_tx set in DB\nDashboard: moves from Under Review to Done]
     ESC4 --> ESC5([Credits locked in vault\ncreator can now claim USDC])
 
     %% ── CREATOR: CLAIM ──────────────────────────────────────────
@@ -229,12 +229,21 @@ flowchart TD
         CR_3["client_cancelled: reserved for future client-side cancellation"]
     end
 
-    subgraph DB_FIELDS["Key DB Fields on jobs"]
+    subgraph DB_FIELDS["Key DB Fields on jobs + job_completions"]
         direction LR
         DB1["completed_at:      timestamptz - set when status becomes completed"]
         DB2["cancel_reason:     text        - set when status becomes cancelled"]
         DB3["deadline_override: timestamptz - admin override for expiry calculation"]
         DB4["is_refunded:       boolean     - admin marks refund sent to client wallet"]
+        DB5["credited_at:       timestamptz - set when admin batch-credits on-chain (jobs + job_completions)\n                               Dashboard: completed + credited_at set = Done"]
+        DB6["credit_tx:         text        - on-chain tx sig for the credit transaction"]
+    end
+
+    subgraph DASH_STATS["Creator Dashboard Stats Logic"]
+        direction LR
+        DS1["Active:       jobs.status = in_progress"]
+        DS2["Under Review: jobs.status = completed AND credited_at IS NULL\n               (proof submitted, waiting for admin batch credit)"]
+        DS3["Done:         jobs.status = completed AND credited_at IS NOT NULL\n               (admin has credited on-chain)"]
     end
 
     %% ── NAVIGATION (dotted) ─────────────────────────────────────

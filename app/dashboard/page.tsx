@@ -60,6 +60,7 @@ interface JobRecord {
   title: string;
   price_usdc: number;
   status: JobStatus;
+  credited_at?: string | null;
 }
 
 interface ApplicantRecord {
@@ -524,10 +525,10 @@ export default function DashboardPage() {
     ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}`
     : null;
 
-  const totalEarned      = profile?.total_earned_usdc ?? 0;
-  const completed        = profile?.jobs_completed ?? 0;
-  const active           = jobs.filter((j) => j.status === "in_progress").length;
-  const pendingApproval  = jobs.filter((j) => j.status === "pending_approval").length;
+  const totalEarned  = profile?.total_earned_usdc ?? 0;
+  const active       = jobs.filter((j) => j.status === "in_progress").length;
+  const underReview  = jobs.filter((j) => j.status === "completed" && !j.credited_at).length;
+  const completed    = jobs.filter((j) => j.status === "completed" && !!j.credited_at).length;
 
   return (
     <>
@@ -891,7 +892,7 @@ export default function DashboardPage() {
                       <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
                       <span className="text-xs text-neutral-500 dark:text-neutral-400">Under Review</span>
                     </div>
-                    <span className="text-xs font-semibold text-orange-500 tabular-nums">{pendingApproval}</span>
+                    <span className="text-xs font-semibold text-orange-500 tabular-nums">{underReview}</span>
                   </div>
                 </div>
               </div>

@@ -177,22 +177,24 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ user: null });
 
     // Fetch their accepted/completed jobs (as creator — single-creator jobs)
-    const { data: singleJobs } = await db
+    // credited_at is a migration-added column, cast to any
+    const { data: singleJobs } = await (db as any)
       .from("jobs")
-      .select("id, created_at, type, title, price_usdc, status, client_id")
+      .select("id, created_at, type, title, price_usdc, status, client_id, credited_at")
       .eq("creator_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);
 
     // Fetch multi-creator jobs they've accepted via job_completions
-    const { data: completions } = await db
+    // Use job_completions.status and credited_at for the individual creator's progress
+    const { data: completions } = await (db as any)
       .from("job_completions")
-      .select("job_id, status, jobs(id, created_at, type, title, price_usdc, status)")
+      .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc)")
       .eq("creator_id", user.id)
       .limit(50);
 
-    const multiJobs = (completions ?? [])
-      .map((c: any) => c.jobs)
+    const multiJobs = ((completions as any[]) ?? [])
+      .map((c: any) => c.jobs ? { ...c.jobs, status: c.status, credited_at: c.credited_at } : null)
       .filter(Boolean)
       .filter((j: any) => !(singleJobs ?? []).some((s: any) => s.id === j.id));
 
