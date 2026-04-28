@@ -45,6 +45,14 @@ export async function GET(req: NextRequest) {
         .update({ status: "cancelled", cancel_reason: "expired_no_creator" })
         .in("id", toCancel);
 
+      // Mark any accepted campaign slots as missed when the job expires cancelled
+      await db
+        .from("job_completions")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ status: "missed" } as any)
+        .in("job_id", toCancel)
+        .eq("status", "accepted");
+
       // Notify clients their job expired without a creator
       const notifInserts = (activeJobs ?? [])
         .filter((j) => toCancel.includes(j.id) && (j as any).client_id && !(j as any).is_agent_job)

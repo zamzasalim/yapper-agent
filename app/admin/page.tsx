@@ -829,7 +829,7 @@ export default function AdminPage() {
             }`}
           >
             Credits
-            {creditItems.length > 0 && (
+            {tab === "credits" && creditItems.length > 0 && (
               <span className="ml-2 text-[10px] font-bold bg-purple-500 text-white rounded-full px-1.5 py-0.5">
                 {creditItems.length}
               </span>
@@ -1088,12 +1088,16 @@ export default function AdminPage() {
               if (creditTypes.length <= 2) return null;
               return (
                 <div className="flex flex-wrap gap-1.5">
-                  {creditTypes.map((t) => (
-                    <button key={t} onClick={() => setCreditTypeFilter(t)}
-                      className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${creditTypeFilter === t ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
-                      {t === "all" ? "All" : TYPE_LABEL[t] ?? t}
-                    </button>
-                  ))}
+                  {creditTypes.map((t) => {
+                    const count = t === "all" ? creditItems.length : creditItems.filter((c) => c.type === t).length;
+                    return (
+                      <button key={t} onClick={() => { setCreditTypeFilter(t); setCreditJobPage(0); setSelectedCredits(new Set()); }}
+                        className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${creditTypeFilter === t ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
+                        {t === "all" ? "All" : TYPE_LABEL[t] ?? t}
+                        <span className="ml-1 opacity-60">{count}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })()}
@@ -1152,11 +1156,14 @@ export default function AdminPage() {
                       className="rounded"
                     />
                     <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
-                      Select all ({displayedCreditItems.length}{creditTypeFilter !== "all" ? ` of ${creditItems.length}` : ""})
+                      Select all
+                    </span>
+                    <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                      {selectedCredits.size > 0 ? `${selectedCredits.size} selected` : `${displayedCreditItems.length} items`}
                     </span>
                     {selectedCredits.size > 0 && (
                       <span className="text-xs text-purple-500 font-semibold ml-auto">
-                        Total: ${creditItems.filter((c) => selectedCredits.has(c.source_id)).reduce((s, c) => s + c.amount_usdc, 0).toFixed(2)} USDC
+                        ${creditItems.filter((c) => selectedCredits.has(c.source_id)).reduce((s, c) => s + c.amount_usdc, 0).toFixed(2)} USDC
                       </span>
                     )}
                   </div>

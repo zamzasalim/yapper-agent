@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     const { admin_handle, tx_signature, items } = await req.json();
 
-    if (!ADMINS.includes(admin_handle ?? "")) {
+    if (!ADMINS.some((a) => a.toLowerCase() === (admin_handle ?? "").toLowerCase())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     if (!Array.isArray(items) || items.length === 0) {

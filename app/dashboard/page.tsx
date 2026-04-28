@@ -111,6 +111,7 @@ const STATUS_STYLE: Record<string, string> = {
   open:             "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400",
   cancelled:        "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400",
   pending_approval: "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400",
+  missed:           "bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400",
 };
 
 const STATUS_TEXT: Record<string, string> = {
@@ -119,6 +120,7 @@ const STATUS_TEXT: Record<string, string> = {
   open:             "text-amber-600 dark:text-amber-400",
   cancelled:        "text-red-600 dark:text-red-400",
   pending_approval: "text-violet-600 dark:text-violet-400",
+  missed:           "text-orange-600 dark:text-orange-400",
 };
 const STATUS_LABEL: Record<string, string> = {
   completed:        "Completed",
@@ -126,6 +128,7 @@ const STATUS_LABEL: Record<string, string> = {
   open:             "Open",
   cancelled:        "Cancelled",
   pending_approval: "Pending Approval",
+  missed:           "Missed",
 };
 function fmtStatus(s: string) { return STATUS_LABEL[s] ?? s; }
 

@@ -9,7 +9,7 @@ import { ADMINS } from "@/lib/admins";
  */
 export async function GET(req: NextRequest) {
   const handle = req.nextUrl.searchParams.get("admin_handle") ?? "";
-  if (!ADMINS.includes(handle)) {
+  if (!ADMINS.some((a) => a.toLowerCase() === handle.toLowerCase())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

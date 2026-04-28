@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
         } else {
           await sendMessage(
             chatId,
-            `⚠️ Job accepted, but retweet not detected yet.\n\n${verifyData.error}\n\nAfter retweeting, send:\n/verify ${jobId}`
+            `⚠️ Job accepted, but retweet not detected yet.\n\n${verifyData.error}\n\nAfter retweeting, send any message here to verify, or use:\n/verify ${jobId}`
           );
           await db.from("users").update({ telegram_pending_job_id: jobId }).eq("id", user.id);
         }
@@ -287,6 +287,32 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Proof URL submission ───────────────────────────────────────────────
+    // Look up job type so we can handle repost jobs differently
+    const { data: jobData } = await db
+      .from("jobs")
+      .select("type, description")
+      .eq("id", pendingId)
+      .maybeSingle();
+
+    // Repost jobs: no URL from user needed — just re-check the retweet
+    if (jobData?.type === "repost") {
+      await sendMessage(chatId, `⏳ Checking retweet...`);
+      const verifyRes = await fetch(`${APP_URL}/api/jobs/${pendingId}/verify-proof`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: user.twitter_handle }),
+      });
+      const verifyData = await verifyRes.json();
+
+      if (verifyRes.ok) {
+        await sendMessage(chatId, `🎉 Retweet verified! Job completed. Payment will be sent to your wallet.`);
+        await db.from("users").update({ telegram_pending_job_id: null }).eq("id", user.id);
+      } else {
+        await sendMessage(chatId, `❌ ${verifyData.error}\n\nTry again after retweeting.`);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     if (!text.includes("twitter.com") && !text.includes("x.com")) {
       await sendMessage(chatId, `⚠️ Please send a valid tweet URL (twitter.com or x.com).`);
       return NextResponse.json({ ok: true });
@@ -302,12 +328,6 @@ export async function POST(req: NextRequest) {
 
     if (verifyRes.ok) {
       // For custom jobs: check if additional info is needed
-      const { data: jobData } = await db
-        .from("jobs")
-        .select("type, description")
-        .eq("id", pendingId)
-        .maybeSingle();
-
       if (jobData?.type === "custom") {
         const extras = extractCustomExtras(jobData.description ?? "");
         if (hasCustomExtras(extras)) {

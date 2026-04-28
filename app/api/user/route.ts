@@ -189,16 +189,18 @@ export async function GET(req: NextRequest) {
     // Use job_completions.status and credited_at for the individual creator's progress
     const { data: completions } = await (db as any)
       .from("job_completions")
-      .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc)")
+      .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc, status)")
       .eq("creator_id", user.id)
       .limit(50);
 
     const multiJobs = ((completions as any[]) ?? [])
       .map((c: any) => {
         if (!c.jobs) return null;
-        // job_completions uses "accepted" for slots not yet proven; map to "in_progress"
-        // so dashboard stats/labels are consistent with single-creator jobs
-        const displayStatus = c.status === "accepted" ? "in_progress" : c.status;
+        // "accepted" slots on a cancelled job mean the job expired before proof — show as "missed"
+        // "accepted" on an active job maps to "in_progress" for display consistency
+        const displayStatus = c.status === "accepted"
+          ? (c.jobs.status === "cancelled" ? "missed" : "in_progress")
+          : c.status;
         return { ...c.jobs, status: displayStatus, credited_at: c.credited_at };
       })
       .filter(Boolean)

@@ -116,14 +116,23 @@ export async function POST(
     // Save rating on the job
     await db.from("jobs").update({ rating }).eq("id", id);
 
-    // Recalculate creator's average rating from all rated jobs
+    // Recalculate creator's average from all rated single jobs + campaign completions
     const { data: ratedJobs } = await db
       .from("jobs")
       .select("rating")
       .eq("creator_id", job.creator_id)
       .not("rating", "is", null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: campaignRated } = await (db as any)
+      .from("job_completions")
+      .select("rating")
+      .eq("creator_id", job.creator_id)
+      .not("rating", "is", null);
 
-    const allRatings = (ratedJobs ?? []).map((j) => j.rating as number);
+    const allRatings = [
+      ...(ratedJobs ?? []).map((j) => j.rating as number),
+      ...(campaignRated ?? []).map((c: { rating: number | null }) => c.rating as number),
+    ];
     const avgRating  = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
 
     await db
