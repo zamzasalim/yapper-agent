@@ -248,7 +248,8 @@ export default function AdminPage() {
   const [loadingCredits, setLoadingCredits] = useState(false);
   const [selectedCredits, setSelectedCredits] = useState<Set<string>>(new Set());
   const [crediting, setCrediting]           = useState(false);
-  const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number } | null>(null);
+  const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number; errors?: string[] } | null>(null);
+  const [creditTypeFilter, setCreditTypeFilter] = useState("all");
   const [vaultBalance, setVaultBalance]         = useState<number | null>(null);
   const [withdrawAmount, setWithdrawAmount]     = useState("");
   const [withdrawing, setWithdrawing]           = useState(false);
@@ -379,6 +380,7 @@ export default function AdminPage() {
 
     let ok = 0; let fail = 0;
     const confirmedItems: { source_id: string; source_type: string }[] = [];
+    const failErrors: string[] = [];
     const adminPubkey = new PublicKey(walletAddress!);
 
     for (const [wallet, { items, total }] of byWallet.entries()) {
@@ -394,6 +396,12 @@ export default function AdminPage() {
         ok++;
       } catch (e) {
         console.error("credit_creator failed for wallet", wallet, e);
+        const msg = e instanceof Error ? e.message : String(e);
+        const isUnauthorized = msg.includes("Unauthorized") || msg.includes("6000");
+        failErrors.push(isUnauthorized
+          ? `Wallet ${wallet.slice(0,6)}… — Unauthorized: connected wallet is not admin/admin2 on-chain`
+          : `Wallet ${wallet.slice(0,6)}… — ${msg.slice(0, 120)}`
+        );
         fail++;
       }
     }
@@ -412,7 +420,7 @@ export default function AdminPage() {
     }
 
     setCrediting(false);
-    setCreditResult({ ok, fail });
+    setCreditResult({ ok, fail, errors: failErrors.length > 0 ? failErrors : undefined });
   }
 
 
@@ -483,6 +491,7 @@ export default function AdminPage() {
   useEffect(() => { setActivePage(0); }, [activeTypeFilter, activeStatusFilter, activeSearch]);
   useEffect(() => { setCompletedPage(0); }, [completedTypeFilter, completedCreditedFilter, completedSearch]);
   useEffect(() => { setCancelledPage(0); }, [cancelledTypeFilter, cancelledSearch]);
+  useEffect(() => { setCreditJobPage(0); }, [creditTypeFilter]);
 
   async function handleToggleHidden(jobId: string, currentHidden: boolean) {
     setToggling(jobId);
@@ -921,8 +930,16 @@ export default function AdminPage() {
             )}
 
             {creditResult && (
-              <div className={`rounded-xl px-4 py-3 text-sm font-medium ${creditResult.fail === 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"}`}>
-                {creditResult.ok} creator(s) credited on-chain.{creditResult.fail > 0 && ` ${creditResult.fail} failed — check console.`}
+              <div className={`rounded-xl px-4 py-3 text-sm font-medium space-y-1 ${creditResult.fail === 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"}`}>
+                <p>{creditResult.ok} creator(s) credited on-chain.{creditResult.fail > 0 && ` ${creditResult.fail} failed.`}</p>
+                {creditResult.errors?.map((err, i) => (
+                  <p key={i} className="text-[11px] font-normal opacity-80 break-all">• {err}</p>
+                ))}
+                {creditResult.errors?.some(e => e.includes("Unauthorized")) && (
+                  <p className="text-[11px] font-semibold mt-1">
+                    ⚠ Make sure the wallet connected above is the admin or admin2 wallet registered on-chain.
+                  </p>
+                )}
               </div>
             )}
 
@@ -940,13 +957,41 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* Type filter pills */}
             {!loadingCredits && creditItems.length > 0 && (() => {
+              const creditTypes = ["all", ...Array.from(new Set(creditItems.map((c) => c.type)))];
+              if (creditTypes.length <= 2) return null;
+              return (
+                <div className="flex flex-wrap gap-1.5">
+                  {creditTypes.map((t) => (
+                    <button key={t} onClick={() => setCreditTypeFilter(t)}
+                      className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${creditTypeFilter === t ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
+                      {t === "all" ? "All" : TYPE_LABEL[t] ?? t}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {!loadingCredits && creditItems.length > 0 && (() => {
+              const displayedCreditItems = creditTypeFilter === "all"
+                ? creditItems
+                : creditItems.filter((c) => c.type === creditTypeFilter);
+
               // Group by job_id, preserve insertion order (API returns newest first)
               const groups: Record<string, CreditItem[]> = {};
-              for (const item of creditItems) {
+              for (const item of displayedCreditItems) {
                 (groups[item.job_id] ??= []).push(item);
               }
               const jobKeys = Object.keys(groups);
+
+              if (jobKeys.length === 0) {
+                return (
+                  <div className="card p-8 text-center text-neutral-400 dark:text-neutral-500">
+                    <p className="text-sm">No pending credits match this filter.</p>
+                  </div>
+                );
+              }
 
               function toggleJob(jobId: string) {
                 setExpandedTypes((prev) => {
@@ -977,12 +1022,12 @@ export default function AdminPage() {
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
                     <input
                       type="checkbox"
-                      checked={selectedCredits.size === creditItems.length && creditItems.length > 0}
-                      onChange={(e) => setSelectedCredits(e.target.checked ? new Set(creditItems.map((c) => c.source_id)) : new Set())}
+                      checked={selectedCredits.size === displayedCreditItems.length && displayedCreditItems.length > 0}
+                      onChange={(e) => setSelectedCredits(e.target.checked ? new Set(displayedCreditItems.map((c) => c.source_id)) : new Set())}
                       className="rounded"
                     />
                     <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
-                      Select all ({creditItems.length})
+                      Select all ({displayedCreditItems.length}{creditTypeFilter !== "all" ? ` of ${creditItems.length}` : ""})
                     </span>
                     {selectedCredits.size > 0 && (
                       <span className="text-xs text-purple-500 font-semibold ml-auto">
