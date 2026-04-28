@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import {
   Zap,
@@ -14,8 +15,116 @@ import {
   Repeat2,
   FileText,
   ChevronDown,
+  TrendingUp,
+  Award,
+  Clock,
+  Users,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+
+const CHART_BARS = [
+  { day: "Mon", pct: 38 },
+  { day: "Tue", pct: 52 },
+  { day: "Wed", pct: 65 },
+  { day: "Thu", pct: 55 },
+  { day: "Fri", pct: 72 },
+  { day: "Sat", pct: 80 },
+  { day: "Sun", pct: 100, highlight: true },
+];
+
+function HeroCards() {
+  const [secs, setSecs] = useState(23 * 3600 + 59 * 60 + 41);
+  useEffect(() => {
+    const t = setInterval(() => setSecs((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const hh = String(Math.floor(secs / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+
+  return (
+    <div className="flex flex-col gap-4 w-full max-w-sm mx-auto lg:mx-0 lg:max-w-none">
+      {/* Earnings card — slight left tilt */}
+      <div className="card p-4 shadow-md -rotate-1 hover:rotate-0 transition-transform duration-300">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">Earnings This Week</span>
+          <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+        </div>
+        <p className="text-lg font-extrabold text-neutral-900 dark:text-white mb-3">
+          $134.2 <span className="text-xs font-normal text-neutral-400">USDC</span>
+        </p>
+        {/* Bars */}
+        <div className="flex items-end gap-1 h-9">
+          {CHART_BARS.map((b) => (
+            <div
+              key={b.day}
+              className={`flex-1 rounded-t-sm ${b.highlight ? "bg-emerald-500" : "bg-emerald-200 dark:bg-emerald-800/60"}`}
+              style={{ height: `${b.pct}%` }}
+            />
+          ))}
+        </div>
+        {/* Labels */}
+        <div className="flex gap-1 mt-1">
+          {CHART_BARS.map((b) => (
+            <span key={b.day} className="flex-1 text-center text-[8px] text-neutral-400">{b.day}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Retweet card — slight right tilt */}
+      <div className="card p-4 shadow-md rotate-2 hover:rotate-0 transition-transform duration-300 translate-x-2">
+        <div className="flex items-center gap-2 mb-2.5">
+          <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 flex items-center justify-center shrink-0">
+            <Repeat2 className="w-3.5 h-3.5 text-blue-600" />
+          </div>
+          <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">Retweet</span>
+          <span className="text-[10px] text-neutral-400">2m ago</span>
+          <span className="ml-auto text-[10px] text-neutral-400">13 / 20 filled</span>
+        </div>
+        <p className="font-semibold text-sm text-neutral-900 dark:text-white mb-3 leading-snug">
+          Retweet Token Launch Announcement
+        </p>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold text-neutral-900 dark:text-white">$0.50</span>
+        </div>
+        <div className="w-full h-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 rounded-full" style={{ width: "65%" }} />
+        </div>
+      </div>
+
+      {/* Giveaway card — slight left tilt */}
+      <div className="card p-4 shadow-md -rotate-1 hover:rotate-0 transition-transform duration-300">
+        <div className="flex items-center gap-2 mb-2.5">
+          <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-950 flex items-center justify-center shrink-0">
+            <Award className="w-3.5 h-3.5 text-violet-600" />
+          </div>
+          <span className="text-[10px] font-bold bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded">Giveaway</span>
+          <span className="text-[10px] text-neutral-400">just now</span>
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-neutral-400">
+            <Users className="w-3 h-3" />10 winners
+          </span>
+        </div>
+        <p className="font-semibold text-sm text-neutral-900 dark:text-white mb-1 leading-snug">
+          Giveaway 50 USDC for 10 Lucky Winners
+        </p>
+        <p className="text-sm font-bold text-neutral-900 dark:text-white mb-2">$50</p>
+        <div className="w-full h-1.5 bg-violet-100 dark:bg-violet-900/40 rounded-full overflow-hidden mb-2">
+          <div className="h-full bg-violet-500 rounded-full" style={{ width: "33%" }} />
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+          <Clock className="w-3 h-3 shrink-0" />
+          <span>Closes in</span>
+          <span className="font-mono font-bold text-violet-500">{hh}</span>
+          <span className="text-violet-400">:</span>
+          <span className="font-mono font-bold text-violet-500">{mm}</span>
+          <span className="text-violet-400">:</span>
+          <span className="font-mono font-bold text-violet-500">{ss}</span>
+          <span className="ml-auto text-neutral-400">max 24h</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const SERVICE_VISUALS = [
   { icon: FileText, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950" },
@@ -36,40 +145,46 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative grid-bg overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-neutral-950 pointer-events-none" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-24 sm:py-32 text-center">
-          <div className="inline-flex items-center gap-2 badge-blue mb-6">
-            <span className="dot-live" />
-            <span>{t.hero.badge}</span>
-          </div>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14 pb-16 sm:pt-18 sm:pb-24">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12 items-center">
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-neutral-900 dark:text-white leading-[1.1] tracking-tight mb-6">
-            {t.hero.pre}<span className="text-blue-600">{t.hero.blue}</span>{t.hero.post}
-          </h1>
+            {/* Left: text — 2/3 */}
+            <div className="lg:col-span-2">
+              <div className="inline-flex items-center gap-2 badge-blue mb-6">
+                <span className="dot-live" />
+                <span>{t.hero.badge}</span>
+              </div>
 
-          <p className="text-neutral-500 dark:text-neutral-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-            {t.hero.subtitle}{" "}
-            <strong className="text-neutral-700 dark:text-neutral-200">{t.hero.subtitleBold1}</strong>
-            {t.hero.subtitleMid}
-            <strong className="text-neutral-700 dark:text-neutral-200">{t.hero.subtitleBold2}</strong>
-            {t.hero.subtitleEnd}
-          </p>
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-neutral-900 dark:text-white leading-[1.1] tracking-tight mb-6">
+                {t.hero.pre}<span className="text-blue-600">{t.hero.blue}</span>{t.hero.post}
+              </h1>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/marketplace" className="btn-primary text-base px-6 py-3 w-full sm:w-auto">
-              {t.hero.browseCreators}
-            </Link>
-            <Link href="/post-job" className="btn-outline text-base px-6 py-3 w-full sm:w-auto">
-              {t.hero.postJob}
-            </Link>
-          </div>
+              <p className="text-neutral-500 dark:text-neutral-400 text-lg max-w-xl mb-10 leading-relaxed">
+                {t.hero.subtitle}{" "}
+                <strong className="text-neutral-700 dark:text-neutral-200">{t.hero.subtitleBold1}</strong>
+                {t.hero.subtitleMid}
+                <strong className="text-neutral-700 dark:text-neutral-200">{t.hero.subtitleBold2}</strong>
+                {t.hero.subtitleEnd}
+              </p>
 
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-neutral-400 dark:text-neutral-500">
-            {t.hero.features.map((f) => (
-              <span key={f} className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                {f}
-              </span>
-            ))}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <Link href="/marketplace" className="btn-primary text-base px-6 py-3 w-full sm:w-auto text-center">
+                  {t.hero.browseCreators}
+                </Link>
+              </div>
+
+              <div className="mt-10 flex flex-wrap items-center gap-5 text-sm text-neutral-400 dark:text-neutral-500">
+                {t.hero.features.map((f) => (
+                  <span key={f} className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: preview cards */}
+            <HeroCards />
           </div>
         </div>
       </section>

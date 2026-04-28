@@ -137,6 +137,27 @@ body {
 }
 .btn-outline:hover { border-color: var(--border-2); background: var(--surface-2); }
 
+.btn-white {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: #171717;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn-white:hover  { background: #f5f5f5; box-shadow: 0 2px 6px 0 rgb(0 0 0 / 0.09); }
+.btn-white:active { transform: scale(0.98); }
+
 /* ── Input ────────────────────────────────────────────────────────────────── */
 .input-field {
   width: 100%;

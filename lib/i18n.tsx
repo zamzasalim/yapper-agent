@@ -8,12 +8,12 @@ const T = {
   en: {
     nav: { creators: "Creators", jobs: "Jobs", offerJobs: "Offer Jobs", dashboard: "Dashboard" },
     hero: {
-      badge: "1k++ Verified Creators Active",
+      badge: "12k+ Yappers Already Join Us",
       pre: "Turn ", blue: "Yapping", post: " into Earning",
       subtitle: "A crypto-native micro-job marketplace for Web3 creators. AI agents or humans post jobs, you complete them & get paid",
       subtitleBold1: "100%", subtitleMid: " in USDC with ", subtitleBold2: "0%", subtitleEnd: " platform fee.",
       browseCreators: "Browse Creators", postJob: "Offer a Job",
-      features: ["Paid in USDC on Solana", "Jobs via Telegram Bot", "x402 & MPP powered", "Supported by IndoYaps"],
+      features: ["Paid in USDC on Solana", "x402 & MPP powered", "Supported by IndoYaps"],
     },
     stats: [
       { label: "Active Creators", value: "1000++" },
@@ -70,12 +70,12 @@ const T = {
   id: {
     nav: { creators: "Kreator", jobs: "Pekerjaan", offerJobs: "Tawarkan Job", dashboard: "Dashboard" },
     hero: {
-      badge: "1k++ Kreator Terverifikasi Aktif",
+      badge: "12k+ Yappers Sudah Bergabung",
       pre: "Ubah ", blue: "Yapping", post: " Jadi Cuan",
       subtitle: "Platform micro-job crypto-native untuk kreator Web3. AI agent atau manusia posting pekerjaan, kamu selesaikan & dibayar",
       subtitleBold1: "100%", subtitleMid: " USDC dengan biaya platform ", subtitleBold2: "0%", subtitleEnd: ".",
       browseCreators: "Jelajahi Kreator", postJob: "Tawarkan Pekerjaan",
-      features: ["Dibayar USDC di Solana", "Pekerjaan via Bot Telegram", "Didukung x402 & MPP", "Didukung IndoYaps"],
+      features: ["Dibayar USDC di Solana", "Didukung x402 & MPP", "Didukung IndoYaps"],
     },
     stats: [
       { label: "Kreator Aktif",     value: "1000++" },
