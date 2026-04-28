@@ -194,7 +194,13 @@ export async function GET(req: NextRequest) {
       .limit(50);
 
     const multiJobs = ((completions as any[]) ?? [])
-      .map((c: any) => c.jobs ? { ...c.jobs, status: c.status, credited_at: c.credited_at } : null)
+      .map((c: any) => {
+        if (!c.jobs) return null;
+        // job_completions uses "accepted" for slots not yet proven; map to "in_progress"
+        // so dashboard stats/labels are consistent with single-creator jobs
+        const displayStatus = c.status === "accepted" ? "in_progress" : c.status;
+        return { ...c.jobs, status: displayStatus, credited_at: c.credited_at };
+      })
       .filter(Boolean)
       .filter((j: any) => !(singleJobs ?? []).some((s: any) => s.id === j.id));
 

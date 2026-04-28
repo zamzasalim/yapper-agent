@@ -139,11 +139,15 @@ export async function POST(
     }
 
     // Multi-creator: mark this creator's slot as completed
-    await db
+    const { error: slotUpdateError } = await db
       .from("job_completions")
       .update({ proof_url: finalProofUrl, status: "completed" })
       .eq("job_id", id)
       .eq("creator_id", creator.id);
+
+    if (slotUpdateError) {
+      return NextResponse.json({ error: slotUpdateError.message }, { status: 500 });
+    }
 
     // Increment campaign creator stats per-slot
     try { await (db as any).rpc("increment_creator_stats", { user_id: creator.id, amount: job.price_usdc ?? 0 }); } catch {}
