@@ -8,7 +8,7 @@ import {
   CheckCircle2, XCircle, Loader2, ShieldAlert, Clock,
   Zap, Download, ExternalLink, Users, Trash2, EyeOff, Eye,
   X, Copy, Check, Search, ChevronLeft, ChevronRight, CalendarDays, Link2,
-  Coins, Wallet2,
+  Coins, Wallet2, ArrowRight,
 } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
 import { buildCreditCreatorTx, buildInitializeTx, buildSendUsdcTx, buildSetAdmin2Tx, buildWithdrawTx, getVaultPDA } from "@/lib/contract";
