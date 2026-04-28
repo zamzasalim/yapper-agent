@@ -186,6 +186,27 @@ export async function buildWithdrawTx(
   return tx;
 }
 
+/** Single credit_creator instruction (synchronous — no blockhash). */
+export function buildCreditCreatorIx(
+  adminPubkey: PublicKey,
+  creatorWallet: PublicKey,
+  amountUsdc: number
+): TransactionInstruction {
+  const data = concatU8(DISC.creditCreator, u64LE(BigInt(Math.round(amountUsdc * 1_000_000))));
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      { pubkey: adminPubkey,             isSigner: true,  isWritable: true  },
+      { pubkey: creatorWallet,           isSigner: false, isWritable: false },
+      { pubkey: getStatePDA(),           isSigner: false, isWritable: true  },
+      { pubkey: getVaultPDA(),           isSigner: false, isWritable: false },
+      { pubkey: getClaimRecordPDA(creatorWallet), isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: data as unknown as Buffer,
+  });
+}
+
 /**
  * Build a credit_creator instruction.
  * Admin signs this — transfers USDC from their wallet to vault and records the amount.
@@ -196,27 +217,7 @@ export async function buildCreditCreatorTx(
   creatorWallet: PublicKey,
   amountUsdc: number
 ): Promise<Transaction> {
-  const state       = getStatePDA();
-  const claimRecord = getClaimRecordPDA(creatorWallet);
-
-  const data = concatU8(DISC.creditCreator, u64LE(BigInt(Math.round(amountUsdc * 1_000_000))));
-
-  const vault = getVaultPDA();
-
-  const ix = new TransactionInstruction({
-    programId: PROGRAM_ID,
-    keys: [
-      { pubkey: adminPubkey,             isSigner: true,  isWritable: true  }, // admin
-      { pubkey: creatorWallet,           isSigner: false, isWritable: false }, // creator
-      { pubkey: state,                   isSigner: false, isWritable: true  }, // state (mut — updates total_credited)
-      { pubkey: vault,                   isSigner: false, isWritable: false }, // vault (read-only balance check)
-      { pubkey: claimRecord,             isSigner: false, isWritable: true  }, // claim_record
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
-    ],
-    data: data as unknown as Buffer,
-  });
-
-  const tx = new Transaction().add(ix);
+  const tx = new Transaction().add(buildCreditCreatorIx(adminPubkey, creatorWallet, amountUsdc));
   const { blockhash } = await connection.getLatestBlockhash();
   tx.recentBlockhash = blockhash;
   tx.feePayer = adminPubkey;

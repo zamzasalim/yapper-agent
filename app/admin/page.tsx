@@ -11,7 +11,7 @@ import {
   Coins, Wallet2, ArrowRight,
 } from "lucide-react";
 import { PublicKey } from "@solana/web3.js";
-import { buildCreditCreatorTx, buildInitializeTx, buildSendUsdcTx, buildSetAdmin2Tx, buildWithdrawTx, getVaultPDA } from "@/lib/contract";
+import { buildCreditCreatorIx, buildInitializeTx, buildSendUsdcTx, buildSetAdmin2Tx, buildWithdrawTx, getVaultPDA } from "@/lib/contract";
 
 import { ADMINS } from "@/lib/admins";
 
@@ -408,31 +408,49 @@ export default function AdminPage() {
       }
     }
 
+    // Skip zero-amount entries (old test jobs)
+    const walletEntries = Array.from(byWallet.entries()).filter(([, { total }]) => total > 0);
+
     let ok = 0; let fail = 0;
     const confirmedItems: { source_id: string; source_type: string }[] = [];
     const failErrors: string[] = [];
     const adminPubkey = new PublicKey(walletAddress!);
+    const { connection: conn } = await import("@/lib/solana");
+    const { Transaction } = await import("@solana/web3.js");
 
-    for (const [wallet, { items, total }] of byWallet.entries()) {
+    // Batch up to 10 credit instructions per transaction (Solana tx size limit)
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < walletEntries.length; i += BATCH_SIZE) {
+      const chunk = walletEntries.slice(i, i + BATCH_SIZE);
       try {
-        const creatorPubkey = new PublicKey(wallet);
-        const tx = await buildCreditCreatorTx(adminPubkey, creatorPubkey, total);
+        const tx = new Transaction();
+        for (const [wallet, { total }] of chunk) {
+          tx.add(buildCreditCreatorIx(adminPubkey, new PublicKey(wallet), total));
+        }
+        const { blockhash } = await conn.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = adminPubkey;
+
         const signed = await walletProvider.signTransaction(tx);
-        const { connection: conn } = await import("@/lib/solana");
         const sig = await conn.sendRawTransaction(signed.serialize());
-        const latestBlockhash = await conn.getLatestBlockhash();
-        await conn.confirmTransaction({ signature: sig, ...latestBlockhash }, "confirmed");
-        items.forEach((i) => confirmedItems.push({ source_id: i.source_id, source_type: i.source_type }));
-        ok++;
+        const lb = await conn.getLatestBlockhash();
+        await conn.confirmTransaction({ signature: sig, ...lb }, "confirmed");
+
+        chunk.forEach(([, { items }]) =>
+          items.forEach((it) => confirmedItems.push({ source_id: it.source_id, source_type: it.source_type }))
+        );
+        ok += chunk.length;
       } catch (e) {
-        console.error("credit_creator failed for wallet", wallet, e);
+        console.error("credit batch failed", chunk.map(([w]) => w), e);
         const msg = e instanceof Error ? e.message : String(e);
         const isUnauthorized = msg.includes("Unauthorized") || msg.includes("6000");
-        failErrors.push(isUnauthorized
-          ? `Wallet ${wallet.slice(0,6)}… — Unauthorized: connected wallet is not admin/admin2 on-chain`
-          : `Wallet ${wallet.slice(0,6)}… — ${msg.slice(0, 120)}`
+        const isZero = msg.includes("ZeroAmount") || msg.includes("6001");
+        failErrors.push(
+          isUnauthorized ? `Batch ${Math.floor(i / BATCH_SIZE) + 1} — Unauthorized: connected wallet is not admin/admin2 on-chain`
+          : isZero       ? `Batch ${Math.floor(i / BATCH_SIZE) + 1} — ZeroAmount: skip items with $0 price`
+          :                `Batch ${Math.floor(i / BATCH_SIZE) + 1} — ${msg.slice(0, 120)}`
         );
-        fail++;
+        fail += chunk.length;
       }
     }
 
