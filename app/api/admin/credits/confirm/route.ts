@@ -34,14 +34,15 @@ export async function POST(req: NextRequest) {
     const errors: string[] = [];
 
     if (jobIds.length > 0) {
-      const { error } = await db.from("jobs").update(meta).in("id", jobIds);
+      // is("credited_at", null) prevents double-crediting if endpoint called twice
+      const { error } = await db.from("jobs").update(meta).in("id", jobIds).is("credited_at", null);
       if (error) errors.push(error.message);
     }
 
     if (completionIds.length > 0) {
       // Cast as any: credited_at/credit_tx are migration-added columns, not yet in generated types.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (db as any).from("job_completions").update(meta).in("id", completionIds);
+      const { error } = await (db as any).from("job_completions").update(meta).in("id", completionIds).is("credited_at", null);
       if (error) errors.push(error.message);
     }
 

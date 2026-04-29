@@ -93,7 +93,9 @@ export async function POST(
         ...(singleRated ?? []).map((j) => j.rating as number),
         ...(campaignRated ?? []).map((c: { rating: number | null }) => c.rating as number),
       ];
-      const avgRating = allRatings.reduce((a: number, b: number) => a + b, 0) / allRatings.length;
+      const avgRating = allRatings.length > 0
+        ? allRatings.reduce((a: number, b: number) => a + b, 0) / allRatings.length
+        : rating;
       await db
         .from("users")
         .update({ rating: Math.round(avgRating * 10) / 10 })
@@ -121,7 +123,9 @@ export async function POST(
       ...(ratedJobs ?? []).map((j) => j.rating as number),
       ...(campaignRated ?? []).map((c: { rating: number | null }) => c.rating as number),
     ];
-    const avgRating  = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
+    const avgRating = allRatings.length > 0
+      ? allRatings.reduce((a, b) => a + b, 0) / allRatings.length
+      : rating;
 
     await db
       .from("users")
