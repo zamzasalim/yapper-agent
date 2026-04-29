@@ -84,17 +84,11 @@ export async function POST(
       await (db as any).from("job_completions").update({ rating }).eq("id", completion.id);
 
       // Recalculate avg: single-creator rated jobs + all rated campaign completions
-      const { data: singleRated } = await db
-        .from("jobs")
-        .select("rating")
-        .eq("creator_id", targetCreator.id)
-        .not("rating", "is", null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: campaignRated } = await (db as any)
-        .from("job_completions")
-        .select("rating")
-        .eq("creator_id", targetCreator.id)
-        .not("rating", "is", null);
+      const [{ data: singleRated }, { data: campaignRated }] = await Promise.all([
+        db.from("jobs").select("rating").eq("creator_id", targetCreator.id).not("rating", "is", null),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (db as any).from("job_completions").select("rating").eq("creator_id", targetCreator.id).not("rating", "is", null),
+      ]);
       const allRatings = [
         ...(singleRated ?? []).map((j) => j.rating as number),
         ...(campaignRated ?? []).map((c: { rating: number | null }) => c.rating as number),
@@ -117,17 +111,11 @@ export async function POST(
     await db.from("jobs").update({ rating }).eq("id", id);
 
     // Recalculate creator's average from all rated single jobs + campaign completions
-    const { data: ratedJobs } = await db
-      .from("jobs")
-      .select("rating")
-      .eq("creator_id", job.creator_id)
-      .not("rating", "is", null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: campaignRated } = await (db as any)
-      .from("job_completions")
-      .select("rating")
-      .eq("creator_id", job.creator_id)
-      .not("rating", "is", null);
+    const [{ data: ratedJobs }, { data: campaignRated }] = await Promise.all([
+      db.from("jobs").select("rating").eq("creator_id", job.creator_id).not("rating", "is", null),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db as any).from("job_completions").select("rating").eq("creator_id", job.creator_id).not("rating", "is", null),
+    ]);
 
     const allRatings = [
       ...(ratedJobs ?? []).map((j) => j.rating as number),

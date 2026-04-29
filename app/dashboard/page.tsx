@@ -420,7 +420,7 @@ export default function DashboardPage() {
             setAwaitingTelegram(false);
           }
         } catch { /* ignore */ }
-      }, 3000);
+      }, 5000);
     } finally {
       setConnectingTelegram(false);
     }

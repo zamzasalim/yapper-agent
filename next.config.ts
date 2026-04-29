@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   },
   // Bot runs as a separate process — exclude from Next.js build
   serverExternalPackages: ["grammy"],
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default nextConfig;

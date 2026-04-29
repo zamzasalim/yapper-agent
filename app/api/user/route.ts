@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // Check if user already exists
     const { data: existing } = await db
       .from("users")
-      .select("*")
+      .select("id, twitter_handle, display_name, avatar_url, twitter_followers, is_verified_blue, wallet_address, niches, role, rating, jobs_completed, total_earned_usdc, telegram_chat_id, telegram_username, custom_content_rate")
       .eq("twitter_handle", twitter_handle)
       .maybeSingle();
 
@@ -169,29 +169,33 @@ export async function GET(req: NextRequest) {
 
     const { data: user, error } = await db
       .from("users")
-      .select("*")
+      .select("id, twitter_handle, display_name, avatar_url, twitter_followers, is_verified_blue, wallet_address, niches, role, rating, jobs_completed, total_earned_usdc, telegram_chat_id, telegram_username, custom_content_rate")
       .eq("twitter_handle", handle)
       .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!user) return NextResponse.json({ user: null });
 
-    // Fetch their accepted/completed jobs (as creator — single-creator jobs)
-    // credited_at is a migration-added column, cast to any
-    const { data: singleJobs } = await (db as any)
-      .from("jobs")
-      .select("id, created_at, type, title, price_usdc, status, client_id, credited_at")
-      .eq("creator_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    // Fetch multi-creator jobs they've accepted via job_completions
-    // Use job_completions.status and credited_at for the individual creator's progress
-    const { data: completions } = await (db as any)
-      .from("job_completions")
-      .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc, status)")
-      .eq("creator_id", user.id)
-      .limit(50);
+    // Fetch creator jobs, campaign completions, and client jobs in parallel
+    const [{ data: singleJobs }, { data: completions }, { data: clientJobs }] = await Promise.all([
+      (db as any)
+        .from("jobs")
+        .select("id, created_at, type, title, price_usdc, status, client_id, credited_at")
+        .eq("creator_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      (db as any)
+        .from("job_completions")
+        .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc, status)")
+        .eq("creator_id", user.id)
+        .limit(50),
+      db
+        .from("jobs")
+        .select("id, created_at, type, title, price_usdc, status, creator_id, rating")
+        .eq("client_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
 
     const multiJobs = ((completions as any[]) ?? [])
       .map((c: any) => {
@@ -209,14 +213,6 @@ export async function GET(req: NextRequest) {
     const jobs = [...(singleJobs ?? []), ...multiJobs]
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 50);
-
-    // Fetch jobs they posted (as client)
-    const { data: clientJobs } = await db
-      .from("jobs")
-      .select("id, created_at, type, title, price_usdc, status, creator_id, rating")
-      .eq("client_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
 
     return NextResponse.json({ user, jobs: jobs ?? [], clientJobs: clientJobs ?? [] });
   } catch (err: unknown) {

@@ -20,21 +20,11 @@ export async function GET(req: NextRequest) {
 
   if (!user) return NextResponse.json({ pending_usdc: 0 });
 
-  // Single-creator completed jobs not yet credited
-  const { data: singleJobs } = await db
-    .from("jobs")
-    .select("price_usdc")
-    .eq("creator_id", user.id)
-    .eq("status", "completed")
-    .is("credited_at", null);
-
-  // Campaign slots completed not yet credited
-  const { data: completions } = await db
-    .from("job_completions")
-    .select("jobs ( price_usdc )")
-    .eq("creator_id", user.id)
-    .eq("status", "completed")
-    .is("credited_at", null);
+  // Fetch single-creator jobs and campaign completions in parallel
+  const [{ data: singleJobs }, { data: completions }] = await Promise.all([
+    db.from("jobs").select("price_usdc").eq("creator_id", user.id).eq("status", "completed").is("credited_at", null),
+    db.from("job_completions").select("jobs ( price_usdc )").eq("creator_id", user.id).eq("status", "completed").is("credited_at", null),
+  ]);
 
   const fromSingle = (singleJobs ?? []).reduce((s, j) => s + (j.price_usdc ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
