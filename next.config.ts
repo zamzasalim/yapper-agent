@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_AGENT_URL: process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz",
     NEXT_PUBLIC_DOCS_URL:  process.env.NEXT_PUBLIC_DOCS_URL  ?? "https://docs.yapperagent.xyz",
     NEXT_PUBLIC_API_URL:   process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz",
-    NEXT_PUBLIC_ADMIN_URL: process.env.NEXT_PUBLIC_ADMIN_URL ?? "https://admin.yapperagent.xyz",
+    NEXT_PUBLIC_ADMIN_URL:  process.env.NEXT_PUBLIC_ADMIN_URL  ?? "https://admin.yapperagent.xyz",
+    NEXT_PUBLIC_VAULT_ADDRESS: process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "2kBsz4CvoqArhRefhy1XHC7STeygudFSWDfB1dDdDWbU",
   },
   images: {
     remotePatterns: [

@@ -22,8 +22,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { buildClaimTx } from "@/lib/contract";
-import { PublicKey } from "@solana/web3.js";
 import { MarqueeName } from "@/components/MarqueeName";
 
 const PAGE_SIZE = 5;
@@ -356,12 +354,15 @@ export default function DashboardPage() {
     setClaiming(true);
     setClaimTx(null);
     try {
+      const [{ PublicKey }, { buildClaimTx }, { connection: conn }] = await Promise.all([
+        import("@solana/web3.js"),
+        import("@/lib/contract"),
+        import("@/lib/solana"),
+      ]);
       const creatorPubkey = new PublicKey(wallet);
       const tx = await buildClaimTx(creatorPubkey);
-      // Reown Solana provider signs the transaction
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const signed = await (walletProvider as any).signTransaction(tx);
-      const { connection: conn } = await import("@/lib/solana");
       const sig = await conn.sendRawTransaction(signed.serialize());
       await conn.confirmTransaction(sig, "confirmed");
       setClaimTx(sig);

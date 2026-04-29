@@ -13,9 +13,7 @@ import {
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
 import { Zap, Copy, Check } from "lucide-react";
-import { getVaultPDA } from "@/lib/contract";
-
-const VAULT_ADDRESS = getVaultPDA().toBase58();
+const VAULT_ADDRESS = process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "";
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
 const DOCS_URL  = process.env.NEXT_PUBLIC_DOCS_URL  ?? "https://docs.yapperagent.xyz";
 
