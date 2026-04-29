@@ -7,6 +7,8 @@ const USDC_MINT_STR   = process.env.NEXT_PUBLIC_USDC_MINT ?? "EPjFWdd5AufqSSqeM2
 const VAULT_OWNER_STR = getStatePDA().toBase58(); // state PDA is the vault token account authority
 const SOLANA_RPC      = process.env.NEXT_PUBLIC_SOLANA_RPC ?? "https://api.mainnet-beta.solana.com";
 
+const connection = new Connection(SOLANA_RPC, "confirmed");
+
 /**
  * POST /api/verify-payment
  * Body: { tx_hash: string, expected_usdc: number }
@@ -45,7 +47,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Fetch transaction from Solana
-    const connection = new Connection(SOLANA_RPC, "confirmed");
     let tx;
     try {
       tx = await connection.getParsedTransaction(txSig, {
