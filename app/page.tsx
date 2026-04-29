@@ -264,120 +264,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="h-20 bg-gradient-to-b from-white dark:from-neutral-950 to-neutral-50 dark:to-neutral-900" />
-
-      {/* Why Us? */}
-      <section className="pb-20 bg-neutral-50 dark:bg-neutral-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-8">
-            <p className="badge-blue mb-3">Why Us?</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-3">
-              Yapper Agent by Yapper Indo<br className="hidden sm:block" />
-            </h2>
-            <p className="text-neutral-500 dark:text-neutral-400 max-w-lg mx-auto">
-               It&apos;s more than just a platform, thousands of creators have successfully received their first payout here
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-10">
-            <a
-              href="https://x.com/i/communities/1920093148396871777"
-              target="_blank" rel="noopener noreferrer"
-              className="card overflow-hidden flex flex-col h-52 hover:shadow-lg transition-all group hover:border-blue-200 dark:hover:border-blue-800"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/x.png" alt="X Communities" className="w-full h-3/5 object-cover shrink-0" style={{ objectPosition: "center 100%" }} />
-              <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col items-center text-center">
-                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium uppercase tracking-wide">X Community</p>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <p className="text-xl font-black text-neutral-900 dark:text-white leading-none">12k+</p>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Active members</p>
-                </div>
-                <div className="mt-auto flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:gap-2 transition-all">
-                  Join Community <ArrowRight className="w-3 h-3" />
-                </div>
-              </div>
-            </a>
-            <a
-              href="https://discord.gg/H5baJpp8nB"
-              target="_blank" rel="noopener noreferrer"
-              className="card overflow-hidden flex flex-col h-52 hover:shadow-lg transition-all group hover:border-violet-200 dark:hover:border-violet-800"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/dc.png" alt="Discord" className="w-full h-3/5 object-cover shrink-0" style={{ objectPosition: "center 100%" }} />
-              <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col items-center text-center">
-                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium uppercase tracking-wide">Discord Server</p>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <p className="text-xl font-black text-neutral-900 dark:text-white leading-none">3k+</p>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Active members</p>
-                </div>
-                <div className="mt-auto flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 group-hover:gap-2 transition-all">
-                  Join Server <ArrowRight className="w-3 h-3" />
-                </div>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        {/* Tweet marquee — full bleed */}
-        <div className="overflow-hidden">
-          <div
-            className="flex w-max"
-            style={{ animation: "ticker-ltr 40s linear infinite", willChange: "transform" }}
-          >
-            {[...TWEET_CARDS, ...TWEET_CARDS].map((tw, i) => (
-              <a
-                key={i}
-                href={`https://x.com/${tw.handle}/status/${tw.statusId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mx-3 w-64 shrink-0 card bg-white dark:bg-neutral-950 p-3.5 flex flex-col gap-2 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`relative w-8 h-8 rounded-full bg-gradient-to-br ${tw.color} flex items-center justify-center shrink-0 text-white font-bold text-xs overflow-hidden`}>
-                      <span className="select-none">{tw.handle.slice(0, 2).toUpperCase()}</span>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={tw.avatar}
-                        alt={tw.name}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-xs text-neutral-900 dark:text-white leading-none flex items-center gap-0.5">
-                        {tw.name}
-                        {tw.verified && (
-                          <svg className="w-3 h-3 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.88 9.33 2 10.57 2 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.33-2.19c1.4.46 2.91.2 3.92-.81s1.26-2.52.8-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/>
-                          </svg>
-                        )}
-                      </p>
-                      <p className="text-[10px] text-neutral-400">@{tw.handle}</p>
-                    </div>
-                  </div>
-                  <svg className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                </div>
-                <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed line-clamp-3">{tw.text}</p>
-                <div className="flex items-center gap-3 text-[10px] text-neutral-400 dark:text-neutral-500 mt-auto">
-                  <span>💬 {tw.replies}</span>
-                  <span>↩ {tw.retweets}</span>
-                  <span>♥ {tw.likes}</span>
-                  <span className="ml-auto flex items-center gap-1">
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>
-                    {tw.views}
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="h-20 bg-gradient-to-b from-neutral-50 dark:from-neutral-900 to-white dark:to-neutral-950" />
 
       {/* Services */}
       <section className="pb-20 bg-white dark:bg-neutral-950">
@@ -522,6 +408,117 @@ export default function HomePage() {
             >
               {t.telegram.startBot}
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Join Us */}
+      <section className="pt-12 pb-20 bg-neutral-50 dark:bg-neutral-900">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8">
+            <p className="badge-blue mb-3">{t.joinUs.badge}</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-3">
+              {t.joinUs.title}<br className="hidden sm:block" />
+            </h2>
+            <p className="text-neutral-500 dark:text-neutral-400 max-w-lg mx-auto">
+              {t.joinUs.subtitle}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-10">
+            <a
+              href="https://x.com/i/communities/1920093148396871777"
+              target="_blank" rel="noopener noreferrer"
+              className="card overflow-hidden flex flex-col h-52 hover:shadow-lg transition-all group hover:border-blue-200 dark:hover:border-blue-800"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/x.png" alt="X Communities" className="w-full h-3/5 object-cover shrink-0" style={{ objectPosition: "center 100%" }} />
+              <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col items-center text-center">
+                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium uppercase tracking-wide">{t.joinUs.xLabel}</p>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <p className="text-xl font-black text-neutral-900 dark:text-white leading-none">{t.joinUs.xMembers}</p>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">{t.joinUs.xMembersLabel}</p>
+                </div>
+                <div className="mt-auto flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:gap-2 transition-all">
+                  {t.joinUs.xCta} <ArrowRight className="w-3 h-3" />
+                </div>
+              </div>
+            </a>
+            <a
+              href="https://discord.gg/H5baJpp8nB"
+              target="_blank" rel="noopener noreferrer"
+              className="card overflow-hidden flex flex-col h-52 hover:shadow-lg transition-all group hover:border-violet-200 dark:hover:border-violet-800"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/dc.png" alt="Discord" className="w-full h-3/5 object-cover shrink-0" style={{ objectPosition: "center 100%" }} />
+              <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col items-center text-center">
+                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium uppercase tracking-wide">{t.joinUs.dcLabel}</p>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <p className="text-xl font-black text-neutral-900 dark:text-white leading-none">{t.joinUs.dcMembers}</p>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">{t.joinUs.dcMembersLabel}</p>
+                </div>
+                <div className="mt-auto flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 group-hover:gap-2 transition-all">
+                  {t.joinUs.dcCta} <ArrowRight className="w-3 h-3" />
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        {/* Tweet marquee — full bleed */}
+        <div className="overflow-hidden">
+          <div
+            className="flex w-max"
+            style={{ animation: "ticker-ltr 40s linear infinite", willChange: "transform" }}
+          >
+            {[...TWEET_CARDS, ...TWEET_CARDS].map((tw, i) => (
+              <a
+                key={i}
+                href={`https://x.com/${tw.handle}/status/${tw.statusId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mx-3 w-64 shrink-0 card bg-white dark:bg-neutral-950 p-3.5 flex flex-col gap-2 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`relative w-8 h-8 rounded-full bg-gradient-to-br ${tw.color} flex items-center justify-center shrink-0 text-white font-bold text-xs overflow-hidden`}>
+                      <span className="select-none">{tw.handle.slice(0, 2).toUpperCase()}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={tw.avatar}
+                        alt={tw.name}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-neutral-900 dark:text-white leading-none flex items-center gap-0.5">
+                        {tw.name}
+                        {tw.verified && (
+                          <svg className="w-3 h-3 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.88 9.33 2 10.57 2 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.33-2.19c1.4.46 2.91.2 3.92-.81s1.26-2.52.8-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/>
+                          </svg>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-neutral-400">@{tw.handle}</p>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                </div>
+                <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed line-clamp-3">{tw.text}</p>
+                <div className="flex items-center gap-3 text-[10px] text-neutral-400 dark:text-neutral-500 mt-auto">
+                  <span>💬 {tw.replies}</span>
+                  <span>↩ {tw.retweets}</span>
+                  <span>♥ {tw.likes}</span>
+                  <span className="ml-auto flex items-center gap-1">
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>
+                    {tw.views}
+                  </span>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </section>

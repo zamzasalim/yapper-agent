@@ -41,7 +41,7 @@ AI agents can post jobs autonomously via the x402 payment protocol or MCP.
 3. **Admin batch-credits** → Credits tab groups pending completions by job. Admin signs a batch transaction via Phantom that writes ClaimRecord PDAs on-chain (`credit_creator` instruction).
 4. **Creator claims** → Claimable Balance card in dashboard. One-click claim transfers USDC from vault PDA to creator wallet.
 
-Vault address and State PDA are auto-derived from `NEXT_PUBLIC_ESCROW_PROGRAM_ID`. No manual address config needed.
+Vault PDA address is set via `NEXT_PUBLIC_VAULT_ADDRESS` (pre-computed from the program ID — recompute if program ID changes). State PDA is derived at claim time from `NEXT_PUBLIC_ESCROW_PROGRAM_ID`.
 
 ## Key Features
 
@@ -148,6 +148,7 @@ NEXT_PUBLIC_REOWN_PROJECT_ID=
 NEXT_PUBLIC_SOLANA_NETWORK=devnet
 NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
 NEXT_PUBLIC_ESCROW_PROGRAM_ID=   # Anchor program ID after deploy
+NEXT_PUBLIC_VAULT_ADDRESS=       # Vault PDA — pre-computed from program ID (run: node -e "require('./anchor/scripts/get-vault')" or see .env.local comment)
 NEXT_PUBLIC_USDC_MINT=           # devnet: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
 SCRAPEBADGER_API_KEY=
 TELEGRAM_BOT_TOKEN=
