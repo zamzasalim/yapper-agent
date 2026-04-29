@@ -32,55 +32,77 @@ const CHART_BARS = [
   { day: "Sun", pct: 100, highlight: true },
 ];
 
+const YAPPER_AVATAR1 = "https://pbs.twimg.com/profile_images/1964530712562077696/Yu1-36cj_400x400.jpg";
+const YAPPER_AVATAR2 = "https://pbs.twimg.com/profile_images/1974714742821584896/u5cksoZb_400x400.jpg";
+const YAPPER_AVATAR3 = "https://pbs.twimg.com/profile_images/2044302536979689472/zn6VU9CJ_400x400.jpg";
+const YAPPER_AVATAR4 = "https://pbs.twimg.com/profile_images/1983714442379718657/ASsbWxAA_400x400.jpg";
+const YAPPER_AVATAR5 = "https://pbs.twimg.com/profile_images/2009639846177083392/cW8vdlss_400x400.jpg";
+
+
 const TWEET_CARDS = [
   {
     handle: "ranimth07",
-    name: "Ranim",
+    name: "Raniii 🔥",
+    avatar: YAPPER_AVATAR1,
+    verified: true,
     statusId: "1947266104461504938",
-    text: "Baru aja cair $8 USDC dari Yapper Agent! Content creation job gampang banget, langsung ke wallet Solana 🔥 #Web3 #YapperAgent",
-    likes: 31,
-    retweets: 14,
-    time: "3h",
+    text: "This group is super helpful. My engagement skyrocketed & the free education works well.",
+    replies: 225,
+    likes: 225,
+    retweets: 72,
+    views: "29K",
     color: "from-blue-400 to-violet-500",
   },
   {
     handle: "Starsfivejkt",
-    name: "Stars Five",
+    name: "StarsFive",
+    avatar: YAPPER_AVATAR2,
+    verified: false,
     statusId: "2005910844744581540",
-    text: "Finally a Web3 platform that actually pays! Just completed my first retweet job on @yapperagent and got USDC instantly 💰",
-    likes: 18,
-    retweets: 8,
-    time: "5h",
+    text: "Proud of my first Infofi award. Huge thanks to @Autosultan_team & Yapper Indo. Big thanks to my X friends",
+    replies: 19,
+    likes: 20,
+    retweets: 1,
+    views: "7067",
     color: "from-pink-400 to-rose-500",
   },
   {
     handle: "bozzxyz",
-    name: "Bozz",
+    name: "Bozzx.",
+    avatar: YAPPER_AVATAR3,
+    verified: true,
     statusId: "2022153428999471157",
-    text: "Yapper Agent is the real deal. No BS fees, instant USDC payout on Solana. Already did 5 jobs this week 🚀",
-    likes: 45,
-    retweets: 22,
-    time: "1d",
+    text: "Landed a $1.5k/mo Web3 job. Consistency, personal branding & community matter. Thanks to Yapper Indo.",
+    replies: 120,
+    likes: 867,
+    retweets: 84,
+    views: "81.1K",
     color: "from-emerald-400 to-teal-500",
   },
   {
     handle: "MunchMunc_21",
-    name: "Munch Munc",
+    name: "MunchMunch.base.eth",
+    avatar: YAPPER_AVATAR4,
+    verified: true,
     statusId: "1948599261546860664",
-    text: "Completed 3 jobs on @yapperagent today! Love how transparent everything is — progress bar, deadlines, auto-payment 🙌",
-    likes: 27,
-    retweets: 11,
-    time: "2d",
+    text: "Meta yapping makes impressions easier. Aiming to monetize soon. Thanks Yapper Indo for the community",
+    replies: 16,
+    likes: 30,
+    retweets: 3,
+    views: "12.4K",
     color: "from-amber-400 to-orange-500",
   },
   {
     handle: "Autosultan_team",
-    name: "Autosultan",
+    name: "Zamza Salim",
+    avatar: YAPPER_AVATAR5,
+    verified: true,
     statusId: "1978485387015438680",
-    text: "For creators looking to monetize in Web3 — @yapperagent is a no-brainer. 0% fee, USDC payment, and legit jobs 💎",
-    likes: 52,
-    retweets: 28,
-    time: "4h",
+    text: "Yapper Indonesia big win on Recall",
+    replies: 112,
+    likes: 227,
+    retweets: 5,
+    views: "39.1K",
     color: "from-violet-400 to-purple-600",
   },
 ];
@@ -242,47 +264,123 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Tweet Testimonials Marquee */}
-      <section className="border-y border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 overflow-hidden py-5">
-        <div
-          className="flex w-max"
-          style={{ animation: "ticker-ltr 40s linear infinite", willChange: "transform" }}
-        >
-          {[...TWEET_CARDS, ...TWEET_CARDS].map((tw, i) => (
+      <div className="h-20 bg-gradient-to-b from-white dark:from-neutral-950 to-neutral-50 dark:to-neutral-900" />
+
+      {/* Why Us? */}
+      <section className="pb-20 bg-neutral-50 dark:bg-neutral-900">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8">
+            <p className="badge-blue mb-3">Why Us?</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-3">
+              Yapper Agent by Yapper Indo<br className="hidden sm:block" />
+            </h2>
+            <p className="text-neutral-500 dark:text-neutral-400 max-w-lg mx-auto">
+               It&apos;s more than just a platform, thousands of creators have successfully received their first payout here
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-10">
             <a
-              key={i}
-              href={`https://x.com/${tw.handle}/status/${tw.statusId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mx-3 w-64 shrink-0 card p-3.5 flex flex-col gap-2 hover:shadow-md transition-shadow"
+              href="https://x.com/i/communities/1920093148396871777"
+              target="_blank" rel="noopener noreferrer"
+              className="card overflow-hidden flex flex-col h-52 hover:shadow-lg transition-all group hover:border-blue-200 dark:hover:border-blue-800"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${tw.color} flex items-center justify-center shrink-0 text-white font-bold text-xs`}>
-                    {tw.handle.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-xs text-neutral-900 dark:text-white leading-none">{tw.name}</p>
-                    <p className="text-[10px] text-neutral-400">@{tw.handle}</p>
-                  </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/x.png" alt="X Communities" className="w-full h-3/5 object-cover shrink-0" style={{ objectPosition: "center 100%" }} />
+              <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col items-center text-center">
+                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium uppercase tracking-wide">X Community</p>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <p className="text-xl font-black text-neutral-900 dark:text-white leading-none">12k+</p>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Active members</p>
                 </div>
-                <svg className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                </svg>
-              </div>
-              <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed line-clamp-3">{tw.text}</p>
-              <div className="flex items-center gap-3 text-[10px] text-neutral-400 dark:text-neutral-500 mt-auto">
-                <span>♥ {tw.likes}</span>
-                <span>↩ {tw.retweets}</span>
-                <span className="ml-auto">{tw.time}</span>
+                <div className="mt-auto flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:gap-2 transition-all">
+                  Join Community <ArrowRight className="w-3 h-3" />
+                </div>
               </div>
             </a>
-          ))}
+            <a
+              href="https://discord.gg/H5baJpp8nB"
+              target="_blank" rel="noopener noreferrer"
+              className="card overflow-hidden flex flex-col h-52 hover:shadow-lg transition-all group hover:border-violet-200 dark:hover:border-violet-800"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/dc.png" alt="Discord" className="w-full h-3/5 object-cover shrink-0" style={{ objectPosition: "center 100%" }} />
+              <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col items-center text-center">
+                <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-medium uppercase tracking-wide">Discord Server</p>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <p className="text-xl font-black text-neutral-900 dark:text-white leading-none">3k+</p>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Active members</p>
+                </div>
+                <div className="mt-auto flex items-center gap-1 text-[11px] font-semibold text-violet-600 dark:text-violet-400 group-hover:gap-2 transition-all">
+                  Join Server <ArrowRight className="w-3 h-3" />
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        {/* Tweet marquee — full bleed */}
+        <div className="overflow-hidden">
+          <div
+            className="flex w-max"
+            style={{ animation: "ticker-ltr 40s linear infinite", willChange: "transform" }}
+          >
+            {[...TWEET_CARDS, ...TWEET_CARDS].map((tw, i) => (
+              <a
+                key={i}
+                href={`https://x.com/${tw.handle}/status/${tw.statusId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mx-3 w-64 shrink-0 card bg-white dark:bg-neutral-950 p-3.5 flex flex-col gap-2 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`relative w-8 h-8 rounded-full bg-gradient-to-br ${tw.color} flex items-center justify-center shrink-0 text-white font-bold text-xs overflow-hidden`}>
+                      <span className="select-none">{tw.handle.slice(0, 2).toUpperCase()}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={tw.avatar}
+                        alt={tw.name}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-neutral-900 dark:text-white leading-none flex items-center gap-0.5">
+                        {tw.name}
+                        {tw.verified && (
+                          <svg className="w-3 h-3 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.88 9.33 2 10.57 2 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.33-2.19c1.4.46 2.91.2 3.92-.81s1.26-2.52.8-3.91c1.31-.67 2.19-1.91 2.19-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/>
+                          </svg>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-neutral-400">@{tw.handle}</p>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                </div>
+                <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed line-clamp-3">{tw.text}</p>
+                <div className="flex items-center gap-3 text-[10px] text-neutral-400 dark:text-neutral-500 mt-auto">
+                  <span>💬 {tw.replies}</span>
+                  <span>↩ {tw.retweets}</span>
+                  <span>♥ {tw.likes}</span>
+                  <span className="ml-auto flex items-center gap-1">
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>
+                    {tw.views}
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
       </section>
 
+      <div className="h-20 bg-gradient-to-b from-neutral-50 dark:from-neutral-900 to-white dark:to-neutral-950" />
+
       {/* Services */}
-      <section className="py-20 bg-white dark:bg-neutral-950">
+      <section className="pb-20 bg-white dark:bg-neutral-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="badge-blue mb-3">{t.services.badge}</p>
@@ -322,8 +420,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Ticker */}
-      <section className="border-y border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-950 overflow-hidden py-5">
+      {/* Ticker — hidden */}
+      <section className="hidden border-y border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-950 overflow-hidden py-5">
         <div className="animate-ticker">
           {[...Array(6)].map((_, i) => (
             <span key={i} className="flex items-center gap-4 px-8 whitespace-nowrap text-sm font-semibold text-neutral-900 dark:text-white">
@@ -338,7 +436,7 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section className="py-20 grid-bg">
+      <section className="relative py-20 grid-bg overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="badge-blue mb-3">{t.howItWorks.badge}</p>
@@ -364,10 +462,11 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-b from-transparent to-white dark:to-neutral-950 pointer-events-none" />
       </section>
 
       {/* Partnership */}
-      <section className="py-20 bg-white dark:bg-neutral-950">
+      <section className="pb-20 bg-white dark:bg-neutral-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <div className="mb-12">
             <p className="badge-blue mb-3">{t.partnership.badge}</p>
