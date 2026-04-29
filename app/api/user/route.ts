@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
         .limit(50),
       db
         .from("jobs")
-        .select("id, created_at, type, title, price_usdc, status, creator_id, rating")
+        .select("id, created_at, type, title, price_usdc, status, creator_id, rating, is_agent_job")
         .eq("client_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20),

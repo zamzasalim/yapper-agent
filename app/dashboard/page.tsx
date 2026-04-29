@@ -81,6 +81,7 @@ interface ClientJobRecord {
   status: JobStatus;
   creator_id: string | null;
   rating: number | null;
+  is_agent_job?: boolean;
 }
 
 const TYPE_LABEL: Record<string, string> = {
