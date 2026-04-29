@@ -60,7 +60,7 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
   return (
     <>
       {/* Row 1: Search + Status tabs */}
-      <div className="flex items-center gap-2 mb-2.5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-2.5">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 pointer-events-none" />
           <input
@@ -73,7 +73,7 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-0.5 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 shrink-0">
+        <div className="flex gap-0.5 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 overflow-x-auto scrollbar-none shrink-0">
           {STATUS_TABS.map((t) => {
             const count = t.value === "open" ? openCount : t.value === "in_progress" ? inProgressCount : jobs.length;
             return (

@@ -803,7 +803,8 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 w-fit">
+        <div className="overflow-x-auto mb-6 scrollbar-none">
+        <div className="flex gap-1 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 w-fit min-w-max">
           <button
             onClick={() => setTab("pending")}
             className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
@@ -889,6 +890,7 @@ export default function AdminPage() {
           >
             Creators
           </button>
+        </div>
         </div>
 
         {/* ── CREDITS TAB ── */}
@@ -1589,7 +1591,7 @@ export default function AdminPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                       {["all", "repost", "like_reply", "content", "campaign", "custom"].map((t) => (
                         <button key={t} onClick={() => setPendingTypeFilter(t)}
                           className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${pendingTypeFilter === t ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
@@ -1716,7 +1718,7 @@ export default function AdminPage() {
                         className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                       {["all", "repost", "like_reply", "content", "campaign", "custom"].map((t) => (
                         <button key={t} onClick={() => setActiveTypeFilter(t)}
                           className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${activeTypeFilter === t ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
@@ -1939,7 +1941,7 @@ export default function AdminPage() {
                         <Download className="w-3.5 h-3.5" /> Export All
                       </button>
                     </div>
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                       {["all", "repost", "like_reply", "content", "campaign", "custom"].map((t) => (
                         <button key={t} onClick={() => setCompletedTypeFilter(t)}
                           className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${completedTypeFilter === t ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-600" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-blue-400 hover:text-blue-600"}`}>
@@ -2223,7 +2225,7 @@ export default function AdminPage() {
       {activeDetailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => setActiveDetailModal(null)}>
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]"
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-lg flex flex-col max-h-[80vh]"
             onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
@@ -2326,11 +2328,11 @@ export default function AdminPage() {
           : null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh]">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-md flex flex-col max-h-[80vh]">
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
-                <div>
-                  <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate max-w-[300px]">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                <div className="min-w-0 flex-1 pr-3">
+                  <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                 </div>
                 <button onClick={() => setPendingDetailModal(null)}
                   className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
@@ -2415,12 +2417,12 @@ export default function AdminPage() {
           : null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh]">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-md flex flex-col max-h-[80vh]">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
-                <div>
-                  <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate max-w-[300px]">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                <div className="min-w-0 flex-1 pr-3">
+                  <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                 </div>
                 <button onClick={() => setCancelDetailModal(null)}
                   className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
@@ -2509,7 +2511,7 @@ export default function AdminPage() {
       {/* ── Extend Deadline Modal ── */}
       {extendModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-blue-500" />
@@ -2562,12 +2564,12 @@ export default function AdminPage() {
         const pageEntries = entries.slice(detailPage * DETAIL_PAGE, (detailPage + 1) * DETAIL_PAGE);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-lg flex flex-col max-h-[80vh]">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
-                <div>
-                  <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate max-w-[320px]">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)}</p>
+                <div className="min-w-0 flex-1 pr-3">
+                  <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id)}</p>
                 </div>
                 <button onClick={() => setDetailModal(null)} className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                   <X className="w-4 h-4" />
