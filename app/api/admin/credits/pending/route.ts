@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id,
       job_id,
-      jobs ( id, title, type, price_usdc ),
+      jobs ( id, title, type, price_usdc, is_agent_job ),
       users ( twitter_handle, display_name, wallet_address )
     `)
     .eq("status", "completed")
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const { data: singleRows, error: e2 } = await (db as any)
     .from("jobs")
     .select(`
-      id, title, type, price_usdc, creator_id, credited_at,
+      id, title, type, price_usdc, creator_id, credited_at, is_agent_job,
       users!jobs_creator_id_fkey ( twitter_handle, display_name, wallet_address )
     `)
     .eq("status", "completed")
@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
       job_id:         row.job_id,
       title:          job.title,
       type:           job.type,
+      is_agent_job:   job.is_agent_job ?? false,
       creator_handle: user.twitter_handle,
       creator_name:   user.display_name,
       wallet:         user.wallet_address,
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
       job_id:         row.id,
       title:          row.title,
       type:           row.type,
+      is_agent_job:   row.is_agent_job ?? false,
       creator_handle: user.twitter_handle,
       creator_name:   user.display_name,
       wallet:         user.wallet_address,

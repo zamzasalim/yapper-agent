@@ -37,6 +37,7 @@ interface ActiveJob {
   title: string;
   price_usdc: number;
   is_hidden: boolean;
+  is_agent_job: boolean;
   deadline_hours: number;
   deadline_override?: string | null;
   max_creators?: number | null;
@@ -69,6 +70,7 @@ interface CompletedJob {
   price_usdc: number;
   proof_url: string | null;
   is_paid: boolean;
+  is_agent_job: boolean;
   credited_at: string | null;
   additional_info: AdditionalInfo | null;
   client:  { twitter_handle: string; display_name: string } | null;
@@ -81,6 +83,7 @@ interface CreditItem {
   job_id:         string;
   title:          string;
   type:           string;
+  is_agent_job:   boolean;
   creator_handle: string;
   creator_name:   string;
   wallet:         string;
@@ -134,8 +137,8 @@ const TYPE_PREFIX: Record<string, string> = {
   custom: "X", like_reply: "L", repost: "R", content: "C", campaign: "E",
 };
 
-function fmtJobId(type: string, id: string) {
-  return `${TYPE_PREFIX[type] ?? "X"}H${id.slice(0, 8).toUpperCase()}`;
+function fmtJobId(type: string, id: string, isAgent?: boolean) {
+  return `${TYPE_PREFIX[type] ?? "X"}${isAgent ? "A" : "H"}${id.slice(0, 8).toUpperCase()}`;
 }
 
 function fmtDate(iso: string) {
@@ -1368,7 +1371,7 @@ export default function AdminPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[10px] font-mono font-bold text-neutral-500 dark:text-neutral-400 shrink-0">
-                                {fmtJobId(rep.type, rep.job_id)}
+                                {fmtJobId(rep.type, rep.job_id, rep.is_agent_job)}
                               </span>
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 shrink-0">
                                 {TYPE_LABEL[rep.type] ?? rep.type}
@@ -1568,7 +1571,7 @@ export default function AdminPage() {
               const filtered = pending.filter((j) => {
                 const matchType = pendingTypeFilter === "all" || j.type === pendingTypeFilter;
                 const matchSearch = !q ||
-                  fmtJobId(j.type, j.id).toLowerCase().includes(q) ||
+                  fmtJobId(j.type, j.id, j.is_agent_job).toLowerCase().includes(q) ||
                   j.title.toLowerCase().includes(q) ||
                   (j.client?.twitter_handle ?? "").toLowerCase().includes(q);
                 return matchType && matchSearch;
@@ -1617,7 +1620,7 @@ export default function AdminPage() {
                           <tr key={job.id} className="bg-white dark:bg-neutral-950 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors">
                             <td className="px-4 py-3">
                               <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[180px]">{job.title}</p>
-                              <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                              <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                             </td>
                             <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">@{job.client?.twitter_handle ?? "—"}</td>
                             <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{fmtDate(job.created_at)}</td>
@@ -1697,7 +1700,7 @@ export default function AdminPage() {
                   (activeStatusFilter === "open"        && !j.is_hidden && j.status === "open") ||
                   (activeStatusFilter === "in_progress" && !j.is_hidden && j.status === "in_progress");
                 const matchSearch = !q ||
-                  fmtJobId(j.type, j.id).toLowerCase().includes(q) ||
+                  fmtJobId(j.type, j.id, j.is_agent_job).toLowerCase().includes(q) ||
                   j.title.toLowerCase().includes(q) ||
                   (j.client?.twitter_handle ?? "").toLowerCase().includes(q);
                 return matchType && matchStatus && matchSearch;
@@ -1759,7 +1762,7 @@ export default function AdminPage() {
                             <tr key={job.id} className={`bg-white dark:bg-neutral-950 transition-colors ${job.is_hidden ? "opacity-50" : "hover:bg-neutral-50 dark:hover:bg-neutral-900"}`}>
                               <td className="px-4 py-3">
                                 <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[180px]">{job.title}</p>
-                                <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                                <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                               </td>
                               <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">@{job.client?.twitter_handle ?? "—"}</td>
                               <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{fmtDate(job.created_at)}</td>
@@ -1884,7 +1887,7 @@ export default function AdminPage() {
                   (completedCreditedFilter === "credited" &&  isCredited) ||
                   (completedCreditedFilter === "pending"  && !isCredited);
                 const matchSearch = !q ||
-                  fmtJobId(j.type, j.id).toLowerCase().includes(q) ||
+                  fmtJobId(j.type, j.id, j.is_agent_job).toLowerCase().includes(q) ||
                   j.title.toLowerCase().includes(q) ||
                   (j.client?.twitter_handle ?? "").toLowerCase().includes(q) ||
                   (j.creator?.twitter_handle ?? "").toLowerCase().includes(q);
@@ -1898,7 +1901,7 @@ export default function AdminPage() {
               async function handleBulkExport() {
                 const XLSX = await import("xlsx");
                 const rows = filtered.map((j) => ({
-                  "Job ID":         fmtJobId(j.type, j.id),
+                  "Job ID":         fmtJobId(j.type, j.id, j.is_agent_job),
                   "Full ID":        j.id,
                   "Job Type":       TYPE_LABEL[j.type] ?? j.type,
                   "Job Title":      j.title,
@@ -1984,7 +1987,7 @@ export default function AdminPage() {
                           <tr key={job.id} className="bg-white dark:bg-neutral-950 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors">
                             <td className="px-4 py-3">
                               <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[180px]">{job.title}</p>
-                              <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                              <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                             </td>
                             <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">@{job.client?.twitter_handle ?? "—"}</td>
                             <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{fmtDate(job.created_at)}</td>
@@ -2068,7 +2071,7 @@ export default function AdminPage() {
               const filtered = cancelled.filter((j) => {
                 const matchType = cancelledTypeFilter === "all" || j.type === cancelledTypeFilter;
                 const matchSearch = !q ||
-                  fmtJobId(j.type, j.id).toLowerCase().includes(q) ||
+                  fmtJobId(j.type, j.id, j.is_agent_job).toLowerCase().includes(q) ||
                   j.title.toLowerCase().includes(q) ||
                   (j.client?.twitter_handle ?? "").toLowerCase().includes(q);
                 return matchType && matchSearch;
@@ -2120,7 +2123,7 @@ export default function AdminPage() {
                             <tr key={job.id} className="bg-white dark:bg-neutral-950 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors opacity-75">
                               <td className="px-4 py-3">
                                 <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate max-w-[200px]">{job.title}</p>
-                                <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                                <p className="text-neutral-400 dark:text-neutral-500 font-mono">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                               </td>
                               <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">@{job.client?.twitter_handle ?? "—"}</td>
                               <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{fmtDate(job.created_at)}</td>
@@ -2232,7 +2235,7 @@ export default function AdminPage() {
               <div className="min-w-0">
                 <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate max-w-[320px]">{activeDetailModal.title}</p>
                 <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
-                  {fmtJobId(activeDetailModal.type, activeDetailModal.id)} · {TYPE_LABEL[activeDetailModal.type] ?? activeDetailModal.type}
+                  {fmtJobId(activeDetailModal.type, activeDetailModal.id, activeDetailModal.is_agent_job)} · {TYPE_LABEL[activeDetailModal.type] ?? activeDetailModal.type}
                   {(activeDetailModal.max_creators ?? 1) > 1 && (
                     <span className="ml-2 text-neutral-500 dark:text-neutral-400">
                       · {activeDetailModal.slots_taken ?? 0}/{activeDetailModal.max_creators} slots
@@ -2332,7 +2335,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
                 <div className="min-w-0 flex-1 pr-3">
                   <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                 </div>
                 <button onClick={() => setPendingDetailModal(null)}
                   className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
@@ -2422,7 +2425,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
                 <div className="min-w-0 flex-1 pr-3">
                   <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id)} · {TYPE_LABEL[job.type] ?? job.type}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                 </div>
                 <button onClick={() => setCancelDetailModal(null)}
                   className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
@@ -2569,7 +2572,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
                 <div className="min-w-0 flex-1 pr-3">
                   <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id)}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id, job.is_agent_job)}</p>
                 </div>
                 <button onClick={() => setDetailModal(null)} className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                   <X className="w-4 h-4" />

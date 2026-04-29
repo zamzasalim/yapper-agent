@@ -180,13 +180,13 @@ export async function GET(req: NextRequest) {
     const [{ data: singleJobs }, { data: completions }, { data: clientJobs }] = await Promise.all([
       (db as any)
         .from("jobs")
-        .select("id, created_at, type, title, price_usdc, status, client_id, credited_at")
+        .select("id, created_at, type, title, price_usdc, status, client_id, credited_at, is_agent_job")
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50),
       (db as any)
         .from("job_completions")
-        .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc, status)")
+        .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc, status, is_agent_job)")
         .eq("creator_id", user.id)
         .limit(50),
       db

@@ -59,6 +59,7 @@ interface JobRecord {
   price_usdc: number;
   status: JobStatus;
   credited_at?: string | null;
+  is_agent_job?: boolean;
 }
 
 interface ApplicantRecord {
@@ -98,9 +99,9 @@ const TYPE_PREFIX: Record<string, string> = {
   content:    "C",
   campaign:   "E",
 };
-function fmtJobId(type: string, id: string) {
+function fmtJobId(type: string, id: string, isAgent?: boolean) {
   const prefix = TYPE_PREFIX[type] ?? "X";
-  return `${prefix}H${id.slice(0, 8).toUpperCase()}`;
+  return `${prefix}${isAgent ? "A" : "H"}${id.slice(0, 8).toUpperCase()}`;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -957,7 +958,7 @@ export default function DashboardPage() {
                                 {job.title}
                               </p>
                               <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                                <span className="font-mono">{fmtJobId(job.type, job.id)}</span> · {fmtType(job.type)} · <span className={STATUS_TEXT[job.status]}>{fmtStatus(job.status)}</span> · {new Date(job.created_at).toLocaleDateString()}
+                                <span className="font-mono">{fmtJobId(job.type, job.id, job.is_agent_job)}</span> · {fmtType(job.type)} · <span className={STATUS_TEXT[job.status]}>{fmtStatus(job.status)}</span> · {new Date(job.created_at).toLocaleDateString()}
                               </p>
                             </div>
                             <span className="text-sm font-bold text-neutral-900 dark:text-white shrink-0">
@@ -1059,7 +1060,7 @@ export default function DashboardPage() {
                               {job.title}
                             </p>
                             <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-                              <span className="font-mono">{fmtJobId(job.type, job.id)}</span> · {fmtType(job.type)} · <span className={STATUS_TEXT[job.status]}>{fmtStatus(job.status)}</span> · {new Date(job.created_at).toLocaleDateString()}
+                              <span className="font-mono">{fmtJobId(job.type, job.id, job.is_agent_job)}</span> · {fmtType(job.type)} · <span className={STATUS_TEXT[job.status]}>{fmtStatus(job.status)}</span> · {new Date(job.created_at).toLocaleDateString()}
                             </p>
                           </div>
                           <button
