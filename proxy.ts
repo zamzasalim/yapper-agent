@@ -22,7 +22,7 @@ const PASSTHROUGH = (pathname: string) =>
   pathname === "/mcp" ||
   /\.(png|jpg|jpeg|svg|ico|webp|gif|woff2?)$/.test(pathname);
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const hostname = req.headers.get("host") ?? "";
   const { pathname } = req.nextUrl;
 
