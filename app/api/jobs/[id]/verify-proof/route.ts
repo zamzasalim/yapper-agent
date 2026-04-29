@@ -107,6 +107,32 @@ export async function POST(
           { status: 422 }
         );
       }
+      // Duplicate check: same URL already used in this campaign by another creator
+      if (maxCreators > 1) {
+        const { data: dupInCampaign } = await db
+          .from("job_completions")
+          .select("id")
+          .eq("job_id", id)
+          .eq("proof_url", proof_url.trim())
+          .maybeSingle();
+        if (dupInCampaign) {
+          return NextResponse.json(
+            { error: "This proof URL has already been submitted by another creator for this job." },
+            { status: 409 }
+          );
+        }
+      }
+      // Duplicate check: same URL already used in any other job (global)
+      const [{ data: dupInJobs }, { data: dupInCompletions }] = await Promise.all([
+        db.from("jobs").select("id").eq("proof_url", proof_url.trim()).maybeSingle(),
+        db.from("job_completions").select("id").eq("proof_url", proof_url.trim()).maybeSingle(),
+      ]);
+      if (dupInJobs || dupInCompletions) {
+        return NextResponse.json(
+          { error: "This proof URL has already been used for another job." },
+          { status: 409 }
+        );
+      }
     }
 
     // ── Save & complete ────────────────────────────────────────────────────

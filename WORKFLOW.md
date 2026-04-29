@@ -74,7 +74,9 @@ flowchart TD
     CR13B -->|Not found| PROOFERR([Retry later\ncache accumulates\nover time])
     CR12 -->|Like Reply Content Campaign Custom| CR14[Validate proof URL\nmatches creator handle]
     CR14 -->|Wrong account| PROOFERR
-    CR13A & CR14 -->|Verified| CR15{Single or Campaign?}
+    CR14 -->|Handle match| CR14B[Duplicate URL check\nSame URL in same campaign? 409\nSame URL in any other job? 409\nSkipped for repost jobs]
+    CR14B -->|Duplicate found| PROOFERR
+    CR13A & CR14B -->|Verified| CR15{Single or Campaign?}
 
     CR15 -->|Single| CR16[job: completed\ncompleted_at set\nstats incremented\nDashboard: Under Review]
     CR15 -->|Campaign| CR17[completion row: completed\nstats incremented per slot\nDashboard: Under Review]
@@ -264,7 +266,7 @@ flowchart TD
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
     class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9,CLREVIEW,RV1,RV2,NOTIF,NOTIF_LIST,NOTIF_READALL,MKPL,DIRECTHIRE,CL1_DH,NOTIF_CREATOR,NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
-    class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13A,CR13B,CR14,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
+    class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10,CR11,CR12,CR13A,CR13B,CR14,CR14B,CR15,CR16,CR17,CR18,CR19,CR20,EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD3,AD4,AD5,AD6,AD7,AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,AD_CAN,CANVIEW,RESTORE,CANDEL,CANREASON,CANEXP,CANADM,CANCLI,NOTIFCREATE,REFUND,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4,CRTAB,CRTAB_SET,CRTAB_CLR admin
     class CRTAB_FX done
     class ESC5,CR_CLAIM4 done
