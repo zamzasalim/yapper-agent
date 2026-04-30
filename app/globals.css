@@ -54,6 +54,11 @@
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text-1);
@@ -61,6 +66,7 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   overflow-x: hidden;
+  max-width: 100%;
   transition: background 0.2s ease, color 0.2s ease;
 }
 

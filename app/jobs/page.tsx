@@ -107,7 +107,7 @@ export default async function JobsPage() {
     <>
       <Navbar />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 overflow-x-hidden">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
           <div>
