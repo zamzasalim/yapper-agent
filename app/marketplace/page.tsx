@@ -8,15 +8,21 @@ import { createServerClient } from "@/lib/supabase";
 async function getCreators() {
   try {
     const db = createServerClient();
-    const { data, error } = await db
-      .from("users")
-      .select("id, twitter_handle, display_name, twitter_followers, avatar_url, rating, jobs_completed, is_verified_blue, niches, custom_content_rate")
-      .eq("role", "creator")
-      .order("twitter_followers", { ascending: false })
-      .limit(30);
+    const [{ data, error }, { count }] = await Promise.all([
+      db
+        .from("users")
+        .select("id, twitter_handle, display_name, twitter_followers, avatar_url, rating, jobs_completed, is_verified_blue, niches, custom_content_rate")
+        .eq("role", "creator")
+        .order("twitter_followers", { ascending: false })
+        .limit(30),
+      db
+        .from("users")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "creator"),
+    ]);
 
     if (error || !data) return null;
-    return data;
+    return { creators: data, total: count ?? data.length };
   } catch {
     return null;
   }
@@ -24,7 +30,8 @@ async function getCreators() {
 
 export default async function MarketplacePage() {
   const raw = await getCreators();
-  const creators = (raw ?? []).map((c) => ({
+  const totalCreators = raw?.total ?? 0;
+  const creators = (raw?.creators ?? []).map((c) => ({
     id: c.id,
     handle: c.twitter_handle ?? "",
     name: c.display_name ?? c.twitter_handle ?? "",
@@ -74,7 +81,7 @@ export default async function MarketplacePage() {
             </h1>
             <p className="text-neutral-500 dark:text-neutral-400 text-sm flex items-center gap-2">
               <Users className="w-3.5 h-3.5" />
-              {creators.length} verified creator{creators.length !== 1 ? "s" : ""} registered
+              {totalCreators} active creator{totalCreators !== 1 ? "s" : ""} registered
               {isLive && (
                 <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
                   <span className="dot-live" /> Live

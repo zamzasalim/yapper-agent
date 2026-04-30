@@ -72,6 +72,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Enforce minimum price per creator (server-side guard against API bypass)
+    const MIN_PRICE: Record<string, number> = {
+      repost:     0.50,
+      like_reply: 0.20,
+      content:    5.00,
+      campaign:   5.00,
+    };
+    const minPrice = MIN_PRICE[body.type];
+    if (minPrice !== undefined && (body.price_usdc ?? 0) < minPrice) {
+      return NextResponse.json(
+        { error: `Minimum price for ${body.type} is $${minPrice.toFixed(2)} USDC per creator` },
+        { status: 400 }
+      );
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const insertRow: any = {
       client_id: clientId,
