@@ -146,8 +146,8 @@ flowchart TD
     AUTOCOMPLETE --> AD5
 
     %% ── ADMIN: COMPLETED TAB ────────────────────────────────────────────────
-    AD5[Admin — Completed tab\nSearch + type + credited filter + pagination]
-    AD5 --> AD6[View Details modal\nCreator + proof + wallet\nCampaign: per-slot creator + proof + wallet]
+    AD5[Admin — Completed tab\nSearch + type + credited filter + pagination\nRe-fetches fresh data after batch credit]
+    AD5 --> AD6[View Details modal\nJob info: client · amount · posted · completed · credit status\nSingle: creator + proof + wallet\nCampaign: per-slot creator + proof + wallet]
     AD6 --> AD7([Export Excel per job or bulk\nCredited badge shown when credited_at is set])
 
     %% ── ESCROW: CREDITS TAB ─────────────────────────────────────────────────
@@ -160,7 +160,7 @@ flowchart TD
     ESC2 --> ESC_REJ[Reject individual submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared]
     ESC_REJ --> ESC_REOPENED([Slot available for another creator])
     ESC2 --> ESC3[Click Batch Credit\nbuildCreditCreatorTx per creator\nPhantom signs + submits]
-    ESC3 --> ESC4[ClaimRecord PDA updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm — idempotent\ncredited_at + credit_tx set in DB\nDouble-call safe: only updates where credited_at IS NULL\nDashboard: Under Review to Done]
+    ESC3 --> ESC4[ClaimRecord PDA updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm — idempotent\ncredited_at + credit_tx set on jobs + job_completions\nCampaign: jobs.credited_at set when ALL slots credited\nDouble-call safe: only updates where credited_at IS NULL\nDashboard: Under Review to Done]
     ESC4 --> ESC5([Credits locked in vault\nCreator can now claim USDC])
 
     %% ── CREATOR: CLAIM ──────────────────────────────────────────────────────
