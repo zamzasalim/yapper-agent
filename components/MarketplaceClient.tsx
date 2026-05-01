@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { CreatorCard } from "./CreatorCard";
 import { cn } from "@/lib/cn";
 
@@ -26,9 +26,36 @@ const FILTERS = [
   { label: "50K+",    min: 50_000, max: Infinity },
 ];
 
-export function MarketplaceClient({ creators }: { creators: Creator[] }) {
-  const [query, setQuery]               = useState("");
+const PAGE_SIZE = 30;
+
+function normalize(raw: Record<string, unknown>): Creator {
+  return {
+    id:               raw.id as string,
+    handle:           (raw.twitter_handle as string) ?? "",
+    name:             (raw.display_name as string) ?? (raw.twitter_handle as string) ?? "",
+    followers:        (raw.twitter_followers as number) ?? 0,
+    avatar:           (raw.avatar_url as string | null) ?? null,
+    rating:           (raw.rating as number) ?? 5.0,
+    jobsDone:         (raw.jobs_completed as number) ?? 0,
+    tags:             (raw.niches as string[] | null) ?? [],
+    verified:         (raw.is_verified_blue as boolean) ?? false,
+    customContentRate: (raw.custom_content_rate as boolean | null) ?? null,
+  };
+}
+
+export function MarketplaceClient({
+  creators: initialCreators,
+  totalCreators,
+}: {
+  creators: Creator[];
+  totalCreators: number;
+}) {
+  const [creators, setCreators]     = useState<Creator[]>(initialCreators);
+  const [query, setQuery]           = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [loadingMore, setLoadingMore]   = useState(false);
+
+  const hasMore = creators.length < totalCreators;
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -43,6 +70,23 @@ export function MarketplaceClient({ creators }: { creators: Creator[] }) {
       return matchesQuery && matchesRange;
     });
   }, [creators, query, activeFilter]);
+
+  async function handleLoadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const res  = await fetch(`/api/creators?offset=${creators.length}&limit=${PAGE_SIZE}`);
+      const data = await res.json();
+      const next = (data.creators ?? []).map(normalize);
+      setCreators((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        return [...prev, ...next.filter((c: Creator) => !existingIds.has(c.id))];
+      });
+    } catch {
+      // silently fail — user can try again
+    }
+    setLoadingMore(false);
+  }
 
   return (
     <>
@@ -99,9 +143,16 @@ export function MarketplaceClient({ creators }: { creators: Creator[] }) {
       )}
 
       {/* Load more */}
-      {filtered.length >= 30 && (
+      {hasMore && (
         <div className="mt-10 text-center">
-          <button className="btn-outline text-sm px-6 py-2.5">Load More Creators</button>
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="btn-outline text-sm px-6 py-2.5 flex items-center gap-2 mx-auto disabled:opacity-50"
+          >
+            {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loadingMore ? "Loading…" : "Load More Creators"}
+          </button>
         </div>
       )}
     </>

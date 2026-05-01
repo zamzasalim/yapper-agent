@@ -91,7 +91,7 @@ export default async function MarketplacePage() {
           </div>
         </div>
 
-        <MarketplaceClient creators={creators} />
+        <MarketplaceClient creators={creators} totalCreators={totalCreators} />
       </div>
     </>
   );
