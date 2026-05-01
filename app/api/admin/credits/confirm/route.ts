@@ -43,7 +43,32 @@ export async function POST(req: NextRequest) {
       // Cast as any: credited_at/credit_tx are migration-added columns, not yet in generated types.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (db as any).from("job_completions").update(meta).in("id", completionIds).is("credited_at", null);
-      if (error) errors.push(error.message);
+      if (error) {
+        errors.push(error.message);
+      } else {
+        // Determine which parent jobs now have ALL completions credited → set jobs.credited_at too
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: parentRows } = await (db as any)
+          .from("job_completions")
+          .select("job_id")
+          .in("id", completionIds);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const affectedJobIds = [...new Set(((parentRows ?? []) as any[]).map((r) => r.job_id as string))];
+        if (affectedJobIds.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: uncredited } = await (db as any)
+            .from("job_completions")
+            .select("job_id")
+            .in("job_id", affectedJobIds)
+            .is("credited_at", null);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const stillPending = new Set(((uncredited ?? []) as any[]).map((r) => r.job_id as string));
+          const fullyPaid = affectedJobIds.filter((id) => !stillPending.has(id));
+          if (fullyPaid.length > 0) {
+            await db.from("jobs").update(meta).in("id", fullyPaid).is("credited_at", null);
+          }
+        }
+      }
     }
 
     if (errors.length > 0) {

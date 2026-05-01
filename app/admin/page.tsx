@@ -75,6 +75,12 @@ interface CompletedJob {
   additional_info: AdditionalInfo | null;
   client:  { twitter_handle: string; display_name: string } | null;
   creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
+  completions: Array<{
+    status: string;
+    proof_url: string | null;
+    additional_info: AdditionalInfo | null;
+    creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
+  }> | null;
 }
 
 interface CreditItem {
@@ -506,8 +512,29 @@ export default function AdminPage() {
       });
       // Remove credited items from UI list
       const doneIds = new Set(confirmedItems.map((i) => i.source_id));
-      setCreditItems((prev) => prev.filter((c) => !doneIds.has(c.source_id)));
+      const remainingItems = creditItems.filter((c) => !doneIds.has(c.source_id));
+      setCreditItems(remainingItems);
       setSelectedCredits(new Set());
+
+      // Update credited_at in the Completed tab state
+      const now = new Date().toISOString();
+      const creditedJobIds = new Set<string>();
+      for (const item of selected) {
+        if (!doneIds.has(item.source_id)) continue;
+        if (item.source_type === "job") {
+          creditedJobIds.add(item.job_id);
+        } else {
+          // Campaign: mark job as credited only once all its completions are paid
+          if (!remainingItems.some((r) => r.job_id === item.job_id)) {
+            creditedJobIds.add(item.job_id);
+          }
+        }
+      }
+      if (creditedJobIds.size > 0) {
+        setCompleted((prev) =>
+          prev.map((j) => creditedJobIds.has(j.id) ? { ...j, credited_at: j.credited_at ?? now } : j)
+        );
+      }
     }
 
     setCrediting(false);
@@ -2596,26 +2623,69 @@ export default function AdminPage() {
       {/* ── Detail Modal ── */}
       {detailModal && (() => {
         const job = detailModal;
-        const entries = job.creator ? [{ handle: job.creator.twitter_handle, proof_url: job.proof_url, wallet: job.creator.wallet_address, additional_info: job.additional_info }] : [];
+        const entries = job.completions && job.completions.length > 0
+          ? job.completions.map((c) => ({
+              handle: c.creator?.twitter_handle ?? "—",
+              proof_url: c.proof_url,
+              wallet: c.creator?.wallet_address ?? null,
+              additional_info: c.additional_info,
+            }))
+          : job.creator
+            ? [{ handle: job.creator.twitter_handle, proof_url: job.proof_url, wallet: job.creator.wallet_address, additional_info: job.additional_info }]
+            : [];
         const DETAIL_PAGE = 20;
         const totalDetailPages = Math.ceil(entries.length / DETAIL_PAGE);
         const pageEntries = entries.slice(detailPage * DETAIL_PAGE, (detailPage + 1) * DETAIL_PAGE);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-lg flex flex-col max-h-[80vh]">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-lg flex flex-col max-h-[85vh]">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
                 <div className="min-w-0 flex-1 pr-3">
                   <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{job.title}</p>
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id, job.is_agent_job)}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">{fmtJobId(job.type, job.id, job.is_agent_job)} · {TYPE_LABEL[job.type] ?? job.type}</p>
                 </div>
                 <button onClick={() => setDetailModal(null)} className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Body — table */}
+              {/* Body */}
               <div className="flex-1 overflow-auto">
+                {/* Job info */}
+                <div className="px-5 py-4 flex flex-col gap-2 text-xs border-b border-neutral-100 dark:border-neutral-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400 dark:text-neutral-500">Client</span>
+                    <span className="font-medium text-neutral-800 dark:text-neutral-200">@{job.client?.twitter_handle ?? "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400 dark:text-neutral-500">Amount</span>
+                    <span className="font-bold text-neutral-900 dark:text-white">${job.price_usdc.toFixed(1)} USDC</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400 dark:text-neutral-500">Posted</span>
+                    <span className="text-neutral-700 dark:text-neutral-300">{fmtDate(job.created_at)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400 dark:text-neutral-500">Completed</span>
+                    <span className="text-neutral-700 dark:text-neutral-300">{job.completed_at ? fmtDate(job.completed_at) : "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400 dark:text-neutral-500">Credit</span>
+                    {job.credited_at
+                      ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">Credited</span>
+                      : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Pending</span>
+                    }
+                  </div>
+                  {entries.length > 1 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-400 dark:text-neutral-500">Creators</span>
+                      <span className="text-neutral-700 dark:text-neutral-300">{entries.length}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Creators table */}
                 {pageEntries.length === 0 ? (
                   <p className="text-sm text-neutral-400 dark:text-neutral-500 text-center py-10">No creator data available.</p>
                 ) : (
