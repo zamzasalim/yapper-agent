@@ -252,6 +252,7 @@ export default function AdminPage() {
   const [selectedCredits, setSelectedCredits] = useState<Set<string>>(new Set());
   const [crediting, setCrediting]           = useState(false);
   const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number; errors?: string[] } | null>(null);
+  const [rejectingId, setRejectingId]       = useState<string | null>(null);
   const [creditTypeFilter, setCreditTypeFilter] = useState("all");
   const [vaultBalance, setVaultBalance]         = useState<number | null>(null);
   const [withdrawAmount, setWithdrawAmount]     = useState("");
@@ -405,6 +406,28 @@ export default function AdminPage() {
       setSendResult(`✗ ${e instanceof Error ? e.message.slice(0, 120) : String(e)}`);
     }
     setSending(false);
+  }
+
+  async function handleRejectCredit(item: CreditItem) {
+    if (!confirm(`Reject @${item.creator_handle}'s submission for "${item.title}"? This will re-open the slot.`)) return;
+    setRejectingId(item.source_id);
+    try {
+      const res = await fetch("/api/admin/completions/reject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_id: item.source_id, source_type: item.source_type, admin_handle: twitterHandle }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        alert(`Reject failed: ${d.error ?? "Unknown error"}`);
+      } else {
+        setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
+        setSelectedCredits((prev) => { const next = new Set(prev); next.delete(item.source_id); return next; });
+      }
+    } catch (e) {
+      alert(`Reject failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setRejectingId(null);
   }
 
   async function handleBatchCredit() {
@@ -1400,6 +1423,7 @@ export default function AdminPage() {
                                 <th className="px-3 py-2 text-left">Creator</th>
                                 <th className="px-3 py-2 text-left">Wallet</th>
                                 <th className="px-3 py-2 text-right">Amount</th>
+                                <th className="w-8 px-3 py-2" />
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -1423,6 +1447,18 @@ export default function AdminPage() {
                                   </td>
                                   <td className="px-3 py-2.5 font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</td>
                                   <td className="px-3 py-2.5 text-right font-bold text-green-600 dark:text-green-400">${item.amount_usdc.toFixed(2)}</td>
+                                  <td className="px-3 py-2.5 text-right">
+                                    <button
+                                      onClick={() => handleRejectCredit(item)}
+                                      disabled={rejectingId === item.source_id}
+                                      title="Reject submission"
+                                      className="p-1 rounded text-neutral-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
+                                    >
+                                      {rejectingId === item.source_id
+                                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        : <XCircle className="w-3.5 h-3.5" />}
+                                    </button>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>

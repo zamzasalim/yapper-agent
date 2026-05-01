@@ -28,6 +28,17 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Validate twitter_handle format — only alphanumeric + underscore, 1–15 chars
+    const rawHandle = String(body.twitter_handle ?? "").replace(/^@/, "").trim();
+    if (!/^[A-Za-z0-9_]{1,15}$/.test(rawHandle)) {
+      return NextResponse.json(
+        { error: "Invalid Twitter handle" },
+        { status: 400 }
+      );
+    }
+    body.twitter_handle = rawHandle;
+
     const prefilledCreator: string | undefined = body.prefilledCreator
       ? String(body.prefilledCreator).replace(/^@/, "")
       : undefined;

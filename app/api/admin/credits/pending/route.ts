@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id,
       job_id,
-      jobs ( id, title, type, price_usdc, is_agent_job ),
+      jobs ( id, title, type, price_usdc, is_agent_job, status ),
       users ( twitter_handle, display_name, wallet_address )
     `)
     .eq("status", "completed")
@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
     const job  = row.jobs;
     const user = row.users;
     if (!job || !user?.wallet_address) continue;
+    // Skip completions from campaigns that are still accepting submissions
+    if (["open", "in_progress"].includes(job.status)) continue;
     pending.push({
       source_id:      row.id,
       source_type:    "completion",
