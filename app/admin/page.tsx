@@ -253,6 +253,8 @@ export default function AdminPage() {
   const [crediting, setCrediting]           = useState(false);
   const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number; errors?: string[] } | null>(null);
   const [rejectingId, setRejectingId]       = useState<string | null>(null);
+  const [confirmingAction, setConfirmingAction] = useState<{ id: string; action: string } | null>(null);
+  const [errorMsg, setErrorMsg]             = useState<string | null>(null);
   const [creditTypeFilter, setCreditTypeFilter] = useState("all");
   const [vaultBalance, setVaultBalance]         = useState<number | null>(null);
   const [withdrawAmount, setWithdrawAmount]     = useState("");
@@ -409,8 +411,8 @@ export default function AdminPage() {
   }
 
   async function handleRejectCredit(item: CreditItem) {
-    if (!confirm(`Reject @${item.creator_handle}'s submission for "${item.title}"? This will re-open the slot.`)) return;
     setRejectingId(item.source_id);
+    setConfirmingAction(null);
     try {
       const res = await fetch("/api/admin/completions/reject", {
         method: "POST",
@@ -419,13 +421,13 @@ export default function AdminPage() {
       });
       if (!res.ok) {
         const d = await res.json();
-        alert(`Reject failed: ${d.error ?? "Unknown error"}`);
+        setErrorMsg(`Reject failed: ${d.error ?? "Unknown error"}`);
       } else {
         setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
         setSelectedCredits((prev) => { const next = new Set(prev); next.delete(item.source_id); return next; });
       }
     } catch (e) {
-      alert(`Reject failed: ${e instanceof Error ? e.message : String(e)}`);
+      setErrorMsg(`Reject failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     setRejectingId(null);
   }
@@ -604,6 +606,16 @@ export default function AdminPage() {
   useEffect(() => { setCancelledPage(0); }, [cancelledTypeFilter, cancelledSearch]);
   useEffect(() => { setCreditJobPage(0); }, [creditTypeFilter]);
   useEffect(() => { setCreatorPage(0); }, [creatorSearch]);
+  useEffect(() => {
+    if (!confirmingAction) return;
+    const t = setTimeout(() => setConfirmingAction(null), 3000);
+    return () => clearTimeout(t);
+  }, [confirmingAction]);
+  useEffect(() => {
+    if (!errorMsg) return;
+    const t = setTimeout(() => setErrorMsg(null), 4000);
+    return () => clearTimeout(t);
+  }, [errorMsg]);
 
   async function handleToggleCustomRate(handle: string, enable: boolean) {
     setSavingRate(handle);
@@ -642,8 +654,8 @@ export default function AdminPage() {
   }
 
   async function handleDelete(jobId: string) {
-    if (!confirm("Delete this job permanently?")) return;
     setDeleting(jobId);
+    setConfirmingAction(null);
     try {
       const res = await fetch(`/api/admin/jobs/${jobId}?admin_handle=${twitterHandle}`, {
         method: "DELETE",
@@ -672,8 +684,8 @@ export default function AdminPage() {
   }
 
   async function handleCancelActive(jobId: string) {
-    if (!confirm("Cancel this job? It will move to the Cancelled tab.")) return;
     setCancelling(jobId);
+    setConfirmingAction(null);
     try {
       const res = await fetch(`/api/admin/jobs/${jobId}?admin_handle=${twitterHandle}`, {
         method: "PATCH",
@@ -696,10 +708,10 @@ export default function AdminPage() {
         setCancelled((prev) => prev.filter((j) => j.id !== jobId));
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(`Restore failed: ${data.error ?? res.statusText}`);
+        setErrorMsg(`Restore failed: ${data.error ?? res.statusText}`);
       }
     } catch {
-      alert("Restore failed: network error");
+      setErrorMsg("Restore failed: network error");
     } finally {
       setRestoring(null);
     }
@@ -814,7 +826,7 @@ export default function AdminPage() {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 min-w-0">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 min-w-0 pb-24">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
@@ -825,101 +837,211 @@ export default function AdminPage() {
               Logged in as <strong>@{twitterHandle}</strong>
             </p>
           </div>
-
         </div>
 
         {/* Tabs */}
         <div className="overflow-x-auto mb-6 scrollbar-none w-full">
         <div className="flex gap-1 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 w-fit min-w-max">
-          <button
-            onClick={() => setTab("pending")}
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
-              tab === "pending"
-                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
-                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            }`}
-          >
-            Pending
-            {pending.length > 0 && (
-              <span className="ml-2 text-[10px] font-bold bg-amber-500 text-white rounded-full px-1.5 py-0.5">
-                {pending.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("active")}
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
-              tab === "active"
-                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
-                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            }`}
-          >
-            Active
-            {tab === "active" && active.length > 0 && (
-              <span className="ml-2 text-[10px] font-bold bg-green-500 text-white rounded-full px-1.5 py-0.5">
-                {active.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("completed")}
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
-              tab === "completed"
-                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
-                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            }`}
-          >
-            Completed
-            {tab === "completed" && completed.length > 0 && (
-              <span className="ml-2 text-[10px] font-bold bg-blue-500 text-white rounded-full px-1.5 py-0.5">
-                {completed.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("cancelled")}
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
-              tab === "cancelled"
-                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
-                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            }`}
-          >
-            Cancelled
-            {tab === "cancelled" && cancelled.length > 0 && (
-              <span className="ml-2 text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5">
-                {cancelled.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("credits")}
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
-              tab === "credits"
-                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
-                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            }`}
-          >
-            Credits
-            {tab === "credits" && creditItems.length > 0 && (
-              <span className="ml-2 text-[10px] font-bold bg-purple-500 text-white rounded-full px-1.5 py-0.5">
-                {creditItems.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("creators")}
-            className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
-              tab === "creators"
-                ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
-                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
-            }`}
-          >
-            Creators
-          </button>
+          {([
+            { key: "pending",   label: "Pending",   badge: pending.length,    color: "bg-amber-500" },
+            { key: "active",    label: "Active",    badge: active.length,     color: "bg-green-500" },
+            { key: "completed", label: "Completed", badge: completed.length,  color: "bg-blue-500" },
+            { key: "cancelled", label: "Cancelled", badge: cancelled.length,  color: "bg-red-500" },
+            { key: "credits",   label: "Credits",   badge: creditItems.length, color: "bg-purple-500" },
+            { key: "creators",  label: "Creators",  badge: 0,                 color: "" },
+          ] as const).map(({ key, label, badge, color }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
+                tab === key
+                  ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm"
+                  : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
+              }`}
+            >
+              {label}
+              {badge > 0 && (
+                <span className={`ml-2 text-[10px] font-bold ${color} text-white rounded-full px-1.5 py-0.5`}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
         </div>
 
         {/* ── CREDITS TAB ── */}
+        {tab === "credits" && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Vault balance */}
+              <div className="card p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center shrink-0">
+                    <Coins className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-neutral-400 tracking-wide font-semibold">Vault Balance</p>
+                    <a
+                      href={`https://solscan.io/account/${getVaultPDA().toBase58()}?cluster=devnet`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-sm font-bold text-neutral-900 dark:text-white hover:text-blue-500 transition-colors"
+                    >
+                      {vaultBalance === null ? "—" : `${vaultBalance.toFixed(2)} USDC`}
+                    </a>
+                  </div>
+                </div>
+                <button onClick={fetchVaultBalance} className="btn-outline text-xs px-2 py-1">Refresh</button>
+              </div>
+
+              {/* Withdraw */}
+              <div className="card p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950 flex items-center justify-center shrink-0">
+                    <Download className="w-4 h-4 text-red-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <p className="text-[10px] text-neutral-400 tracking-wide font-semibold">Withdraw Vault</p>
+                      <span className="text-[10px] text-neutral-400">
+                        (<span className={
+                          withdrawResult
+                            ? withdrawResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"
+                            : "text-orange-500"
+                        }>
+                          {withdrawResult ? withdrawResult : "LEAVE BLANK = ALL"}
+                        </span>)
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1 mt-0.5">
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={withdrawAmount}
+                        onChange={e => { setWithdrawAmount(e.target.value); setWithdrawResult(null); }}
+                        placeholder="0.00" disabled={withdrawing}
+                        className="text-sm font-bold bg-transparent border-b border-neutral-300 dark:border-neutral-700 outline-none p-0 w-16 text-neutral-900 dark:text-white placeholder-neutral-300 dark:placeholder-neutral-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm font-bold text-neutral-900 dark:text-white">USDC</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWithdrawConfirm(true)}
+                  disabled={withdrawing || !walletAddress || !vaultBalance || vaultBalance <= 0}
+                  className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50 !text-white !bg-orange-500 hover:!bg-orange-600 !border-orange-500 whitespace-nowrap flex items-center gap-1 shrink-0"
+                >
+                  {withdrawing && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {withdrawing ? "Withdrawing…" : "Withdraw"}
+                </button>
+              </div>
+            </div>
+
+            {/* Send USDC (devnet helper) */}
+            <details className="card p-4 text-xs">
+              <summary className="cursor-pointer select-none font-semibold text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
+                <ArrowRight className="w-3.5 h-3.5 text-blue-500" />
+                Send USDC (devnet helper)
+              </summary>
+              <div className="mt-3 flex flex-col gap-3">
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                  Transfer USDC directly from the connected wallet to any address. Useful for funding test wallets.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <input
+                    value={sendRecipient}
+                    onChange={(e) => { setSendRecipient(e.target.value); setSendResult(null); }}
+                    placeholder="Recipient wallet address (base58)"
+                    disabled={sending}
+                    className="input text-xs font-mono w-full"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={sendAmount}
+                      onChange={(e) => { setSendAmount(e.target.value); setSendResult(null); }}
+                      placeholder="Amount USDC" disabled={sending}
+                      className="input text-xs w-32 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button
+                      onClick={handleSendUsdc}
+                      disabled={sending || !walletAddress || !sendRecipient.trim() || !sendAmount || parseFloat(sendAmount) <= 0}
+                      className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
+                      {sending ? "Sending…" : "Send"}
+                    </button>
+                  </div>
+                  {sendResult && (
+                    <p className={`text-[11px] font-medium break-all ${sendResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}`}>
+                      {sendResult}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </details>
+
+            {/* On-chain wallet status */}
+            <div className="card p-4 flex items-center gap-3 text-xs font-mono text-neutral-600 dark:text-neutral-300">
+              <Wallet2 className="w-4 h-4 text-purple-500 shrink-0" />
+              {walletAddress ? (() => {
+                const isAuthorized = (onChainAdmin && walletAddress.toLowerCase() === onChainAdmin.toLowerCase()) ||
+                                     (onChainAdmin2 && walletAddress.toLowerCase() === onChainAdmin2.toLowerCase());
+                return (
+                  <>
+                    Signing wallet: <span className="text-purple-400">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span>
+                    {isAuthorized
+                      ? <span className="ml-1.5 text-green-600 dark:text-green-400 font-semibold">✓ Authorized</span>
+                      : onChainAdmin
+                        ? <span className="ml-1.5 text-red-500 font-semibold">✗ Not admin/admin2 on-chain</span>
+                        : null
+                    }
+                  </>
+                );
+              })() : <span className="text-neutral-500">No wallet connected</span>}
+            </div>
+
+            {/* Initialize program (one-time setup) */}
+            {initState === "none" && (
+              <details className="card p-4 text-xs text-neutral-500 dark:text-neutral-400">
+                <summary className="cursor-pointer select-none font-medium">⚙ Initialize escrow program (one-time)</summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-neutral-400 dark:text-neutral-500">Connect admin wallet (admin1), enter admin2 wallet address, then Initialize. Both wallets can sign Batch Credit.</p>
+                  <div className="flex flex-col gap-2">
+                    <input value={admin2Input} onChange={(e) => setAdmin2Input(e.target.value)} placeholder="Admin2 wallet address (base58)" className="input text-xs font-mono w-full" />
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleInitialize} disabled={initializing || !walletAddress || !admin2Input.trim()} className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50">
+                        {initializing ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
+                        {initializing ? "Initializing…" : "Initialize"}
+                      </button>
+                      {initResult && <span className={initResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}>{initResult}</span>}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            )}
+
+            {/* Upgrade old single-admin state */}
+            {initState === "old" && (
+              <details className="card p-4 text-xs text-neutral-500 dark:text-neutral-400">
+                <summary className="cursor-pointer select-none font-medium">⚙ Upgrade escrow: set admin2</summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-neutral-400 dark:text-neutral-500">Program is initialized (single-admin). Connect admin1 wallet and enter admin2 address to enable dual-admin signing.</p>
+                  <div className="flex flex-col gap-2">
+                    <input value={admin2Input} onChange={(e) => setAdmin2Input(e.target.value)} placeholder="Admin2 wallet address (base58)" className="input text-xs font-mono w-full" />
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleSetAdmin2} disabled={settingAdmin2 || !walletAddress || !admin2Input.trim()} className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50">
+                        {settingAdmin2 ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
+                        {settingAdmin2 ? "Upgrading…" : "Set Admin2"}
+                      </button>
+                      {setAdmin2Result && <span className={setAdmin2Result.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}>{setAdmin2Result}</span>}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+
         {/* ── CREATORS TAB ── */}
         {tab === "creators" && (() => {
           const filtered = creators.filter((c) =>
@@ -1034,221 +1156,7 @@ export default function AdminPage() {
         })()}
 
         {tab === "credits" && (
-          <div className="space-y-4">
-            {/* Vault balance + withdraw cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Vault balance */}
-              <div className="card p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center shrink-0">
-                    <Coins className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-neutral-400 tracking-wide font-semibold">Vault Balance</p>
-                    <a
-                      href={`https://solscan.io/account/${getVaultPDA().toBase58()}?cluster=devnet`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="text-sm font-bold text-neutral-900 dark:text-white hover:text-blue-500 transition-colors"
-                    >
-                      {vaultBalance === null ? "—" : `${vaultBalance.toFixed(2)} USDC`}
-                    </a>
-                  </div>
-                </div>
-                <button onClick={fetchVaultBalance} className="btn-outline text-xs px-2 py-1">Refresh</button>
-              </div>
-
-              {/* Withdraw */}
-              <div className="card p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950 flex items-center justify-center shrink-0">
-                    <Download className="w-4 h-4 text-red-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <p className="text-[10px] text-neutral-400 tracking-wide font-semibold">Withdraw Vault</p>
-                      <span className="text-[10px] text-neutral-400">
-                        (<span className={
-                          withdrawResult
-                            ? withdrawResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"
-                            : "text-orange-500"
-                        }>
-                          {withdrawResult ? withdrawResult : "LEAVE BLANK = ALL"}
-                        </span>)
-                      </span>
-                    </div>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={withdrawAmount}
-                        onChange={e => { setWithdrawAmount(e.target.value); setWithdrawResult(null); }}
-                        placeholder="0.00"
-                        disabled={withdrawing}
-                        className="text-sm font-bold bg-transparent border-b border-neutral-300 dark:border-neutral-700 outline-none p-0 w-16 text-neutral-900 dark:text-white placeholder-neutral-300 dark:placeholder-neutral-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <span className="text-sm font-bold text-neutral-900 dark:text-white">USDC</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowWithdrawConfirm(true)}
-                  disabled={withdrawing || !walletAddress || !vaultBalance || vaultBalance <= 0}
-                  className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50 !text-white !bg-orange-500 hover:!bg-orange-600 !border-orange-500 whitespace-nowrap flex items-center gap-1 shrink-0"
-                >
-                  {withdrawing && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {withdrawing ? "Withdrawing…" : "Withdraw"}
-                </button>
-              </div>
-            </div>
-
-            {/* Send USDC (devnet helper) */}
-            <details className="card p-4 text-xs">
-              <summary className="cursor-pointer select-none font-semibold text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
-                <ArrowRight className="w-3.5 h-3.5 text-blue-500" />
-                Send USDC (devnet helper)
-              </summary>
-              <div className="mt-3 flex flex-col gap-3">
-                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-                  Transfer USDC directly from the connected wallet to any address. Useful for funding test wallets.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <input
-                    value={sendRecipient}
-                    onChange={(e) => { setSendRecipient(e.target.value); setSendResult(null); }}
-                    placeholder="Recipient wallet address (base58)"
-                    disabled={sending}
-                    className="input text-xs font-mono w-full"
-                  />
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={sendAmount}
-                      onChange={(e) => { setSendAmount(e.target.value); setSendResult(null); }}
-                      placeholder="Amount USDC"
-                      disabled={sending}
-                      className="input text-xs w-32 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button
-                      onClick={handleSendUsdc}
-                      disabled={sending || !walletAddress || !sendRecipient.trim() || !sendAmount || parseFloat(sendAmount) <= 0}
-                      className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
-                      {sending ? "Sending…" : "Send"}
-                    </button>
-                  </div>
-                  {sendResult && (
-                    <p className={`text-[11px] font-medium break-all ${sendResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}`}>
-                      {sendResult}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </details>
-
-            {/* Batch action bar */}
-            <div className="card p-4 flex flex-col gap-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Wallet2 className="w-4 h-4 text-purple-500 shrink-0" />
-                  <span className="text-xs font-mono text-neutral-600 dark:text-neutral-300">
-                    {walletAddress ? (() => {
-                      const isAuthorized = (onChainAdmin && walletAddress.toLowerCase() === onChainAdmin.toLowerCase()) ||
-                                           (onChainAdmin2 && walletAddress.toLowerCase() === onChainAdmin2.toLowerCase());
-                      return (
-                        <>
-                          Signing wallet: <span className="text-purple-400">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span>
-                          {isAuthorized
-                            ? <span className="ml-1.5 text-green-600 dark:text-green-400 font-semibold">✓</span>
-                            : onChainAdmin
-                              ? <span className="ml-1.5 text-red-500 font-semibold" title="Not admin/admin2 on-chain">✗</span>
-                              : null
-                          }
-                        </>
-                      );
-                    })() : <span className="text-neutral-500 dark:text-neutral-400">No wallet connected</span>}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-neutral-400">{selectedCredits.size} selected</span>
-                  <button
-                    onClick={handleBatchCredit}
-                    disabled={crediting || selectedCredits.size === 0}
-                    className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {crediting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Coins className="w-3.5 h-3.5" />}
-                    {crediting ? "Signing…" : "Batch Credit"}
-                  </button>
-                </div>
-              </div>
-              {walletAddress && onChainAdmin && walletAddress.toLowerCase() !== onChainAdmin.toLowerCase() && (!onChainAdmin2 || walletAddress.toLowerCase() !== onChainAdmin2.toLowerCase()) && (
-                <p className="text-[11px] text-red-500 font-semibold border-t border-neutral-100 dark:border-neutral-800 pt-2.5">
-                  ⚠ Connected wallet is not admin/admin2 on-chain — batch credit will fail.
-                </p>
-              )}
-            </div>
-
-            {/* Initialize program (one-time setup) */}
-            {initState === "none" && (
-              <details className="card p-4 text-xs text-neutral-500 dark:text-neutral-400">
-                <summary className="cursor-pointer select-none font-medium">⚙ Initialize escrow program (one-time)</summary>
-                <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-neutral-400 dark:text-neutral-500">Connect admin wallet (admin1), enter admin2 wallet address, then Initialize. Both wallets can sign Batch Credit.</p>
-                  <div className="flex flex-col gap-2">
-                    <input
-                      value={admin2Input}
-                      onChange={(e) => setAdmin2Input(e.target.value)}
-                      placeholder="Admin2 wallet address (base58)"
-                      className="input text-xs font-mono w-full"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleInitialize}
-                        disabled={initializing || !walletAddress || !admin2Input.trim()}
-                        className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50"
-                      >
-                        {initializing ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
-                        {initializing ? "Initializing…" : "Initialize"}
-                      </button>
-                      {initResult && <span className={initResult.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}>{initResult}</span>}
-                    </div>
-                  </div>
-                </div>
-              </details>
-            )}
-
-            {/* Upgrade old single-admin state to multi-admin */}
-            {initState === "old" && (
-              <details className="card p-4 text-xs text-neutral-500 dark:text-neutral-400">
-                <summary className="cursor-pointer select-none font-medium">⚙ Upgrade escrow: set admin2</summary>
-                <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-neutral-400 dark:text-neutral-500">Program is initialized (single-admin). Connect admin1 wallet and enter admin2 address to enable dual-admin signing.</p>
-                  <div className="flex flex-col gap-2">
-                    <input
-                      value={admin2Input}
-                      onChange={(e) => setAdmin2Input(e.target.value)}
-                      placeholder="Admin2 wallet address (base58)"
-                      className="input text-xs font-mono w-full"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleSetAdmin2}
-                        disabled={settingAdmin2 || !walletAddress || !admin2Input.trim()}
-                        className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50"
-                      >
-                        {settingAdmin2 ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
-                        {settingAdmin2 ? "Upgrading…" : "Set Admin2"}
-                      </button>
-                      {setAdmin2Result && <span className={setAdmin2Result.startsWith("✓") ? "text-green-600 dark:text-green-400" : "text-red-500"}>{setAdmin2Result}</span>}
-                    </div>
-                  </div>
-                </div>
-              </details>
-            )}
-
+          <div className="space-y-4 mt-8 pt-6 border-t border-neutral-200 dark:border-neutral-800">
             {creditResult && (
               <div className={`rounded-xl px-4 py-3 text-sm font-medium space-y-1 ${creditResult.fail === 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"}`}>
                 <p>{creditResult.ok} creator(s) credited on-chain.{creditResult.fail > 0 && ` ${creditResult.fail} failed.`}</p>
@@ -1448,16 +1356,23 @@ export default function AdminPage() {
                                   <td className="px-3 py-2.5 font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</td>
                                   <td className="px-3 py-2.5 text-right font-bold text-green-600 dark:text-green-400">${item.amount_usdc.toFixed(2)}</td>
                                   <td className="px-3 py-2.5 text-right">
-                                    <button
-                                      onClick={() => handleRejectCredit(item)}
-                                      disabled={rejectingId === item.source_id}
-                                      title="Reject submission"
-                                      className="p-1 rounded text-neutral-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
-                                    >
-                                      {rejectingId === item.source_id
-                                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        : <XCircle className="w-3.5 h-3.5" />}
-                                    </button>
+                                    {confirmingAction?.id === item.source_id && confirmingAction.action === "reject-credit" ? (
+                                      <button onClick={() => handleRejectCredit(item)}
+                                        className="px-2 py-1 rounded bg-red-500 text-white text-[10px] font-bold transition-colors">
+                                        Sure?
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => setConfirmingAction({ id: item.source_id, action: "reject-credit" })}
+                                        disabled={rejectingId === item.source_id}
+                                        title="Reject submission"
+                                        className="p-1 rounded text-neutral-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
+                                      >
+                                        {rejectingId === item.source_id
+                                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                          : <XCircle className="w-3.5 h-3.5" />}
+                                      </button>
+                                    )}
                                   </td>
                                 </tr>
                               ))}
@@ -1675,10 +1590,17 @@ export default function AdminPage() {
                                   className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
                                   {acting?.id === job.id && acting.action === "reject" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                                 </button>
-                                <button onClick={() => handleDelete(job.id)} disabled={deleting === job.id} title="Delete"
-                                  className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
-                                  {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
+                                {confirmingAction?.id === job.id && confirmingAction.action === "delete" ? (
+                                  <button onClick={() => handleDelete(job.id)}
+                                    className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold transition-colors">
+                                    Sure?
+                                  </button>
+                                ) : (
+                                  <button onClick={() => setConfirmingAction({ id: job.id, action: "delete" })} disabled={deleting === job.id} title="Delete"
+                                    className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
+                                    {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1860,10 +1782,17 @@ export default function AdminPage() {
                                     className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                                     <CalendarDays className="w-3.5 h-3.5" />
                                   </button>
-                                  <button onClick={() => handleCancelActive(job.id)} disabled={cancelling === job.id} title="Cancel Job"
-                                    className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
-                                    {cancelling === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                  </button>
+                                  {confirmingAction?.id === job.id && confirmingAction.action === "cancel" ? (
+                                    <button onClick={() => handleCancelActive(job.id)}
+                                      className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold transition-colors">
+                                      Sure?
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => setConfirmingAction({ id: job.id, action: "cancel" })} disabled={cancelling === job.id} title="Cancel Job"
+                                      className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
+                                      {cancelling === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -2051,10 +1980,17 @@ export default function AdminPage() {
                                   className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950 transition-colors">
                                   <Download className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => handleDelete(job.id)} disabled={deleting === job.id} title="Delete"
-                                  className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
-                                  {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
+                                {confirmingAction?.id === job.id && confirmingAction.action === "delete" ? (
+                                  <button onClick={() => handleDelete(job.id)}
+                                    className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold transition-colors">
+                                    Sure?
+                                  </button>
+                                ) : (
+                                  <button onClick={() => setConfirmingAction({ id: job.id, action: "delete" })} disabled={deleting === job.id} title="Delete"
+                                    className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
+                                    {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -2222,10 +2158,17 @@ export default function AdminPage() {
                                     {restoring === job.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
                                     
                                   </button>
-                                  <button onClick={() => handleDelete(job.id)} disabled={deleting === job.id} title="Delete"
-                                    className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
-                                    {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                  </button>
+                                  {confirmingAction?.id === job.id && confirmingAction.action === "delete" ? (
+                                    <button onClick={() => handleDelete(job.id)}
+                                      className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold transition-colors">
+                                      Sure?
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => setConfirmingAction({ id: job.id, action: "delete" })} disabled={deleting === job.id} title="Delete"
+                                      className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
+                                      {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -2259,6 +2202,62 @@ export default function AdminPage() {
           </>
         )}
       </div>
+
+      {/* ── Error Toast ── */}
+      {errorMsg && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 max-w-sm text-center">
+          <XCircle className="w-4 h-4 shrink-0" />
+          {errorMsg}
+        </div>
+      )}
+
+      {/* ── Sticky Batch Credit Bar ── */}
+      {tab === "credits" && selectedCredits.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm px-4 py-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                {selectedCredits.size} selected
+              </span>
+              <span className="text-xs font-bold text-green-600 dark:text-green-400">
+                ${creditItems.filter((c) => selectedCredits.has(c.source_id)).reduce((s, c) => s + c.amount_usdc, 0).toFixed(2)} USDC
+              </span>
+              <button
+                onClick={() => setSelectedCredits(new Set())}
+                className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 underline"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400 hidden sm:block">
+                {walletAddress ? (
+                  <>
+                    {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+                    {(() => {
+                      const ok = (onChainAdmin && walletAddress.toLowerCase() === onChainAdmin.toLowerCase()) ||
+                                 (onChainAdmin2 && walletAddress.toLowerCase() === onChainAdmin2.toLowerCase());
+                      return ok
+                        ? <span className="ml-1 text-green-600 dark:text-green-400">✓</span>
+                        : onChainAdmin
+                          ? <span className="ml-1 text-red-500">✗</span>
+                          : null;
+                    })()}
+                  </>
+                ) : "No wallet"}
+              </span>
+              <button
+                onClick={handleBatchCredit}
+                disabled={crediting}
+                className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {crediting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Coins className="w-3.5 h-3.5" />}
+                {crediting ? "Signing…" : "Batch Credit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Active Job Creators Modal ── */}
       {activeDetailModal && (
