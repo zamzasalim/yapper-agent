@@ -516,25 +516,9 @@ export default function AdminPage() {
       setCreditItems(remainingItems);
       setSelectedCredits(new Set());
 
-      // Update credited_at in the Completed tab state
-      const now = new Date().toISOString();
-      const creditedJobIds = new Set<string>();
-      for (const item of selected) {
-        if (!doneIds.has(item.source_id)) continue;
-        if (item.source_type === "job") {
-          creditedJobIds.add(item.job_id);
-        } else {
-          // Campaign: mark job as credited only once all its completions are paid
-          if (!remainingItems.some((r) => r.job_id === item.job_id)) {
-            creditedJobIds.add(item.job_id);
-          }
-        }
-      }
-      if (creditedJobIds.size > 0) {
-        setCompleted((prev) =>
-          prev.map((j) => creditedJobIds.has(j.id) ? { ...j, credited_at: j.credited_at ?? now } : j)
-        );
-      }
+      // Clear completed state so next visit to Completed tab re-fetches fresh data
+      // (newest jobs may not be in state if they completed after initial load)
+      setCompleted([]);
     }
 
     setCrediting(false);
