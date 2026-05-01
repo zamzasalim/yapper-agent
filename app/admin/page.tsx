@@ -791,7 +791,7 @@ export default function AdminPage() {
   return (
     <>
       <Navbar />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 min-w-0">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
@@ -806,7 +806,7 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="overflow-x-auto mb-6 scrollbar-none">
+        <div className="overflow-x-auto mb-6 scrollbar-none w-full">
         <div className="flex gap-1 bg-neutral-100 dark:bg-neutral-900 rounded-xl p-1 w-fit min-w-max">
           <button
             onClick={() => setTab("pending")}

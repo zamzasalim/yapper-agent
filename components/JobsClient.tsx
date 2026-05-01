@@ -103,7 +103,7 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
       </div>
 
       {/* Row 2: Type filter pills (scrollable) */}
-      <div className="flex items-center gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex items-center gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-none w-full">
         {TYPE_FILTERS.map((f) => (
           <button
             key={f}
