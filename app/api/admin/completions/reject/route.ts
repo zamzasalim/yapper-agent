@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       // Restore the job slot
       const { data: job } = await db
         .from("jobs")
-        .select("slots_taken, max_creators, status")
+        .select("slots_taken, max_creators, status, title")
         .eq("id", completion.job_id)
         .maybeSingle();
 
@@ -57,12 +57,34 @@ export async function POST(req: NextRequest) {
           .update({ slots_taken: newSlots, status: newStatus })
           .eq("id", completion.job_id);
       }
+
+      // Notify creator their submission was rejected
+      void db.from("notifications").insert({
+        user_id: completion.creator_id,
+        job_id:  completion.job_id,
+        message: `Your submission for "${job?.title ?? "a job"}" was rejected by the admin. The slot is now open for others.`,
+      });
     } else if (source_type === "job") {
       // Single-creator job: reset to open so another creator can take it
+      const { data: job } = await db
+        .from("jobs")
+        .select("creator_id, title")
+        .eq("id", source_id)
+        .maybeSingle();
+
       await db
         .from("jobs")
         .update({ status: "open", creator_id: null, proof_url: null, completed_at: null })
         .eq("id", source_id);
+
+      // Notify creator their submission was rejected
+      if (job?.creator_id) {
+        void db.from("notifications").insert({
+          user_id: job.creator_id,
+          job_id:  source_id,
+          message: `Your submission for "${job.title ?? "a job"}" was rejected by the admin. The job is now open for another creator.`,
+        });
+      }
     } else {
       return NextResponse.json({ error: "Invalid source_type" }, { status: 400 });
     }

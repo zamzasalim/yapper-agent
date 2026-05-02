@@ -55,11 +55,15 @@ export async function POST(req: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const affectedJobIds = [...new Set(((parentRows ?? []) as any[]).map((r) => r.job_id as string))];
         if (affectedJobIds.length > 0) {
+          // Only count completions that *should* be credited (completed work).
+          // missed/rejected slots have credited_at=null permanently — excluding them
+          // prevents a campaign from being stuck as "pending" forever.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data: uncredited } = await (db as any)
             .from("job_completions")
             .select("job_id")
             .in("job_id", affectedJobIds)
+            .eq("status", "completed")
             .is("credited_at", null);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const stillPending = new Set(((uncredited ?? []) as any[]).map((r) => r.job_id as string));

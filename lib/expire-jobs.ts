@@ -58,17 +58,37 @@ export async function runExpireJobs(): Promise<{
     if (job.status === "in_progress") toComplete.push(job.id);
   }
 
+  // For open jobs that expired: check if any creators already completed their slots.
+  // If so, the job should be marked completed (not cancelled) so those creators get paid.
+  const trueCancel:   string[] = [];
+  const partialDone:  string[] = [];
+
   if (toCancel.length) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: doneSlots } = await (db as any)
+      .from("job_completions")
+      .select("job_id")
+      .in("job_id", toCancel)
+      .eq("status", "completed");
+    const jobsWithWork = new Set(((doneSlots ?? []) as { job_id: string }[]).map((r) => r.job_id));
+    for (const id of toCancel) {
+      if (jobsWithWork.has(id)) partialDone.push(id);
+      else                      trueCancel.push(id);
+    }
+  }
+
+  // Cancel jobs with zero completed work
+  if (trueCancel.length) {
     await db.from("jobs")
       .update({ status: "cancelled", cancel_reason: "expired_no_creator" })
-      .in("id", toCancel);
+      .in("id", trueCancel);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (db as any).from("job_completions")
       .update({ status: "missed" })
-      .in("job_id", toCancel)
+      .in("job_id", trueCancel)
       .eq("status", "accepted");
     const notifs = (activeJobs as JobRow[])
-      .filter((j) => toCancel.includes(j.id) && j.client_id && !j.is_agent_job)
+      .filter((j) => trueCancel.includes(j.id) && j.client_id && !j.is_agent_job)
       .map((j) => ({
         user_id: j.client_id!,
         job_id:  j.id,
@@ -77,6 +97,28 @@ export async function runExpireJobs(): Promise<{
     if (notifs.length) try { await db.from("notifications").insert(notifs); } catch {}
   }
 
+  // Complete jobs where some creators finished work even though not all slots were filled
+  if (partialDone.length) {
+    const completedAt = new Date().toISOString();
+    await db.from("jobs")
+      .update({ status: "completed", completed_at: completedAt })
+      .in("id", partialDone);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).from("job_completions")
+      .update({ status: "missed" })
+      .in("job_id", partialDone)
+      .eq("status", "accepted");
+    const notifs = (activeJobs as JobRow[])
+      .filter((j) => partialDone.includes(j.id) && j.client_id && !j.is_agent_job)
+      .map((j) => ({
+        user_id: j.client_id!,
+        job_id:  j.id,
+        message: `Your job "${j.title}" reached its deadline — it's been completed with the creators who submitted in time.`,
+      }));
+    if (notifs.length) try { await db.from("notifications").insert(notifs); } catch {}
+  }
+
+  // toComplete = jobs that were already in_progress when deadline passed (all slots filled)
   if (toComplete.length) {
     const completedAt = new Date().toISOString();
     await db.from("jobs")
@@ -112,10 +154,13 @@ export async function runExpireJobs(): Promise<{
     jobs: { type: string; max_creators: number; slots_taken: number; status: string } | null;
   };
 
+  // Jobs already handled in pass 1 — skip them in pass 2
+  const handledInPass1 = new Set([...trueCancel, ...partialDone, ...toComplete]);
+
   const stale = ((staleRaw ?? []) as StaleRow[]).filter((c) => {
     if (!c.jobs) return false;
     // Skip if the parent job was already handled in pass 1 (just completed/cancelled)
-    if (toCancel.includes(c.job_id) || toComplete.includes(c.job_id)) return false;
+    if (handledInPass1.has(c.job_id)) return false;
     const window = ACCEPT_WINDOW_MS[c.jobs.type] ?? 24 * 3_600_000;
     return new Date(c.created_at).getTime() + window < now;
   });
@@ -162,5 +207,5 @@ export async function runExpireJobs(): Promise<{
     if (creatorNotifs.length) try { await db.from("notifications").insert(creatorNotifs); } catch {}
   }
 
-  return { cancelled: toCancel.length, completed: toComplete.length, slotsReleased };
+  return { cancelled: trueCancel.length, completed: toComplete.length + partialDone.length, slotsReleased };
 }

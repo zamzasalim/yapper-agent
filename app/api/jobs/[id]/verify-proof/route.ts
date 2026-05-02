@@ -72,8 +72,13 @@ export async function POST(
       if (!completion) {
         return NextResponse.json({ error: "You haven't accepted this job" }, { status: 403 });
       }
-      if (completion.status === "completed") {
-        return NextResponse.json({ error: "You have already submitted proof for this job" }, { status: 409 });
+      if (completion.status !== "accepted") {
+        const msg =
+          completion.status === "completed" ? "You have already submitted proof for this job" :
+          completion.status === "missed"    ? "Your slot was released — the submission window has passed." :
+          completion.status === "rejected"  ? "Your submission was rejected by the admin." :
+          "Your slot is no longer active for this job.";
+        return NextResponse.json({ error: msg }, { status: 409 });
       }
     }
 
