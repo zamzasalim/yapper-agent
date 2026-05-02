@@ -137,7 +137,7 @@ flowchart TD
     CRON --> EXPCHECK
     MANUALEXPIRE --> EXPCHECK
 
-    EXPCHECK{Deadline passed?\nUses deadline_override if set\nelse created_at + deadline_hours}
+    EXPCHECK{Pass 1 — Job deadline passed?\nUses deadline_override if set\nelse created_at + deadline_hours}
     EXPCHECK -->|open + expired| AUTOCANCEL([status: cancelled\ncancel_reason: expired_no_creator])
     AUTOCANCEL --> NOTIF_EXPIRE[POST /api/notifications\nNotify client: job expired]
     NOTIF_EXPIRE -.->|client sees in bell| NOTIF
@@ -147,6 +147,12 @@ flowchart TD
     AUTOCOMPLETE --> NOTIF_FORCECOMP[POST /api/notifications\nNotify client: job deadline reached]
     NOTIF_FORCECOMP -.->|client sees in bell| NOTIF
     AUTOCOMPLETE --> AD5
+
+    EXPCHECK --> SLOTCHECK{Pass 2 — Accept-to-submit window passed?\nrepost · like_reply: 1h\ncontent: 12h — campaign · custom: 24h\nlib/expire-jobs.ts shared by cron + admin}
+    SLOTCHECK -->|completion accepted + window expired| SLOTREL[completion: status → missed\nslots_taken decremented\njob: in_progress → open if slots free]
+    SLOTREL --> NOTIF_SLOTREL[POST /api/notifications\nNotify creator: slot released — didn't submit in time]
+    NOTIF_SLOTREL -.->|creator sees in bell| NOTIF
+    SLOTREL --> CR1
 
     %% ── ADMIN: COMPLETED TAB ────────────────────────────────────────────────
     AD5[Admin — Completed tab\nSearch + type + credited filter + pagination\nRe-fetches fresh data after batch credit]
@@ -285,7 +291,7 @@ flowchart TD
     class AD_CAN,CANVIEW,CANREASON,CANEXP,CANADM,CANCLI,RESTORE,CANDEL,REFUND admin
     class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4 admin
     class CRTAB,CRTAB_SET,CRTAB_CLR admin
-    class CRON,EXPCHECK,MANUALEXPIRE cron
+    class CRON,EXPCHECK,MANUALEXPIRE,SLOTCHECK,SLOTREL cron
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TG_DISCONNECT,TGNOTIFY telegram
     class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED,ADM_REOPENED done
     class CRERR,PROOFERR err

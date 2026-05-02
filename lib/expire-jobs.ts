@@ -145,7 +145,8 @@ export async function runExpireJobs(): Promise<{
       const newStatus = job.status === "in_progress" && newSlots < job.max_creators
         ? "open"
         : job.status;
-      await db.from("jobs")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).from("jobs")
         .update({ slots_taken: newSlots, status: newStatus })
         .eq("id", jobId);
     }
