@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         .from("job_completions")
         .select("job_id, status, proof_url, additional_info, rating, creator:creator_id(twitter_handle, display_name, wallet_address)")
         .in("job_id", campaignIds)
-        .eq("status", "completed");
+        .in("status", ["completed", "missed", "rejected", "in_progress"]);
 
       for (const c of completions ?? []) {
         if (!completionsMap[c.job_id]) completionsMap[c.job_id] = [];

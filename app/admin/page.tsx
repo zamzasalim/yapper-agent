@@ -2610,12 +2610,13 @@ export default function AdminPage() {
         const entries = job.completions && job.completions.length > 0
           ? job.completions.map((c) => ({
               handle: c.creator?.twitter_handle ?? "—",
+              status: c.status,
               proof_url: c.proof_url,
               wallet: c.creator?.wallet_address ?? null,
               additional_info: c.additional_info,
             }))
           : job.creator
-            ? [{ handle: job.creator.twitter_handle, proof_url: job.proof_url, wallet: job.creator.wallet_address, additional_info: job.additional_info }]
+            ? [{ handle: job.creator.twitter_handle, status: "completed", proof_url: job.proof_url, wallet: job.creator.wallet_address, additional_info: job.additional_info }]
             : [];
         const DETAIL_PAGE = 20;
         const totalDetailPages = Math.ceil(entries.length / DETAIL_PAGE);
@@ -2678,6 +2679,7 @@ export default function AdminPage() {
                       <tr>
                         <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">#</th>
                         <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">Handle</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">Status</th>
                         <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">Proof</th>
                         <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400 whitespace-nowrap">Wallet</th>
                       </tr>
@@ -2685,10 +2687,23 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                       {pageEntries.map((entry, i) => {
                         const rowNum = detailPage * DETAIL_PAGE + i + 1;
+                        const isDimmed = entry.status === "missed" || entry.status === "rejected";
+                        const statusBadge: Record<string, string> = {
+                          completed:   "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
+                          missed:      "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border-neutral-200 dark:border-neutral-700",
+                          rejected:    "bg-red-50 dark:bg-red-950 text-red-500 dark:text-red-400 border-red-200 dark:border-red-800",
+                          in_progress: "bg-blue-50 dark:bg-blue-950 text-blue-500 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+                        };
+                        const badgeCls = statusBadge[entry.status] ?? "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700";
                         return (
-                          <tr key={i} className="bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                          <tr key={i} className={`bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors${isDimmed ? " opacity-50" : ""}`}>
                             <td className="px-4 py-2.5 text-neutral-400 dark:text-neutral-500">{rowNum}</td>
                             <td className="px-4 py-2.5 font-medium text-neutral-800 dark:text-neutral-200 whitespace-nowrap">@{entry.handle}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeCls}`}>
+                                {entry.status}
+                              </span>
+                            </td>
                             <td className="px-4 py-2.5">
                               {entry.proof_url ? (
                                 <a href={entry.proof_url} target="_blank" rel="noopener noreferrer"
