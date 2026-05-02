@@ -126,6 +126,9 @@ flowchart TD
     AD_ACT --> ADMHIDE[Hide / Show — PATCH is_hidden]
     AD_ACT --> ADMEXT[Extend Deadline\nCalendarDays modal — PATCH deadline_override]
     AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected]
+    AD_ACT --> ADMVIEW[View Creators modal\nGET /api/jobs/:id/applicants\nShows handle · status · proof · completion_id]
+    ADMVIEW --> ADM_REJ[Reject creator submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared]
+    ADM_REJ --> ADM_REOPENED([Slot available for another creator\nCredit item removed from payout queue])
     ADMCANCEL --> AD_CAN
     ADMHIDE -.->|hidden jobs excluded| CR1
 
@@ -157,8 +160,6 @@ flowchart TD
     ESCROW_PEND[Admin — Credits tab\nCompleted jobs where credited_at IS NULL\nCampaign completions only shown when parent job is closed\nnot open or in_progress\nGrouped by job: ID + title + type + creator list]
     ESCROW_PEND --> ESC1[Admin connects Phantom wallet]
     ESC1 --> ESC2[Checkbox-select creators\nTotal USDC auto-calculated\nVault balance shown for sufficiency check]
-    ESC2 --> ESC_REJ[Reject individual submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared]
-    ESC_REJ --> ESC_REOPENED([Slot available for another creator])
     ESC2 --> ESC3[Click Batch Credit\nbuildCreditCreatorTx per creator\nPhantom signs + submits]
     ESC3 --> ESC4[ClaimRecord PDA updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm — idempotent\ncredited_at + credit_tx set on jobs + job_completions\nCampaign: jobs.credited_at set when ALL slots credited\nDouble-call safe: only updates where credited_at IS NULL\nDashboard: Under Review to Done]
     ESC4 --> ESC5([Credits locked in vault\nCreator can now claim USDC])
@@ -279,14 +280,14 @@ flowchart TD
     class CR_CLAIM,CR_CLAIM2,CR_CLAIM3 creator
     class EX1,EX2 creator
     class AD_PEND,AD1D,AD2,AD3,AD4 admin
-    class AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL admin
+    class AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,ADMVIEW,ADM_REJ admin
     class AD5,AD6,AD7 admin
     class AD_CAN,CANVIEW,CANREASON,CANEXP,CANADM,CANCLI,RESTORE,CANDEL,REFUND admin
-    class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4,ESC_REJ admin
+    class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4 admin
     class CRTAB,CRTAB_SET,CRTAB_CLR admin
     class CRON,EXPCHECK,MANUALEXPIRE cron
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TG_DISCONNECT,TGNOTIFY telegram
-    class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED done
+    class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED,ADM_REOPENED done
     class CRERR,PROOFERR err
     class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT cancelled
     class AG1,AG2,AG3,AG4,AG5,AG6,AG7,AG8,AG9,AG10,AG11,AG12 auth
