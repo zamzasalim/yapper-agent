@@ -228,7 +228,11 @@ export async function buildCreditCreatorTx(
  * Build a claim instruction.
  * Creator signs this — moves all their claimable USDC from vault to their wallet.
  */
-export async function buildClaimTx(creatorWallet: PublicKey): Promise<Transaction> {
+export async function buildClaimTx(creatorWallet: PublicKey): Promise<{
+  tx: Transaction;
+  blockhash: string;
+  lastValidBlockHeight: number;
+}> {
   const state        = getStatePDA();
   const vault        = getVaultPDA();
   const claimRecord  = getClaimRecordPDA(creatorWallet);
@@ -265,10 +269,10 @@ export async function buildClaimTx(creatorWallet: PublicKey): Promise<Transactio
   });
 
   tx.add(ix);
-  const { blockhash } = await connection.getLatestBlockhash();
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
   tx.recentBlockhash = blockhash;
   tx.feePayer = creatorWallet;
-  return tx;
+  return { tx, blockhash, lastValidBlockHeight };
 }
 
 /**

@@ -175,6 +175,7 @@ export default function DashboardPage() {
   const [pendingBalance, setPendingBalance]     = useState<number | null>(null);
   const [claiming, setClaiming]                 = useState(false);
   const [claimTx, setClaimTx]                   = useState<string | null>(null);
+  const [claimError, setClaimError]             = useState<string | null>(null);
 
   const { walletProvider } = useAppKitProvider<Provider>("solana");
 
@@ -355,6 +356,7 @@ export default function DashboardPage() {
     if (!wallet || !walletProvider) return;
     setClaiming(true);
     setClaimTx(null);
+    setClaimError(null);
     try {
       const [{ PublicKey }, { buildClaimTx }, { connection: conn }] = await Promise.all([
         import("@solana/web3.js"),
@@ -362,17 +364,32 @@ export default function DashboardPage() {
         import("@/lib/solana"),
       ]);
       const creatorPubkey = new PublicKey(wallet);
-      const tx = await buildClaimTx(creatorPubkey);
+      const { tx, blockhash, lastValidBlockHeight } = await buildClaimTx(creatorPubkey);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const signed = await (walletProvider as any).signTransaction(tx);
       const sig = await conn.sendRawTransaction(signed.serialize());
-      await conn.confirmTransaction(sig, "confirmed");
+      await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
       setClaimTx(sig);
       setClaimable(0);
       setTimeout(() => setClaimTx(null), 10_000);
     } catch (e) {
       console.error("claim failed", e);
-      alert("Claim failed. Check console for details.");
+      const msg = e instanceof Error ? e.message : String(e);
+      const friendly =
+        msg.includes("NothingToClaim") || msg.includes("6002") ? "Nothing to claim — balance is zero." :
+        msg.includes("Blockhash not found") || msg.includes("block height exceeded") ? "Transaction expired. Please try again." :
+        msg.includes("User rejected") || msg.includes("rejected") ? "Signature cancelled." :
+        "Claim failed. Please try again.";
+      setClaimError(friendly);
+      // Re-fetch on-chain balance so UI reflects actual state
+      try {
+        const [{ PublicKey: PK }, { fetchClaimable }] = await Promise.all([
+          import("@solana/web3.js"),
+          import("@/lib/contract"),
+        ]);
+        const actual = await fetchClaimable(new PK(wallet));
+        setClaimable(actual);
+      } catch { /* keep current value */ }
     } finally {
       setClaiming(false);
     }
@@ -872,6 +889,9 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
+                  {claimError && (
+                    <p className="text-[11px] text-red-500 dark:text-red-400 mt-1 text-right">{claimError}</p>
+                  )}
                 </div>
               </div>
 
