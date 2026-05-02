@@ -52,6 +52,8 @@ interface ActiveCreator {
   is_verified_blue: boolean;
   status: string;
   proof_url: string | null;
+  completion_id: string | null;
+  source_type: "job" | "completion";
 }
 
 interface AdditionalInfo {
@@ -251,6 +253,7 @@ export default function AdminPage() {
   const [activeDetailModal, setActiveDetailModal]     = useState<ActiveJob | null>(null);
   const [activeModalCreators, setActiveModalCreators] = useState<ActiveCreator[]>([]);
   const [loadingActiveCreators, setLoadingActiveCreators] = useState(false);
+  const [rejectingActiveId, setRejectingActiveId]     = useState<string | null>(null);
 
   // ── Credits tab state ──────────────────────────────────────────────────────
   const [creditItems, setCreditItems]       = useState<CreditItem[]>([]);
@@ -692,6 +695,40 @@ export default function AdminPage() {
     } finally {
       setLoadingActiveCreators(false);
     }
+  }
+
+  async function handleRejectFromActive(creator: ActiveCreator) {
+    if (!creator.completion_id) return;
+    const key = creator.completion_id;
+    setRejectingActiveId(key);
+    setConfirmingAction(null);
+    try {
+      const res = await fetch("/api/admin/completions/reject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_id: key, source_type: creator.source_type, admin_handle: twitterHandle }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setErrorMsg(`Reject failed: ${d.error ?? "Unknown error"}`);
+      } else {
+        setActiveModalCreators((prev) =>
+          prev.map((c) => c.completion_id === key ? { ...c, status: "rejected" } : c)
+        );
+        // Sync slots_taken in modal header
+        if (activeDetailModal && creator.source_type === "completion") {
+          setActiveDetailModal((prev) =>
+            prev ? { ...prev, slots_taken: Math.max(0, (prev.slots_taken ?? 1) - 1) } : prev
+          );
+        }
+        // Remove from credit items if already loaded
+        setCreditItems((prev) => prev.filter((c) => c.source_id !== key));
+        setSelectedCredits((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      }
+    } catch (e) {
+      setErrorMsg(`Reject failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setRejectingActiveId(null);
   }
 
   async function handleCancelActive(jobId: string) {
@@ -1342,7 +1379,6 @@ export default function AdminPage() {
                                 <th className="px-3 py-2 text-left">Creator</th>
                                 <th className="px-3 py-2 text-left">Wallet</th>
                                 <th className="px-3 py-2 text-right">Amount</th>
-                                <th className="w-8 px-3 py-2" />
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -1366,25 +1402,6 @@ export default function AdminPage() {
                                   </td>
                                   <td className="px-3 py-2.5 font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</td>
                                   <td className="px-3 py-2.5 text-right font-bold text-green-600 dark:text-green-400">${item.amount_usdc.toFixed(2)}</td>
-                                  <td className="px-3 py-2.5 text-right">
-                                    {confirmingAction?.id === item.source_id && confirmingAction.action === "reject-credit" ? (
-                                      <button onClick={() => handleRejectCredit(item)}
-                                        className="px-2 py-1 rounded bg-red-500 text-white text-[10px] font-bold transition-colors">
-                                        Sure?
-                                      </button>
-                                    ) : (
-                                      <button
-                                        onClick={() => setConfirmingAction({ id: item.source_id, action: "reject-credit" })}
-                                        disabled={rejectingId === item.source_id}
-                                        title="Reject submission"
-                                        className="p-1 rounded text-neutral-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
-                                      >
-                                        {rejectingId === item.source_id
-                                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                          : <XCircle className="w-3.5 h-3.5" />}
-                                      </button>
-                                    )}
-                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -2320,41 +2337,68 @@ export default function AdminPage() {
                       <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">Handle</th>
                       <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">Status</th>
                       <th className="text-left px-4 py-2.5 font-semibold text-neutral-600 dark:text-neutral-400">Proof</th>
+                      <th className="px-4 py-2.5" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                    {activeModalCreators.map((creator, i) => (
-                      <tr key={creator.twitter_handle} className="bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
-                        <td className="px-4 py-2.5 text-neutral-400 dark:text-neutral-500">{i + 1}</td>
-                        <td className="px-4 py-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-neutral-800 dark:text-neutral-200 whitespace-nowrap">@{creator.twitter_handle}</span>
-                            {creator.is_verified_blue && <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0" />}
-                          </div>
-                          {creator.display_name && (
-                            <p className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate max-w-[140px]">{creator.display_name}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 whitespace-nowrap">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                            creator.status === "completed"   ? "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
-                            : creator.status === "in_progress" ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                            : creator.status === "missed"      ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border-neutral-200 dark:border-neutral-700"
-                            : "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                          }`}>
-                            {creator.status === "in_progress" ? "Working" : creator.status === "accepted" ? "Accepted" : creator.status === "completed" ? "Done" : creator.status === "missed" ? "Missed" : creator.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {creator.proof_url ? (
-                            <a href={creator.proof_url} target="_blank" rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline flex items-center gap-1 whitespace-nowrap">
-                              <ExternalLink className="w-3 h-3" /> Proof
-                            </a>
-                          ) : <span className="text-neutral-300 dark:text-neutral-600">—</span>}
-                        </td>
-                      </tr>
-                    ))}
+                    {activeModalCreators.map((creator, i) => {
+                      const canReject = creator.completion_id && !["rejected", "missed"].includes(creator.status);
+                      const rejectKey = `active-reject-${creator.completion_id}`;
+                      return (
+                        <tr key={creator.twitter_handle} className="bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                          <td className="px-4 py-2.5 text-neutral-400 dark:text-neutral-500">{i + 1}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-neutral-800 dark:text-neutral-200 whitespace-nowrap">@{creator.twitter_handle}</span>
+                              {creator.is_verified_blue && <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0" />}
+                            </div>
+                            {creator.display_name && (
+                              <p className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate max-w-[140px]">{creator.display_name}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              creator.status === "completed"   ? "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800"
+                              : creator.status === "in_progress" ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                              : creator.status === "rejected"    ? "bg-red-50 dark:bg-red-950 text-red-500 dark:text-red-400 border-red-200 dark:border-red-800"
+                              : creator.status === "missed"      ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 border-neutral-200 dark:border-neutral-700"
+                              : "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                            }`}>
+                              {creator.status === "in_progress" ? "Working" : creator.status === "accepted" ? "Accepted" : creator.status === "completed" ? "Done" : creator.status === "missed" ? "Missed" : creator.status === "rejected" ? "Rejected" : creator.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {creator.proof_url ? (
+                              <a href={creator.proof_url} target="_blank" rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline flex items-center gap-1 whitespace-nowrap">
+                                <ExternalLink className="w-3 h-3" /> Proof
+                              </a>
+                            ) : <span className="text-neutral-300 dark:text-neutral-600">—</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {canReject && (
+                              confirmingAction?.id === creator.completion_id && confirmingAction.action === "reject-active" ? (
+                                <button onClick={() => handleRejectFromActive(creator)}
+                                  className="px-2 py-1 rounded bg-red-500 text-white text-[10px] font-bold transition-colors">
+                                  Sure?
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmingAction({ id: creator.completion_id!, action: "reject-active" })}
+                                  disabled={rejectingActiveId === creator.completion_id}
+                                  title="Reject submission"
+                                  className="p-1 rounded text-neutral-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
+                                >
+                                  {rejectingActiveId === creator.completion_id
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <XCircle className="w-3.5 h-3.5" />}
+                                </button>
+                              )
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

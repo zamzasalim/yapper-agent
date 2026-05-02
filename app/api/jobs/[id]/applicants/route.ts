@@ -12,16 +12,18 @@ export async function GET(
     // Multi-creator: pull from job_completions
     const { data: completions } = await db
       .from("job_completions")
-      .select("status, proof_url, additional_info, creator:creator_id(twitter_handle, display_name, avatar_url, is_verified_blue)")
+      .select("id, status, proof_url, additional_info, creator:creator_id(twitter_handle, display_name, avatar_url, is_verified_blue)")
       .eq("job_id", id);
 
     if (completions && completions.length > 0) {
       return NextResponse.json({
-        applicants: completions.map((c) => ({
+        applicants: (completions as any[]).map((c) => ({
           ...(c.creator as object),
-          status: c.status,
-          proof_url: c.proof_url ?? null,
+          status:        c.status,
+          proof_url:     c.proof_url ?? null,
           additional_info: c.additional_info ?? null,
+          completion_id: c.id,
+          source_type:   "completion",
         })),
       });
     }
@@ -29,7 +31,7 @@ export async function GET(
     // Fallback: single-creator job — read from jobs table
     const { data: job } = await db
       .from("jobs")
-      .select("creator_id, proof_url, additional_info, status")
+      .select("id, creator_id, proof_url, additional_info, status")
       .eq("id", id)
       .maybeSingle();
 
@@ -45,9 +47,11 @@ export async function GET(
       applicants: user
         ? [{
             ...user,
-            status: job.status,
-            proof_url: (job as any).proof_url ?? null,
+            status:        job.status,
+            proof_url:     (job as any).proof_url ?? null,
             additional_info: (job as any).additional_info ?? null,
+            completion_id: job.id,
+            source_type:   "job",
           }]
         : [],
     });
