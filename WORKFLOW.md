@@ -125,9 +125,9 @@ flowchart TD
     AD_ACT --> MANUALEXPIRE[POST /api/admin/expire-jobs\nAuto-run on tab load]
     AD_ACT --> ADMHIDE[Hide / Show — PATCH is_hidden]
     AD_ACT --> ADMEXT[Extend Deadline\nCalendarDays modal — PATCH deadline_override]
-    AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected]
+    AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected\naccepted completions → missed]
     AD_ACT --> ADMVIEW[View Creators modal\nGET /api/jobs/:id/applicants\nShows handle · status · proof · completion_id]
-    ADMVIEW --> ADM_REJ[Reject creator submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared]
+    ADMVIEW --> ADM_REJ[Reject creator submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared\nNotify creator via bell]
     ADM_REJ --> ADM_REOPENED([Slot available for another creator\nCredit item removed from payout queue])
     ADMCANCEL --> AD_CAN
     ADMHIDE -.->|hidden jobs excluded| CR1
@@ -138,10 +138,15 @@ flowchart TD
     MANUALEXPIRE --> EXPCHECK
 
     EXPCHECK{Pass 1 — Job deadline passed?\nUses deadline_override if set\nelse created_at + deadline_hours}
-    EXPCHECK -->|open + expired| AUTOCANCEL([status: cancelled\ncancel_reason: expired_no_creator])
+    EXPCHECK -->|open + expired| PARTIALCHECK{Any completed slots?}
+    PARTIALCHECK -->|No — zero work done| AUTOCANCEL([status: cancelled\ncancel_reason: expired_no_creator])
     AUTOCANCEL --> NOTIF_EXPIRE[POST /api/notifications\nNotify client: job expired]
     NOTIF_EXPIRE -.->|client sees in bell| NOTIF
     AUTOCANCEL --> AD_CAN
+    PARTIALCHECK -->|Yes — some creators submitted| PARTCOMP[status: completed — completed_at set\naccepted-only slots → missed\nCompleted slots enter payout list]
+    PARTCOMP --> NOTIF_PARTCOMP[POST /api/notifications\nNotify client: completed with partial creators]
+    NOTIF_PARTCOMP -.->|client sees in bell| NOTIF
+    PARTCOMP --> AD5
     EXPCHECK -->|in_progress + expired| AUTOCOMPLETE[status: completed — completed_at set\nCompleted slots enter payout list]
     AUTOCOMPLETE --> MISSEDSLOTS([accepted completions without proof\nstatus: missed])
     AUTOCOMPLETE --> NOTIF_FORCECOMP[POST /api/notifications\nNotify client: job deadline reached]
@@ -280,7 +285,7 @@ flowchart TD
     class CLREVIEW,RV1,RV2 client
     class MKPL,DIRECTHIRE,CL1_DH client
     class NOTIF,NOTIF_LIST,NOTIF_READALL,NOTIF_CREATOR client
-    class NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP client
+    class NOTIF_ACCEPT,NOTIF_SLOT,NOTIF_EXPIRE,NOTIF_CAMPAIGN_DONE,NOTIF_FORCECOMP,NOTIF_PARTCOMP client
     class CR1,CR2,CR3,CR4,CR5,CR6,CR7,CR8,CR9,CR10 creator
     class CR11,CR12,CR13A,CR13B,CR14,CR14B,CR15,CR16,CR17,CR18,CR19,CR20 creator
     class CR_CLAIM,CR_CLAIM2,CR_CLAIM3 creator
@@ -291,7 +296,7 @@ flowchart TD
     class AD_CAN,CANVIEW,CANREASON,CANEXP,CANADM,CANCLI,RESTORE,CANDEL,REFUND admin
     class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4 admin
     class CRTAB,CRTAB_SET,CRTAB_CLR admin
-    class CRON,EXPCHECK,MANUALEXPIRE,SLOTCHECK,SLOTREL cron
+    class CRON,EXPCHECK,MANUALEXPIRE,PARTIALCHECK,SLOTCHECK,SLOTREL cron
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TG_DISCONNECT,TGNOTIFY telegram
     class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED,ADM_REOPENED done
     class CRERR,PROOFERR err

@@ -115,7 +115,13 @@ interface CancelledJob {
   cancel_reason: string | null;
   is_refunded: boolean;
   tx_hash: string | null;
-  client: { twitter_handle: string; display_name: string; wallet_address: string } | null;
+  client:  { twitter_handle: string; display_name: string; wallet_address: string } | null;
+  creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
+  completions: Array<{
+    status: string;
+    proof_url: string | null;
+    creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
+  }> | null;
 }
 
 const CANCEL_REASON_LABEL: Record<string, { label: string; color: string }> = {
@@ -893,8 +899,8 @@ export default function AdminPage() {
           {([
             { key: "pending",   label: "Pending",   badge: pending.length,    color: "bg-amber-500" },
             { key: "active",    label: "Active",    badge: active.length,     color: "bg-green-500" },
-            { key: "completed", label: "Completed", badge: completed.length,  color: "bg-blue-500" },
-            { key: "cancelled", label: "Cancelled", badge: cancelled.length,  color: "bg-red-500" },
+            { key: "completed", label: "Completed", badge: completed.filter((j) => !j.credited_at).length,   color: "bg-blue-500" },
+            { key: "cancelled", label: "Cancelled", badge: cancelled.filter((j) => !j.is_refunded).length,  color: "bg-red-500" },
             { key: "credits",   label: "Credits",   badge: creditItems.length, color: "bg-purple-500" },
             { key: "creators",  label: "Creators",  badge: 0,                 color: "" },
           ] as const).map(({ key, label, badge, color }) => (
@@ -2008,17 +2014,6 @@ export default function AdminPage() {
                                   className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950 transition-colors">
                                   <Download className="w-3.5 h-3.5" />
                                 </button>
-                                {confirmingAction?.id === job.id && confirmingAction.action === "delete" ? (
-                                  <button onClick={() => handleDelete(job.id)}
-                                    className="px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold transition-colors">
-                                    Sure?
-                                  </button>
-                                ) : (
-                                  <button onClick={() => setConfirmingAction({ id: job.id, action: "delete" })} disabled={deleting === job.id} title="Delete"
-                                    className="p-1.5 rounded-lg text-neutral-300 dark:text-neutral-700 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-40">
-                                    {deleting === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>
@@ -2595,6 +2590,52 @@ export default function AdminPage() {
                     <span className="text-neutral-700 dark:text-neutral-300">{fmtDate(job.created_at)}</span>
                   </div>
                 </div>
+
+                {/* Creators who worked on this job (if any) */}
+                {(() => {
+                  const entries: { handle: string; status: string; proof_url: string | null }[] = [];
+                  if (job.creator) {
+                    entries.push({ handle: job.creator.twitter_handle, status: "single", proof_url: null });
+                  }
+                  if (job.completions && job.completions.length > 0) {
+                    for (const c of job.completions) {
+                      if (c.creator) entries.push({ handle: c.creator.twitter_handle, status: c.status, proof_url: c.proof_url });
+                    }
+                  }
+                  if (entries.length === 0) return null;
+                  const statusColor: Record<string, string> = {
+                    completed: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400",
+                    missed:    "bg-neutral-100 dark:bg-neutral-800 text-neutral-500",
+                    rejected:  "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400",
+                    single:    "bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
+                  };
+                  return (
+                    <>
+                      <div className="border-t border-neutral-100 dark:border-neutral-800" />
+                      <div>
+                        <p className="text-neutral-400 dark:text-neutral-500 mb-2">Creators</p>
+                        <div className="flex flex-col gap-1.5">
+                          {entries.map((e, i) => (
+                            <div key={i} className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-neutral-800 dark:text-neutral-200 truncate">@{e.handle}</span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {e.proof_url && (
+                                  <a href={e.proof_url} target="_blank" rel="noopener noreferrer"
+                                    className="text-blue-500 hover:underline flex items-center gap-0.5 text-[10px]">
+                                    <ExternalLink className="w-2.5 h-2.5" /> Proof
+                                  </a>
+                                )}
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusColor[e.status] ?? "bg-neutral-100 text-neutral-500"}`}>
+                                  {e.status === "single" ? "Accepted" : e.status.charAt(0).toUpperCase() + e.status.slice(1)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

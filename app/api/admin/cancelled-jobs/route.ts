@@ -23,13 +23,41 @@ export async function GET(req: NextRequest) {
       .select(
         `id, created_at, type, title, description, price_usdc, deadline_hours, tweet_url,
          require_blue, min_followers, max_creators, is_agent_job, creator_id, cancel_reason, is_refunded, tx_hash,
-         client:users!client_id(twitter_handle, display_name, wallet_address)`
+         client:users!client_id(twitter_handle, display_name, wallet_address),
+         creator:users!creator_id(twitter_handle, display_name, wallet_address)`
       )
       .eq("status", "cancelled")
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ jobs: data ?? [] });
+
+    // For campaign jobs, fetch completions (completed/missed/rejected) to show who worked
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const campaignIds = (data ?? []).filter((j: any) => !j.creator_id && (j.max_creators ?? 1) > 1).map((j: any) => j.id as string);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let completionsMap: Record<string, any[]> = {};
+
+    if (campaignIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: completions } = await (db as any)
+        .from("job_completions")
+        .select("job_id, status, proof_url, creator:creator_id(twitter_handle, display_name, wallet_address)")
+        .in("job_id", campaignIds)
+        .in("status", ["completed", "missed", "rejected"]);
+
+      for (const c of completions ?? []) {
+        if (!completionsMap[c.job_id]) completionsMap[c.job_id] = [];
+        completionsMap[c.job_id].push(c);
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const jobs = (data ?? []).map((j: any) => ({
+      ...j,
+      completions: completionsMap[j.id] ?? null,
+    }));
+
+    return NextResponse.json({ jobs });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

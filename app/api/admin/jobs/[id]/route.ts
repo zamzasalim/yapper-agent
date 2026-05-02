@@ -35,13 +35,21 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Notify client when admin cancels their job from the Active tab
-    if (patch.status === "cancelled" && data.client_id) {
-      void db.from("notifications").insert({
-        user_id: data.client_id as string,
-        job_id: id,
-        message: `Your job "${data.title}" was cancelled by admin.`,
-      });
+    // When cancelling: mark any accepted completions as missed so they don't stay stuck
+    if (patch.status === "cancelled") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      void (db as any).from("job_completions")
+        .update({ status: "missed" })
+        .eq("job_id", id)
+        .eq("status", "accepted");
+
+      if (data.client_id) {
+        void db.from("notifications").insert({
+          user_id: data.client_id as string,
+          job_id: id,
+          message: `Your job "${data.title}" was cancelled by admin.`,
+        });
+      }
     }
 
     return NextResponse.json({ job: data });
