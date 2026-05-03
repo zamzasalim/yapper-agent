@@ -44,7 +44,7 @@ export function JobsClient({ jobs }: { jobs: Job[] }) {
         !q ||
         j.title.toLowerCase().includes(q) ||
         j.description.toLowerCase().includes(q);
-      const filterToType: Record<string, string> = { "Like & Reply": "like_reply" };
+      const filterToType: Record<string, string> = { "Like & Reply": "like_reply", "Retweet": "repost" };
       const matchesType =
         activeFilter === "All" ||
         (activeFilter === "Agent Jobs"

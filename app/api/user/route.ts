@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
       const updates: UserUpdate = {};
       if (avatar_url && avatar_url !== existing.avatar_url) updates.avatar_url = avatar_url;
 
-      const stats = await fetchTwitterUserStats(twitter_handle || existing.twitter_handle);
+      let stats = null;
+      try { stats = await fetchTwitterUserStats(twitter_handle || existing.twitter_handle); } catch {}
       if (stats) {
         updates.twitter_followers = stats.followers;
         updates.is_verified_blue  = stats.is_verified_blue;
@@ -53,7 +54,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch real follower count + blue status from ScrapeBadger for new user
-    const stats = await fetchTwitterUserStats(twitter_handle);
+    let stats = null;
+    try { stats = await fetchTwitterUserStats(twitter_handle); } catch {}
 
     // Create new creator record
     const { data: created, error } = await db
