@@ -558,6 +558,7 @@ export default function AdminPage() {
         setErrorMsg(`Mark paid failed: ${d.error ?? "Unknown error"}`);
       } else {
         setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
+        setCompleted([]); // force Completed tab to re-fetch so credited_at updates
       }
     } catch (e) {
       setErrorMsg(`Mark paid failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -2288,25 +2289,26 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-1 justify-end">
-                                  {/* Mark refunded toggle */}
-                                  <button
-                                    onClick={() => handleMarkRefunded(job.id)}
-                                    disabled={refunding === job.id || job.is_refunded}
-                                    title={job.is_refunded ? "Already refunded" : "Mark Refunded"}
-                                    className={`p-1.5 rounded-lg transition-colors ${job.is_refunded ? "text-green-500" : "text-neutral-300 dark:text-neutral-700 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950"}`}
-                                  >
-                                    {refunding === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                                  </button>
-                                  {/* Copy client wallet */}
-                                  {job.client?.wallet_address && (
+                                  {/* Refund controls — hidden for expired_no_approval (custom jobs never collected USDC) */}
+                                  {job.cancel_reason !== "expired_no_approval" && (<>
                                     <button
-                                      onClick={() => copyRefundWallet(job.client!.wallet_address, job.id)}
-                                      title="Copy Client Wallet"
-                                      className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                      onClick={() => handleMarkRefunded(job.id)}
+                                      disabled={refunding === job.id || job.is_refunded}
+                                      title={job.is_refunded ? "Already refunded" : "Mark Refunded"}
+                                      className={`p-1.5 rounded-lg transition-colors ${job.is_refunded ? "text-green-500" : "text-neutral-300 dark:text-neutral-700 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-950"}`}
                                     >
-                                      {copiedRefundWallet === job.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                      {refunding === job.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                                     </button>
-                                  )}
+                                    {job.client?.wallet_address && (
+                                      <button
+                                        onClick={() => copyRefundWallet(job.client!.wallet_address, job.id)}
+                                        title="Copy Client Wallet"
+                                        className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                      >
+                                        {copiedRefundWallet === job.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                      </button>
+                                    )}
+                                  </>)}
                                   {/* Solscan tx link */}
                                   {job.tx_hash && (
                                     <a
