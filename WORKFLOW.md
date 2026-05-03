@@ -196,7 +196,7 @@ flowchart TD
     CANREASON -->|admin_rejected| CANADM[Admin Rejected]
     CANREASON -->|client_cancelled| CANCLI[Client Cancelled\nReserved — by design]
     AD_CAN --> CANVIEW[View Details modal — client brief + meta]
-    AD_CAN --> RESTORE[POST /api/admin/jobs/:id/restore\nstatus: open or pending_approval\ncancel_reason: null — creator_id: null\nslots_taken: 0 — deadline reset from now\nJob completions deleted]
+    AD_CAN --> RESTORE[POST /api/admin/jobs/:id/restore\nPre-check: any credited_at IS NOT NULL → 409 blocked\nstatus: open or pending_approval\ncancel_reason: null — creator_id: null\nslots_taken: 0 — deadline reset from now\nJob completions deleted]
     AD_CAN --> CANDEL[Delete permanently]
     AD_CAN --> REFUND[Copy Client Wallet\nMark Refunded — PATCH is_refunded]
     REFUND --> REFUNDED([Refund marked])
