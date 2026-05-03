@@ -125,9 +125,10 @@ interface CancelledJob {
 }
 
 const CANCEL_REASON_LABEL: Record<string, { label: string; color: string }> = {
-  expired_no_creator: { label: "Expired (No Creator)", color: "bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700" },
-  admin_rejected:     { label: "Admin Rejected",       color: "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800" },
-  client_cancelled:   { label: "Client Cancelled",     color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800" },
+  expired_no_creator:  { label: "Expired (No Creator)",  color: "bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700" },
+  expired_no_approval: { label: "Expired (No Approval)", color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800" },
+  admin_rejected:      { label: "Admin Rejected",        color: "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800" },
+  client_cancelled:    { label: "Client Cancelled",      color: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800" },
 };
 
 function parseDesc(description: string) {
@@ -176,23 +177,52 @@ const ADMIN_PAGE_SIZE = 20;
 // ── Excel export per job ───────────────────────────────────────────────────────
 async function downloadJobExcel(job: CompletedJob) {
   const XLSX = await import("xlsx");
-  const info = job.additional_info ?? {};
-  const rows = [{
-    "Job ID":         job.id,
-    "Job Type":       TYPE_LABEL[job.type] ?? job.type,
-    "Job Title":      job.title,
-    "Amount (USDC)":  job.price_usdc,
-    "Creator Handle": job.creator?.twitter_handle ?? "",
-    "Creator Name":   job.creator?.display_name   ?? "",
-    "SOL Wallet":     job.creator?.wallet_address  ?? "",
-    "Proof Link":     job.proof_url ?? "",
-    "Client Handle":  job.client?.twitter_handle  ?? "",
-    "Completed At":   new Date(job.created_at).toLocaleString(),
-    ...(info.wallet   ? { "Wallet (additional)": info.wallet }   : {}),
-    ...(info.email    ? { "Email":               info.email }    : {}),
-    ...(info.discord  ? { "Discord":             info.discord }  : {}),
-    ...(info.telegram ? { "Telegram":            info.telegram } : {}),
-  }];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rows: any[];
+
+  if (job.completions && job.completions.length > 0) {
+    // Campaign: one row per completed slot
+    rows = job.completions
+      .filter((c) => c.status === "completed")
+      .map((c) => {
+        const cInfo = c.additional_info ?? {};
+        return {
+          "Job ID":         job.id,
+          "Job Type":       TYPE_LABEL[job.type] ?? job.type,
+          "Job Title":      job.title,
+          "Amount (USDC)":  job.price_usdc,
+          "Creator Handle": c.creator?.twitter_handle ?? "",
+          "Creator Name":   c.creator?.display_name   ?? "",
+          "SOL Wallet":     c.creator?.wallet_address  ?? "",
+          "Proof Link":     c.proof_url ?? "",
+          "Client Handle":  job.client?.twitter_handle ?? "",
+          "Completed At":   job.completed_at ? new Date(job.completed_at).toLocaleString() : new Date(job.created_at).toLocaleString(),
+          ...(cInfo.wallet   ? { "Wallet (additional)": cInfo.wallet }   : {}),
+          ...(cInfo.email    ? { "Email":               cInfo.email }    : {}),
+          ...(cInfo.discord  ? { "Discord":             cInfo.discord }  : {}),
+          ...(cInfo.telegram ? { "Telegram":            cInfo.telegram } : {}),
+        };
+      });
+  } else {
+    const info = job.additional_info ?? {};
+    rows = [{
+      "Job ID":         job.id,
+      "Job Type":       TYPE_LABEL[job.type] ?? job.type,
+      "Job Title":      job.title,
+      "Amount (USDC)":  job.price_usdc,
+      "Creator Handle": job.creator?.twitter_handle ?? "",
+      "Creator Name":   job.creator?.display_name   ?? "",
+      "SOL Wallet":     job.creator?.wallet_address  ?? "",
+      "Proof Link":     job.proof_url ?? "",
+      "Client Handle":  job.client?.twitter_handle  ?? "",
+      "Completed At":   job.completed_at ? new Date(job.completed_at).toLocaleString() : new Date(job.created_at).toLocaleString(),
+      ...(info.wallet   ? { "Wallet (additional)": info.wallet }   : {}),
+      ...(info.email    ? { "Email":               info.email }    : {}),
+      ...(info.discord  ? { "Discord":             info.discord }  : {}),
+      ...(info.telegram ? { "Telegram":            info.telegram } : {}),
+    }];
+  }
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws["!cols"] = [
@@ -268,6 +298,8 @@ export default function AdminPage() {
   const [crediting, setCrediting]           = useState(false);
   const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number; errors?: string[] } | null>(null);
   const [markingManual, setMarkingManual]   = useState<string | null>(null);
+  const [markManualModal, setMarkManualModal] = useState<CreditItem | null>(null);
+  const [markManualNote, setMarkManualNote]   = useState("");
   const [confirmingAction, setConfirmingAction] = useState<{ id: string; action: string } | null>(null);
   const [errorMsg, setErrorMsg]             = useState<string | null>(null);
   const [creditTypeFilter, setCreditTypeFilter] = useState("all");
@@ -512,13 +544,13 @@ export default function AdminPage() {
     setCreditResult({ ok, fail, errors: failErrors.length > 0 ? failErrors : undefined });
   }
 
-  async function handleMarkManualPaid(item: CreditItem) {
+  async function handleMarkManualPaid(item: CreditItem, note?: string) {
     setMarkingManual(item.source_id);
     try {
       const res = await fetch("/api/admin/credits/mark-manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ admin_handle: twitterHandle, source_id: item.source_id, source_type: item.source_type }),
+        body: JSON.stringify({ admin_handle: twitterHandle, source_id: item.source_id, source_type: item.source_type, note: note?.trim() || undefined }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -701,8 +733,8 @@ export default function AdminPage() {
   }
 
   async function handleRejectFromActive(creator: ActiveCreator) {
-    if (!creator.completion_id) return;
-    const key = creator.completion_id;
+    const key = creator.source_type === "job" ? activeDetailModal?.id : creator.completion_id;
+    if (!key) return;
     setRejectingActiveId(key);
     setConfirmingAction(null);
     try {
@@ -716,15 +748,16 @@ export default function AdminPage() {
         setErrorMsg(`Reject failed: ${d.error ?? "Unknown error"}`);
       } else {
         setActiveModalCreators((prev) =>
-          prev.map((c) => c.completion_id === key ? { ...c, status: "rejected" } : c)
+          prev.map((c) => {
+            const cKey = c.source_type === "job" ? activeDetailModal?.id : c.completion_id;
+            return cKey === key ? { ...c, status: "rejected" } : c;
+          })
         );
-        // Sync slots_taken in modal header
         if (activeDetailModal && creator.source_type === "completion") {
           setActiveDetailModal((prev) =>
             prev ? { ...prev, slots_taken: Math.max(0, (prev.slots_taken ?? 1) - 1) } : prev
           );
         }
-        // Remove from credit items if already loaded
         setCreditItems((prev) => prev.filter((c) => c.source_id !== key));
         setSelectedCredits((prev) => { const next = new Set(prev); next.delete(key); return next; });
       }
@@ -743,7 +776,10 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "cancelled", cancel_reason: "admin_rejected" }),
       });
-      if (res.ok) setActive((prev) => prev.filter((j) => j.id !== jobId));
+      if (res.ok) {
+        setActive((prev) => prev.filter((j) => j.id !== jobId));
+        setCancelled([]); // invalidate so Cancelled tab re-fetches
+      }
     } finally {
       setCancelling(null);
     }
@@ -1373,7 +1409,7 @@ export default function AdminPage() {
                               <span className="text-xs text-neutral-400 dark:text-neutral-500 font-medium shrink-0">—</span>
                             )}
                             <button
-                              onClick={() => handleMarkManualPaid(item)}
+                              onClick={() => { setMarkManualModal(item); setMarkManualNote(""); }}
                               disabled={isMarking}
                               className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors disabled:opacity-50"
                             >
@@ -1519,6 +1555,59 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── Mark Manual Paid Confirm Modal ── */}
+        {markManualModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setMarkManualModal(null)} />
+            <div className="relative card p-6 w-full max-w-sm flex flex-col gap-4 shadow-xl">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center shrink-0">
+                  <Coins className="w-5 h-5 text-violet-500" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-neutral-900 dark:text-white text-sm">Mark as Manually Paid?</h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 truncate">
+                    @{markManualModal.creator_handle} · {markManualModal.title}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Confirm that you have already paid this creator off-chain. This will mark the job as credited and remove it from the pending list.
+              </p>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                  Note <span className="font-normal normal-case opacity-60">(optional — e.g. TX hash, channel)</span>
+                </label>
+                <input
+                  type="text"
+                  value={markManualNote}
+                  onChange={(e) => setMarkManualNote(e.target.value)}
+                  placeholder="e.g. Solana tx: ABC123… or via Telegram"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMarkManualModal(null)}
+                  className="btn-outline text-xs px-4 py-2 flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const item = markManualModal;
+                    setMarkManualModal(null);
+                    handleMarkManualPaid(item, markManualNote);
+                  }}
+                  className="btn-primary text-xs px-4 py-2 flex-1 !bg-violet-600 hover:!bg-violet-700 !border-violet-600"
+                >
+                  Confirm Paid
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Withdraw Confirm Modal ── */}
         {showWithdrawConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1640,7 +1729,7 @@ export default function AdminPage() {
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Job</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Client</th>
                           <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Posted</th>
-                          <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Deadline</th>
+                          <th className="text-left px-4 py-3 font-semibold text-neutral-600 dark:text-neutral-400">Review By</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
@@ -1653,7 +1742,16 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">@{job.client?.twitter_handle ?? "—"}</td>
                             <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{fmtDate(job.created_at)}</td>
-                            <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{job.deadline_hours}h</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {(() => {
+                                const d = fmtDeadline(job.created_at, 48);
+                                return (
+                                  <span className={`text-xs font-medium ${d.expired ? "text-red-500 dark:text-red-400" : "text-neutral-500 dark:text-neutral-400"}`}>
+                                    {d.label}
+                                  </span>
+                                );
+                              })()}
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1 justify-end">
                                 <button onClick={() => setPendingDetailModal(job)} title="View Details"
@@ -2390,8 +2488,8 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                     {activeModalCreators.map((creator, i) => {
-                      const canReject = creator.completion_id && !["rejected", "missed"].includes(creator.status);
-                      const rejectKey = `active-reject-${creator.completion_id}`;
+                      const rejectKey = creator.source_type === "job" ? (activeDetailModal?.id ?? "") : (creator.completion_id ?? "");
+                      const canReject = !!rejectKey && !["rejected", "missed"].includes(creator.status);
                       return (
                         <tr key={creator.twitter_handle} className="bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                           <td className="px-4 py-2.5 text-neutral-400 dark:text-neutral-500">{i + 1}</td>
@@ -2425,19 +2523,19 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-2.5 text-right">
                             {canReject && (
-                              confirmingAction?.id === creator.completion_id && confirmingAction.action === "reject-active" ? (
+                              confirmingAction?.id === rejectKey && confirmingAction.action === "reject-active" ? (
                                 <button onClick={() => handleRejectFromActive(creator)}
                                   className="px-2 py-1 rounded bg-red-500 text-white text-[10px] font-bold transition-colors">
                                   Sure?
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => setConfirmingAction({ id: creator.completion_id!, action: "reject-active" })}
-                                  disabled={rejectingActiveId === creator.completion_id}
+                                  onClick={() => setConfirmingAction({ id: rejectKey, action: "reject-active" })}
+                                  disabled={rejectingActiveId === rejectKey}
                                   title="Reject submission"
                                   className="p-1 rounded text-neutral-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
                                 >
-                                  {rejectingActiveId === creator.completion_id
+                                  {rejectingActiveId === rejectKey
                                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                     : <XCircle className="w-3.5 h-3.5" />}
                                 </button>

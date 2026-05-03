@@ -38,6 +38,37 @@ export async function runExpireJobs(): Promise<{
   const db = createServerClient();
   const now = Date.now();
 
+  // ── Pass 0: pending_approval expiry (48h window) ──────────────────────────
+  let pendingExpired = 0;
+  {
+    const { data: pendingJobs } = await db
+      .from("jobs")
+      .select("id, status, created_at, client_id, title, is_agent_job")
+      .eq("status", "pending_approval");
+
+    const expiredPending = ((pendingJobs ?? []) as JobRow[]).filter((j) =>
+      new Date(j.created_at).getTime() + 48 * 3_600_000 < now
+    );
+
+    if (expiredPending.length) {
+      const expiredIds = expiredPending.map((j) => j.id);
+      await db.from("jobs")
+        .update({ status: "cancelled", cancel_reason: "expired_no_approval" })
+        .in("id", expiredIds);
+
+      const notifs = expiredPending
+        .filter((j) => j.client_id && !j.is_agent_job)
+        .map((j) => ({
+          user_id: j.client_id!,
+          job_id:  j.id,
+          message: `Your job "${j.title}" was not reviewed by admin in time and has been cancelled.`,
+        }));
+      if (notifs.length) try { await db.from("notifications").insert(notifs); } catch {}
+
+      pendingExpired = expiredPending.length;
+    }
+  }
+
   // ── Pass 1: job-level deadline expiry ─────────────────────────────────────
   const { data: activeJobs, error: fetchErr } = await db
     .from("jobs")
@@ -207,5 +238,5 @@ export async function runExpireJobs(): Promise<{
     if (creatorNotifs.length) try { await db.from("notifications").insert(creatorNotifs); } catch {}
   }
 
-  return { cancelled: trueCancel.length, completed: toComplete.length + partialDone.length, slotsReleased };
+  return { cancelled: trueCancel.length + pendingExpired, completed: toComplete.length + partialDone.length, slotsReleased };
 }

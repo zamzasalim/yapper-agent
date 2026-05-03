@@ -134,8 +134,13 @@ flowchart TD
 
     %% ── AUTO-EXPIRE: CRON + MANUAL ──────────────────────────────────────────
     CRON[GitHub Actions — every hour\nGET /api/cron/expire-jobs — CRON_SECRET protected]
-    CRON --> EXPCHECK
-    MANUALEXPIRE --> EXPCHECK
+    CRON --> PENDINGCHECK
+    MANUALEXPIRE --> PENDINGCHECK
+
+    PENDINGCHECK{Pass 0 — pending_approval older than 48h?}
+    PENDINGCHECK -->|No| EXPCHECK
+    PENDINGCHECK -->|Yes — admin did not act| PENDINGEXPIRE([status: cancelled\ncancel_reason: expired_no_approval\nNotify client: not reviewed in time])
+    PENDINGEXPIRE --> AD_CAN
 
     EXPCHECK{Pass 1 — Job deadline passed?\nUses deadline_override if set\nelse created_at + deadline_hours}
     EXPCHECK -->|open + expired| PARTIALCHECK{Any completed slots?}
@@ -250,9 +255,10 @@ flowchart TD
 
     subgraph CANCEL_REASONS["Cancel Reasons"]
         direction LR
-        CR_1["expired_no_creator — open job, deadline passed, no creator accepted"]
-        CR_2["admin_rejected    — rejected from Pending OR cancelled from Active by admin"]
-        CR_3["client_cancelled  — reserved for future client-side cancellation (by design)"]
+        CR_1["expired_no_creator  — open job, deadline passed, no creator accepted"]
+        CR_2["admin_rejected      — rejected from Pending OR cancelled from Active by admin"]
+        CR_3["client_cancelled    — reserved for future client-side cancellation (by design)"]
+        CR_4["expired_no_approval — pending_approval job not reviewed by admin within 48h"]
     end
 
     subgraph DB_FIELDS["Key DB Fields (jobs + job_completions)"]
@@ -298,11 +304,11 @@ flowchart TD
     class AD_CAN,CANVIEW,CANREASON,CANEXP,CANADM,CANCLI,RESTORE,CANDEL,REFUND admin
     class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4,ESC_CUSTOM admin
     class CRTAB,CRTAB_SET,CRTAB_CLR admin
-    class CRON,EXPCHECK,MANUALEXPIRE,PARTIALCHECK,SLOTCHECK,SLOTREL cron
+    class CRON,EXPCHECK,MANUALEXPIRE,PENDINGCHECK,PARTIALCHECK,SLOTCHECK,SLOTREL cron
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TG_DISCONNECT,TGNOTIFY telegram
     class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED,ADM_REOPENED done
     class CRERR,PROOFERR err
-    class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT cancelled
+    class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT,PENDINGEXPIRE cancelled
     class AG1,AG2,AG3,AG4,AG5,AG6,AG7,AG8,AG9,AG10,AG11,AG12 auth
     class AGDISC,AGSKILL,AGOAPI,AGMCP auth
 ```
