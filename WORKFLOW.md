@@ -168,9 +168,11 @@ flowchart TD
     AD5 -.->|completed not yet credited| ESCROW_PEND
     JOBDONE -.->|accumulates in| ESCROW_PEND
 
-    ESCROW_PEND[Admin — Credits tab\nCompleted jobs where credited_at IS NULL\nCampaign completions only shown when parent job is closed\nnot open or in_progress\nGrouped by job: ID + title + type + creator list]
+    ESCROW_PEND[Admin — Credits tab\nCompleted jobs where credited_at IS NULL\nCampaign completions only shown when parent job is closed\nnot open or in_progress\nGrouped by job: ID + title + type + creator list\nCustom jobs always shown even with price 0 — Mark Paid only\nnon-custom jobs: checkbox + batch credit]
     ESCROW_PEND --> ESC1[Admin connects Phantom wallet]
-    ESC1 --> ESC2[Checkbox-select creators\nTotal USDC auto-calculated\nVault balance shown for sufficiency check]
+    ESCROW_PEND --> ESC_CUSTOM[Custom job — admin pays off-chain\nClick Mark Paid button\nPOST /api/admin/credits/mark-manual\ncredited_at set + credit_tx: manual\nNo on-chain tx required]
+    ESC_CUSTOM --> ESC5
+    ESC1 --> ESC2[Checkbox-select creators — non-custom only\nTotal USDC auto-calculated\nVault balance shown for sufficiency check]
     ESC2 --> ESC3[Click Batch Credit\nbuildCreditCreatorTx per creator\nPhantom signs + submits]
     ESC3 --> ESC4[ClaimRecord PDA updated on-chain\nvault total_credited incremented\nPOST /api/admin/credits/confirm — idempotent\ncredited_at + credit_tx set on jobs + job_completions\nCampaign: jobs.credited_at set when ALL slots credited\nDouble-call safe: only updates where credited_at IS NULL\nDashboard: Under Review to Done]
     ESC4 --> ESC5([Credits locked in vault\nCreator can now claim USDC])
@@ -260,7 +262,7 @@ flowchart TD
         DB3["deadline_override: timestamptz  — admin override for expiry calculation"]
         DB4["is_refunded:       boolean      — admin marks refund sent to client wallet"]
         DB5["credited_at:       timestamptz  — set by admin batch credit (jobs + job_completions)"]
-        DB6["credit_tx:         text         — on-chain tx sig for the credit transaction"]
+        DB6["credit_tx:         text         — on-chain tx sig for batch credit, or 'manual' for custom jobs paid off-chain"]
     end
 
     subgraph DASH_STATS["Creator Dashboard: Job Status Logic"]
@@ -294,7 +296,7 @@ flowchart TD
     class AD_ACT,ADMHIDE,ADMEXT,ADMCANCEL,ADMVIEW,ADM_REJ admin
     class AD5,AD6,AD7 admin
     class AD_CAN,CANVIEW,CANREASON,CANEXP,CANADM,CANCLI,RESTORE,CANDEL,REFUND admin
-    class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4 admin
+    class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4,ESC_CUSTOM admin
     class CRTAB,CRTAB_SET,CRTAB_CLR admin
     class CRON,EXPCHECK,MANUALEXPIRE,PARTIALCHECK,SLOTCHECK,SLOTREL cron
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TG_DISCONNECT,TGNOTIFY telegram

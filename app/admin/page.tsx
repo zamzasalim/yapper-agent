@@ -267,7 +267,7 @@ export default function AdminPage() {
   const [selectedCredits, setSelectedCredits] = useState<Set<string>>(new Set());
   const [crediting, setCrediting]           = useState(false);
   const [creditResult, setCreditResult]     = useState<{ ok: number; fail: number; errors?: string[] } | null>(null);
-  const [rejectingId, setRejectingId]       = useState<string | null>(null);
+  const [markingManual, setMarkingManual]   = useState<string | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<{ id: string; action: string } | null>(null);
   const [errorMsg, setErrorMsg]             = useState<string | null>(null);
   const [creditTypeFilter, setCreditTypeFilter] = useState("all");
@@ -425,28 +425,6 @@ export default function AdminPage() {
     setSending(false);
   }
 
-  async function handleRejectCredit(item: CreditItem) {
-    setRejectingId(item.source_id);
-    setConfirmingAction(null);
-    try {
-      const res = await fetch("/api/admin/completions/reject", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_id: item.source_id, source_type: item.source_type, admin_handle: twitterHandle }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        setErrorMsg(`Reject failed: ${d.error ?? "Unknown error"}`);
-      } else {
-        setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
-        setSelectedCredits((prev) => { const next = new Set(prev); next.delete(item.source_id); return next; });
-      }
-    } catch (e) {
-      setErrorMsg(`Reject failed: ${e instanceof Error ? e.message : String(e)}`);
-    }
-    setRejectingId(null);
-  }
-
   async function handleBatchCredit() {
     if (selectedCredits.size === 0 || !walletProvider) return;
 
@@ -534,6 +512,25 @@ export default function AdminPage() {
     setCreditResult({ ok, fail, errors: failErrors.length > 0 ? failErrors : undefined });
   }
 
+  async function handleMarkManualPaid(item: CreditItem) {
+    setMarkingManual(item.source_id);
+    try {
+      const res = await fetch("/api/admin/credits/mark-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_handle: twitterHandle, source_id: item.source_id, source_type: item.source_type }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setErrorMsg(`Mark paid failed: ${d.error ?? "Unknown error"}`);
+      } else {
+        setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
+      }
+    } catch (e) {
+      setErrorMsg(`Mark paid failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setMarkingManual(null);
+  }
 
   useEffect(() => {
     if (!isAdmin || !twitterHandle) return;
@@ -582,7 +579,7 @@ export default function AdminPage() {
     setLoadingCredits(true);
     fetch(`/api/admin/credits/pending?admin_handle=${twitterHandle}`)
       .then((r) => r.json())
-      .then((d) => setCreditItems((d.pending ?? []).filter((c: CreditItem) => c.amount_usdc > 0)))
+      .then((d) => setCreditItems((d.pending ?? []).filter((c: CreditItem) => c.amount_usdc > 0 || c.type === "custom")))
       .finally(() => setLoadingCredits(false));
     // Check on-chain state: none=not present, old=74 bytes (no admin2), new=106+ bytes
     // State layout: 8 disc | 32 admin | 32 usdc_mint | 1 bump | 1 vault_bump | 32 admin2 | ...
@@ -1301,22 +1298,28 @@ export default function AdminPage() {
               const jobPage = Math.min(creditJobPage, Math.max(0, jobTotalPages - 1));
               const jobPageKeys = jobKeys.slice(jobPage * CREDIT_PAGE_SIZE, (jobPage + 1) * CREDIT_PAGE_SIZE);
 
+              // Custom jobs are paid manually — exclude from batch checkbox selection
+              const batchItems = displayedCreditItems.filter((c) => c.type !== "custom");
+              const customCount = displayedCreditItems.length - batchItems.length;
+
               return (
                 <>
                 <div className="card overflow-hidden">
-                  {/* Select all */}
+                  {/* Select all (batch items only — custom are marked manually) */}
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
                     <input
                       type="checkbox"
-                      checked={selectedCredits.size === displayedCreditItems.length && displayedCreditItems.length > 0}
-                      onChange={(e) => setSelectedCredits(e.target.checked ? new Set(displayedCreditItems.map((c) => c.source_id)) : new Set())}
+                      checked={batchItems.length > 0 && batchItems.every((c) => selectedCredits.has(c.source_id))}
+                      onChange={(e) => setSelectedCredits(e.target.checked ? new Set(batchItems.map((c) => c.source_id)) : new Set())}
                       className="rounded"
                     />
                     <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
                       Select all
                     </span>
                     <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
-                      {selectedCredits.size > 0 ? `${selectedCredits.size} selected` : `${displayedCreditItems.length} items`}
+                      {selectedCredits.size > 0
+                        ? `${selectedCredits.size} selected`
+                        : `${batchItems.length} batchable${customCount > 0 ? ` · ${customCount} manual` : ""}`}
                     </span>
                     {selectedCredits.size > 0 && (
                       <span className="text-xs text-purple-500 font-semibold ml-auto">
@@ -1339,6 +1342,47 @@ export default function AdminPage() {
                     const creatorTotalPages = Math.ceil(items.length / CREDIT_PAGE_SIZE);
                     const creatorPageSafe = Math.min(creatorPage, Math.max(0, creatorTotalPages - 1));
                     const pageItems = items.slice(creatorPageSafe * CREDIT_PAGE_SIZE, (creatorPageSafe + 1) * CREDIT_PAGE_SIZE);
+
+                    // Custom jobs: single-creator, paid manually — no checkbox, "Mark Paid" button only
+                    if (rep.type === "custom") {
+                      const item = rep;
+                      const isMarking = markingManual === item.source_id;
+                      return (
+                        <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                          <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-900">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-mono font-bold text-neutral-500 dark:text-neutral-400 shrink-0">
+                                  {fmtJobId(item.type, item.job_id, item.is_agent_job)}
+                                </span>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shrink-0">
+                                  Custom
+                                </span>
+                              </div>
+                              <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[220px]">
+                                {item.title}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end shrink-0 min-w-0">
+                              <p className="text-xs font-semibold text-neutral-900 dark:text-white">@{item.creator_handle}</p>
+                              <p className="text-[10px] font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</p>
+                            </div>
+                            {item.amount_usdc > 0 ? (
+                              <span className="text-xs text-green-600 dark:text-green-400 font-semibold shrink-0">${item.amount_usdc.toFixed(2)}</span>
+                            ) : (
+                              <span className="text-xs text-neutral-400 dark:text-neutral-500 font-medium shrink-0">—</span>
+                            )}
+                            <button
+                              onClick={() => handleMarkManualPaid(item)}
+                              disabled={isMarking}
+                              className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors disabled:opacity-50"
+                            >
+                              {isMarking ? <Loader2 className="w-3 h-3 animate-spin" /> : "Mark Paid"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
@@ -1968,7 +2012,14 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="w-full overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
+                  {filtered.length === 0 && (
+                    <div className="w-full rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-10 text-center text-neutral-400 dark:text-neutral-500">
+                      <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No completed jobs match the current filter.</p>
+                    </div>
+                  )}
+
+                  {filtered.length > 0 && <div className="w-full overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
@@ -2002,10 +2053,12 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1 justify-end">
-                                <button onClick={() => job.creator?.wallet_address && copyAllWallets(job.id, job.creator.wallet_address)} disabled={!job.creator?.wallet_address} title="Copy Wallet"
-                                  className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
-                                  {copiedWallet === `all-${job.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
+                                {job.creator?.wallet_address && (
+                                  <button onClick={() => copyAllWallets(job.id, job.creator!.wallet_address)} title="Copy Wallet"
+                                    className="p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
+                                    {copiedWallet === `all-${job.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
                                 <button onClick={() => { setDetailModal(job); setDetailPage(0); }} title="View Details"
                                   className="p-1.5 rounded-lg text-neutral-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
                                   <ExternalLink className="w-3.5 h-3.5" />
@@ -2020,10 +2073,10 @@ export default function AdminPage() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </div>}
 
                   {/* Pagination */}
-                  {totalPages > 1 && (
+                  {filtered.length > 0 && totalPages > 1 && (
                     <div className="flex items-center justify-between mt-3 px-1">
                       <span className="text-xs text-neutral-400 dark:text-neutral-500">
                         {page * ADMIN_PAGE_SIZE + 1}–{Math.min((page + 1) * ADMIN_PAGE_SIZE, filtered.length)} of {filtered.length}
