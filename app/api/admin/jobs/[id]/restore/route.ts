@@ -37,6 +37,20 @@ export async function POST(
     // All other jobs go back to open (re-enter marketplace)
     const restoredStatus = job.type === "custom" ? "pending_approval" : "open";
 
+    // Block restore if any creator slot was already credited — refund to client would be incorrect
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: creditedCount } = await (db as any)
+      .from("job_completions")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", id)
+      .not("credited_at", "is", null);
+    if ((creditedCount ?? 0) > 0) {
+      return NextResponse.json(
+        { error: `Cannot restore — ${creditedCount} creator(s) have already been credited for this job. Handle their refund manually before restoring.` },
+        { status: 409 }
+      );
+    }
+
     // Reset deadline from now so the job doesn't expire immediately
     const newDeadline = new Date(Date.now() + (job.deadline_hours ?? 24) * 3_600_000).toISOString();
 

@@ -120,6 +120,7 @@ interface CancelledJob {
   completions: Array<{
     status: string;
     proof_url: string | null;
+    credited_at: string | null;
     creator: { twitter_handle: string; display_name: string; wallet_address: string } | null;
   }> | null;
 }
@@ -2744,16 +2745,17 @@ export default function AdminPage() {
 
                 {/* Creators who worked on this job (if any) */}
                 {(() => {
-                  const entries: { handle: string; status: string; proof_url: string | null }[] = [];
+                  const entries: { handle: string; status: string; proof_url: string | null; credited: boolean }[] = [];
                   if (job.creator) {
-                    entries.push({ handle: job.creator.twitter_handle, status: "single", proof_url: null });
+                    entries.push({ handle: job.creator.twitter_handle, status: "single", proof_url: null, credited: false });
                   }
                   if (job.completions && job.completions.length > 0) {
                     for (const c of job.completions) {
-                      if (c.creator) entries.push({ handle: c.creator.twitter_handle, status: c.status, proof_url: c.proof_url });
+                      if (c.creator) entries.push({ handle: c.creator.twitter_handle, status: c.status, proof_url: c.proof_url, credited: !!c.credited_at });
                     }
                   }
                   if (entries.length === 0) return null;
+                  const creditedCount = entries.filter((e) => e.credited).length;
                   const statusColor: Record<string, string> = {
                     completed: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400",
                     missed:    "bg-neutral-100 dark:bg-neutral-800 text-neutral-500",
@@ -2763,6 +2765,11 @@ export default function AdminPage() {
                   return (
                     <>
                       <div className="border-t border-neutral-100 dark:border-neutral-800" />
+                      {creditedCount > 0 && (
+                        <div className="rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+                          ⚠ {creditedCount} creator{creditedCount > 1 ? "s were" : " was"} already credited — refund to client should be partial, not full.
+                        </div>
+                      )}
                       <div>
                         <p className="text-neutral-400 dark:text-neutral-500 mb-2">Creators</p>
                         <div className="flex flex-col gap-1.5">
@@ -2775,6 +2782,11 @@ export default function AdminPage() {
                                     className="text-blue-500 hover:underline flex items-center gap-0.5 text-[10px]">
                                     <ExternalLink className="w-2.5 h-2.5" /> Proof
                                   </a>
+                                )}
+                                {e.credited && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400">
+                                    Credited
+                                  </span>
                                 )}
                                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusColor[e.status] ?? "bg-neutral-100 text-neutral-500"}`}>
                                   {e.status === "single" ? "Accepted" : e.status.charAt(0).toUpperCase() + e.status.slice(1)}
