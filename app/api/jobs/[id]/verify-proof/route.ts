@@ -183,26 +183,29 @@ export async function POST(
     // Increment campaign creator stats per-slot
     try { await (db as any).rpc("increment_creator_stats", { user_id: creator.id, amount: job.price_usdc ?? 0 }); } catch {}
 
-    const { count } = await db
-      .from("job_completions")
-      .select("id", { count: "exact", head: true })
-      .eq("job_id", id)
-      .eq("status", "completed");
+    // Custom jobs: open competition, winners chosen manually by admin.
+    // Job stays open until deadline — do not auto-close on submission count.
+    if (job.type !== "custom") {
+      const { count } = await db
+        .from("job_completions")
+        .select("id", { count: "exact", head: true })
+        .eq("job_id", id)
+        .eq("status", "completed");
 
-    const allDone = (count ?? 0) >= maxCreators;
-    if (allDone) {
-      await db.from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", id);
+      const allDone = (count ?? 0) >= maxCreators;
+      if (allDone) {
+        await db.from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", id);
 
-      // Notify client all campaign slots are done (skip for agent jobs)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((job as any).client_id && !(job as any).is_agent_job) {
-        void db.from("notifications").insert({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          user_id: (job as any).client_id as string,
-          job_id: id,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          message: `All creators have completed your campaign "${(job as any).title}"!`,
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((job as any).client_id && !(job as any).is_agent_job) {
+          void db.from("notifications").insert({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            user_id: (job as any).client_id as string,
+            job_id: id,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            message: `All creators have completed your campaign "${(job as any).title}"!`,
+          });
+        }
       }
     }
 

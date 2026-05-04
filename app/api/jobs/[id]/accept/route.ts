@@ -60,7 +60,10 @@ export async function PATCH(
     const maxCreators  = job.max_creators  ?? 1;
     const slotsTaken   = job.slots_taken   ?? 0;
 
-    if (slotsTaken >= maxCreators) {
+    // Custom jobs are open competitions — no slot cap on accept.
+    // Anyone who meets requirements can join; winners are chosen manually by admin.
+    // Non-custom jobs enforce the slot cap as before.
+    if (job.type !== "custom" && slotsTaken >= maxCreators) {
       return NextResponse.json({ error: "All slots for this job are taken." }, { status: 409 });
     }
 
@@ -130,8 +133,9 @@ export async function PATCH(
       status: "accepted",
     });
 
-    // Increment slots; mark in_progress only when all slots filled
-    const newStatus = newSlotsTaken >= maxCreators ? "in_progress" : "open";
+    // Custom jobs stay open until deadline — slots_taken tracks participation count only.
+    // Non-custom: flip to in_progress when all slots filled.
+    const newStatus = job.type !== "custom" && newSlotsTaken >= maxCreators ? "in_progress" : "open";
     await db
       .from("jobs")
       .update({ slots_taken: newSlotsTaken, status: newStatus })
