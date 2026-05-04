@@ -2,6 +2,7 @@
 
 # Local dev tooling
 .claude/
+flow.md
 
 # dependencies
 /node_modules

@@ -86,16 +86,20 @@ interface CompletedJob {
 }
 
 interface CreditItem {
-  source_id:      string;
-  source_type:    "job" | "completion";
-  job_id:         string;
-  title:          string;
-  type:           string;
-  is_agent_job:   boolean;
-  creator_handle: string;
-  creator_name:   string;
-  wallet:         string;
-  amount_usdc:    number;
+  source_id:               string;
+  source_type:             "job" | "completion";
+  job_id:                  string;
+  title:                   string;
+  type:                    string;
+  is_agent_job:            boolean;
+  creator_handle:          string;
+  creator_name:            string;
+  wallet:                  string;
+  amount_usdc:             number;
+  currency:                "usdc" | "cc";
+  amount_cc?:              number;
+  canton_contract_id?:     string | null;
+  creator_canton_party_id?: string | null;
 }
 
 interface CancelledJob {
@@ -152,6 +156,14 @@ const TYPE_LABEL: Record<string, string> = {
 const TYPE_PREFIX: Record<string, string> = {
   custom: "X", like_reply: "L", repost: "R", content: "C", campaign: "E",
 };
+
+function fmtHours(hours: number): string {
+  const d = Math.floor(hours / 24);
+  const h = hours % 24;
+  if (d === 0) return `${h}h`;
+  if (h === 0) return `${d}d`;
+  return `${d}d ${h}h`;
+}
 
 function fmtJobId(type: string, id: string, isAgent?: boolean) {
   return `${TYPE_PREFIX[type] ?? "X"}${isAgent ? "A" : "H"}${id.slice(0, 8).toUpperCase()}`;
@@ -312,6 +324,12 @@ export default function AdminPage() {
   const [expandedTypes, setExpandedTypes]         = useState<Set<string>>(new Set());
   const [creditJobPage, setCreditJobPage]         = useState(0);
   const [creditCreatorPages, setCreditCreatorPages] = useState<Record<string, number>>({});
+  // CC credits
+  const [creditCurrency, setCreditCurrency]       = useState<"usdc" | "cc">("usdc");
+  const [ccCreditItems, setCcCreditItems]         = useState<CreditItem[]>([]);
+  const [selectedCcCredits, setSelectedCcCredits] = useState<Set<string>>(new Set());
+  const [creditingCC, setCreditingCC]             = useState(false);
+  const [ccCreditResult, setCcCreditResult]       = useState<{ confirmed: number; transferPending: number } | null>(null);
   const [initializing, setInitializing]     = useState(false);
   const [initResult, setInitResult]         = useState<string | null>(null);
   const [admin2Input, setAdmin2Input]       = useState("");
@@ -551,14 +569,24 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/credits/mark-manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ admin_handle: twitterHandle, source_id: item.source_id, source_type: item.source_type, note: note?.trim() || undefined }),
+        body: JSON.stringify({
+          admin_handle: twitterHandle,
+          source_id:   item.source_id,
+          source_type: item.source_type,
+          currency:    item.currency ?? "usdc",
+          note:        note?.trim() || undefined,
+        }),
       });
       if (!res.ok) {
         const d = await res.json();
         setErrorMsg(`Mark paid failed: ${d.error ?? "Unknown error"}`);
       } else {
-        setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
-        setCompleted([]); // force Completed tab to re-fetch so credited_at updates
+        if (item.currency === "cc") {
+          setCcCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
+        } else {
+          setCreditItems((prev) => prev.filter((c) => c.source_id !== item.source_id));
+        }
+        setCompleted([]); // force Completed tab to re-fetch
       }
     } catch (e) {
       setErrorMsg(`Mark paid failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -608,12 +636,50 @@ export default function AdminPage() {
       .finally(() => setLoadingX(false));
   }, [isAdmin, twitterHandle, tab]);
 
+  async function handleBatchClaimCC() {
+    if (selectedCcCredits.size === 0) return;
+    setCreditingCC(true);
+    setCcCreditResult(null);
+    const selected = ccCreditItems.filter((c) => selectedCcCredits.has(c.source_id));
+    try {
+      const res = await fetch("/api/admin/credits/cc-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          admin_handle: twitterHandle,
+          items: selected.map((c) => ({
+            source_id:        c.source_id,
+            source_type:      c.source_type,
+            contract_id:      c.canton_contract_id ?? null,
+            creator_party_id: c.creator_canton_party_id ?? null,
+            amount_cc:        c.amount_cc ?? 0,
+          })),
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setErrorMsg(`CC claim failed: ${d.error ?? "Unknown"}`);
+      } else {
+        const doneIds = new Set(selected.map((c) => c.source_id));
+        setCcCreditItems((prev) => prev.filter((c) => !doneIds.has(c.source_id)));
+        setSelectedCcCredits(new Set());
+        setCcCreditResult({ confirmed: d.confirmed ?? 0, transferPending: d.transferPending ?? 0 });
+      }
+    } catch (e) {
+      setErrorMsg(`CC claim failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setCreditingCC(false);
+  }
+
   useEffect(() => {
     if (!isAdmin || !twitterHandle || tab !== "credits") return;
     setLoadingCredits(true);
     fetch(`/api/admin/credits/pending?admin_handle=${twitterHandle}`)
       .then((r) => r.json())
-      .then((d) => setCreditItems((d.pending ?? []).filter((c: CreditItem) => c.amount_usdc > 0 || c.type === "custom")))
+      .then((d) => {
+        setCreditItems((d.pending ?? []).filter((c: CreditItem) => c.amount_usdc > 0 || c.type === "custom"));
+        setCcCreditItems(d.ccPending ?? []);
+      })
       .finally(() => setLoadingCredits(false));
     // Check on-chain state: none=not present, old=74 bytes (no admin2), new=106+ bytes
     // State layout: 8 disc | 32 admin | 32 usdc_mint | 1 bump | 1 vault_bump | 32 admin2 | ...
@@ -936,7 +1002,7 @@ export default function AdminPage() {
             { key: "active",    label: "Active",    badge: active.length,     color: "bg-green-500" },
             { key: "completed", label: "Completed", badge: completed.filter((j) => !j.credited_at).length,   color: "bg-blue-500" },
             { key: "cancelled", label: "Cancelled", badge: cancelled.filter((j) => !j.is_refunded).length,  color: "bg-red-500" },
-            { key: "credits",   label: "Credits",   badge: creditItems.length, color: "bg-purple-500" },
+            { key: "credits",   label: "Credits",   badge: creditItems.length + ccCreditItems.length, color: "bg-purple-500" },
             { key: "creators",  label: "Creators",  badge: 0,                 color: "" },
           ] as const).map(({ key, label, badge, color }) => (
             <button
@@ -1260,6 +1326,27 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* USDC / CC currency toggle */}
+            <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 w-fit">
+              {(["usdc", "cc"] as const).map((cur) => {
+                const count = cur === "usdc" ? creditItems.length : ccCreditItems.length;
+                return (
+                  <button
+                    key={cur}
+                    onClick={() => { setCreditCurrency(cur); setSelectedCredits(new Set()); setSelectedCcCredits(new Set()); setCcCreditResult(null); setCreditResult(null); }}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+                      creditCurrency === cur
+                        ? "bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm"
+                        : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                    }`}
+                  >
+                    {cur.toUpperCase()}
+                    {count > 0 && <span className="ml-1.5 text-[10px] bg-purple-500 text-white rounded-full px-1.5 py-0.5 font-bold">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
             {loadingCredits && (
               <div className="flex items-center justify-center py-20 text-neutral-400">
                 <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -1267,15 +1354,19 @@ export default function AdminPage() {
               </div>
             )}
 
-            {!loadingCredits && creditItems.length === 0 && (
+            {!loadingCredits && (
+              creditCurrency === "usdc"
+                ? creditItems.length === 0
+                : ccCreditItems.length === 0 && !ccCreditResult
+            ) && (
               <div className="card p-12 text-center text-neutral-400 dark:text-neutral-500">
                 <Coins className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No pending credits. All creators have been paid on-chain.</p>
+                <p className="text-sm">No pending {creditCurrency === "cc" ? "CC credits" : "credits"}. All creators have been paid.</p>
               </div>
             )}
 
-            {/* Type filter pills */}
-            {!loadingCredits && creditItems.length > 0 && (() => {
+            {/* Type filter pills — USDC only */}
+            {!loadingCredits && creditCurrency === "usdc" && creditItems.length > 0 && (() => {
               const creditTypes = ["all", ...Array.from(new Set(creditItems.map((c) => c.type)))];
               if (creditTypes.length <= 2) return null;
               return (
@@ -1294,7 +1385,7 @@ export default function AdminPage() {
               );
             })()}
 
-            {!loadingCredits && creditItems.length > 0 && (() => {
+            {!loadingCredits && creditCurrency === "usdc" && creditItems.length > 0 && (() => {
               const displayedCreditItems = creditTypeFilter === "all"
                 ? creditItems
                 : creditItems.filter((c) => c.type === creditTypeFilter);
@@ -1381,29 +1472,21 @@ export default function AdminPage() {
                     const creatorPageSafe = Math.min(creatorPage, Math.max(0, creatorTotalPages - 1));
                     const pageItems = items.slice(creatorPageSafe * CREDIT_PAGE_SIZE, (creatorPageSafe + 1) * CREDIT_PAGE_SIZE);
 
-                    // Custom jobs: single-creator, paid manually — no checkbox, "Mark Paid" button only
+                    // Custom jobs: no checkbox, "Mark Paid" per winner.
+                    // Single-creator (items.length=1) → one row.
+                    // Competition (items.length>1) → collapsible group with per-completion rows.
                     if (rep.type === "custom") {
-                      const item = rep;
-                      const isMarking = markingManual === item.source_id;
-                      return (
-                        <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
-                          <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-900">
+                      const isCompetition = items.length > 1;
+                      const isOpen = expandedTypes.has(jobId);
+
+                      // Shared Mark Paid row renderer
+                      const CustomCreatorRow = ({ item, indent }: { item: typeof rep; indent?: boolean }) => {
+                        const isMarking = markingManual === item.source_id;
+                        return (
+                          <div className={`flex items-center gap-3 ${indent ? "px-6" : "px-4"} py-2 bg-white dark:bg-neutral-950 border-t border-neutral-100 dark:border-neutral-800`}>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-mono font-bold text-neutral-500 dark:text-neutral-400 shrink-0">
-                                  {fmtJobId(item.type, item.job_id, item.is_agent_job)}
-                                </span>
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shrink-0">
-                                  Custom
-                                </span>
-                              </div>
-                              <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[220px]">
-                                {item.title}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end shrink-0 min-w-0">
                               <p className="text-xs font-semibold text-neutral-900 dark:text-white">@{item.creator_handle}</p>
-                              <p className="text-[10px] font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</p>
+                              {item.wallet && <p className="text-[10px] font-mono text-neutral-400">{item.wallet.slice(0, 6)}…{item.wallet.slice(-4)}</p>}
                             </div>
                             {item.amount_usdc > 0 ? (
                               <span className="text-xs text-green-600 dark:text-green-400 font-semibold shrink-0">${item.amount_usdc.toFixed(2)}</span>
@@ -1418,6 +1501,36 @@ export default function AdminPage() {
                               {isMarking ? <Loader2 className="w-3 h-3 animate-spin" /> : "Mark Paid"}
                             </button>
                           </div>
+                        );
+                      };
+
+                      return (
+                        <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                          {/* Group header */}
+                          <div
+                            className={`flex items-center gap-3 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-900 ${isCompetition ? "cursor-pointer select-none" : ""}`}
+                            onClick={() => isCompetition && setExpandedTypes((p) => { const s = new Set(p); s.has(jobId) ? s.delete(jobId) : s.add(jobId); return s; })}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-mono font-bold text-neutral-500 dark:text-neutral-400 shrink-0">
+                                  {fmtJobId(rep.type, rep.job_id, rep.is_agent_job)}
+                                </span>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shrink-0">
+                                  Custom{isCompetition ? ` · ${items.length} submissions` : ""}
+                                </span>
+                              </div>
+                              <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[220px]">{rep.title}</p>
+                            </div>
+                            {isCompetition && (
+                              <span className="text-[10px] text-neutral-400 shrink-0">{isOpen ? "▲" : "▼"}</span>
+                            )}
+                          </div>
+                          {/* Single-creator: show inline; Competition: show list when expanded */}
+                          {!isCompetition
+                            ? <CustomCreatorRow item={rep} />
+                            : isOpen && items.map((it) => <CustomCreatorRow key={it.source_id} item={it} indent />)
+                          }
                         </div>
                       );
                     }
@@ -1552,6 +1665,183 @@ export default function AdminPage() {
                   </div>
                 )}
                 </>
+              );
+            })()}
+
+            {/* ── CC credits section ── */}
+            {!loadingCredits && creditCurrency === "cc" && (() => {
+              if (ccCreditResult) return (
+                <div className={`rounded-xl px-4 py-3 text-sm font-medium space-y-1 ${ccCreditResult.transferPending === 0 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"}`}>
+                  <p>{ccCreditResult.confirmed} creator(s) claim recorded on DAML ledger.</p>
+                  {ccCreditResult.transferPending > 0 && (
+                    <p className="text-[11px] font-normal opacity-80">
+                      ⚠ {ccCreditResult.transferPending} transfer offer(s) could not be created — check server logs. Creator(s) may need manual payment via Loop wallet.
+                    </p>
+                  )}
+                  {ccCreditResult.confirmed > 0 && ccCreditResult.transferPending === 0 && (
+                    <p className="text-[11px] font-normal opacity-80">
+                      Transfer offers sent — creator(s) will see the CC in their Loop wallet to accept.
+                    </p>
+                  )}
+                </div>
+              );
+
+              if (ccCreditItems.length === 0) return null;
+
+              const ccGroups: Record<string, CreditItem[]> = {};
+              for (const item of ccCreditItems) {
+                (ccGroups[item.job_id] ??= []).push(item);
+              }
+              const ccJobKeys = Object.keys(ccGroups);
+              const ccBatchItems = ccCreditItems.filter((c) => c.type !== "custom" && c.canton_contract_id);
+
+              return (
+                <div className="card overflow-hidden">
+                  {/* Select all */}
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={ccBatchItems.length > 0 && ccBatchItems.every((c) => selectedCcCredits.has(c.source_id))}
+                      onChange={(e) => setSelectedCcCredits(e.target.checked ? new Set(ccBatchItems.map((c) => c.source_id)) : new Set())}
+                      className="rounded"
+                    />
+                    <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">Select all</span>
+                    <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                      {selectedCcCredits.size > 0 ? `${selectedCcCredits.size} selected` : `${ccBatchItems.length} batchable`}
+                    </span>
+                    {selectedCcCredits.size > 0 && (
+                      <span className="text-xs text-purple-500 font-semibold ml-auto">
+                        {ccCreditItems.filter((c) => selectedCcCredits.has(c.source_id)).reduce((s, c) => s + (c.amount_cc ?? 0), 0).toFixed(2)} CC
+                      </span>
+                    )}
+                  </div>
+
+                  {ccJobKeys.map((jobId) => {
+                    const items = ccGroups[jobId];
+                    const rep   = items[0];
+                    if (rep.type === "custom") {
+                      const isMarking = markingManual === rep.source_id;
+                      return (
+                        <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                          <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-900">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono font-bold text-neutral-500 shrink-0">{fmtJobId(rep.type, rep.job_id, rep.is_agent_job)}</span>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shrink-0">Custom · CC</span>
+                              </div>
+                              <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[220px]">{rep.title}</p>
+                            </div>
+                            <div className="flex flex-col items-end shrink-0">
+                              <p className="text-xs font-semibold text-neutral-900 dark:text-white">@{rep.creator_handle}</p>
+                              {rep.creator_canton_party_id
+                                ? <p className="text-[10px] font-mono text-neutral-400">{rep.creator_canton_party_id.slice(0, 8)}…</p>
+                                : <p className="text-[10px] text-amber-500">No party ID</p>}
+                            </div>
+                            <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold shrink-0">{(rep.amount_cc ?? 0).toFixed(2)} CC</span>
+                            <button
+                              onClick={() => { setMarkManualModal(rep); setMarkManualNote(""); }}
+                              disabled={isMarking}
+                              className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors disabled:opacity-50"
+                            >
+                              {isMarking ? <Loader2 className="w-3 h-3 animate-spin" /> : "Mark Paid"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const isOpen        = expandedTypes.has(jobId);
+                    const groupIds      = items.map((i) => i.source_id);
+                    const allSel        = groupIds.every((id) => selectedCcCredits.has(id));
+                    const someSel       = groupIds.some((id) => selectedCcCredits.has(id));
+                    const groupTotalCC  = items.reduce((s, c) => s + (c.amount_cc ?? 0), 0);
+                    function toggleCCGroup() {
+                      setSelectedCcCredits((prev) => {
+                        const next = new Set(prev);
+                        groupIds.forEach((id) => allSel ? next.delete(id) : next.add(id));
+                        return next;
+                      });
+                    }
+
+                    return (
+                      <div key={jobId} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                        <div className="flex items-center gap-3 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-900 cursor-pointer select-none"
+                          onClick={() => setExpandedTypes((prev) => { const n = new Set(prev); n.has(jobId) ? n.delete(jobId) : n.add(jobId); return n; })}>
+                          <input
+                            type="checkbox"
+                            checked={allSel}
+                            ref={(el) => { if (el) el.indeterminate = someSel && !allSel; }}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={toggleCCGroup}
+                            className="rounded shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono font-bold text-neutral-500 shrink-0">{fmtJobId(rep.type, rep.job_id, rep.is_agent_job)}</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 shrink-0">CC</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 shrink-0">{TYPE_LABEL[rep.type] ?? rep.type}</span>
+                            </div>
+                            <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 truncate max-w-[260px]">{rep.title}</p>
+                          </div>
+                          <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-full px-1.5 py-0.5 font-semibold shrink-0">
+                            {items.length} creator{items.length > 1 ? "s" : ""}
+                          </span>
+                          <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold shrink-0">{groupTotalCC.toFixed(2)} CC</span>
+                          <ChevronRight className={`w-3.5 h-3.5 text-neutral-400 transition-transform shrink-0 ${isOpen ? "rotate-90" : ""}`} />
+                        </div>
+
+                        {isOpen && (
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-neutral-100 dark:border-neutral-800 text-[10px] text-neutral-400 uppercase tracking-wide">
+                                <th className="w-8 px-4 py-2 text-left" />
+                                <th className="px-3 py-2 text-left">Creator</th>
+                                <th className="px-3 py-2 text-right">CC</th>
+                                <th className="px-3 py-2 text-left hidden sm:table-cell">Party ID</th>
+                                <th className="px-3 py-2 text-left hidden sm:table-cell">Contract</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((item) => (
+                                <tr key={item.source_id} className="border-b border-neutral-50 dark:border-neutral-800/50 last:border-0">
+                                  <td className="px-4 py-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCcCredits.has(item.source_id)}
+                                      disabled={!item.canton_contract_id}
+                                      onChange={(e) => {
+                                        const next = new Set(selectedCcCredits);
+                                        e.target.checked ? next.add(item.source_id) : next.delete(item.source_id);
+                                        setSelectedCcCredits(next);
+                                      }}
+                                      className="rounded"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <p className="font-semibold text-neutral-800 dark:text-neutral-200">@{item.creator_handle}</p>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-semibold text-purple-600 dark:text-purple-400">
+                                    {(item.amount_cc ?? 0).toFixed(2)}
+                                  </td>
+                                  <td className="px-3 py-2 hidden sm:table-cell font-mono text-[10px] text-neutral-500">
+                                    {item.creator_canton_party_id
+                                      ? <span title={item.creator_canton_party_id}>{item.creator_canton_party_id.slice(0, 10)}…</span>
+                                      : <span className="text-amber-500">No party</span>}
+                                  </td>
+                                  <td className="px-3 py-2 hidden sm:table-cell font-mono text-[10px] text-neutral-500">
+                                    {item.canton_contract_id
+                                      ? <span title={item.canton_contract_id}>{item.canton_contract_id.slice(0, 10)}…</span>
+                                      : <span className="text-amber-500">No contract</span>}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               );
             })()}
           </div>
@@ -2388,6 +2678,29 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── Sticky CC Batch Claim Bar ── */}
+      {tab === "credits" && creditCurrency === "cc" && selectedCcCredits.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-purple-200 dark:border-purple-900 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm px-4 py-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{selectedCcCredits.size} selected</span>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                {ccCreditItems.filter((c) => selectedCcCredits.has(c.source_id)).reduce((s, c) => s + (c.amount_cc ?? 0), 0).toFixed(2)} CC
+              </span>
+              <button onClick={() => setSelectedCcCredits(new Set())} className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 underline">Clear</button>
+            </div>
+            <button
+              onClick={handleBatchClaimCC}
+              disabled={creditingCC}
+              className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 disabled:opacity-50 !bg-purple-600 hover:!bg-purple-700 !border-purple-600"
+            >
+              {creditingCC ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Coins className="w-3.5 h-3.5" />}
+              {creditingCC ? "Claiming…" : "Batch Claim CC"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Sticky Batch Credit Bar ── */}
       {tab === "credits" && selectedCredits.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm px-4 py-3">
@@ -2599,7 +2912,7 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-neutral-400 dark:text-neutral-500">Deadline</span>
-                    <span className="text-neutral-700 dark:text-neutral-300">{job.deadline_hours}h</span>
+                    <span className="text-neutral-700 dark:text-neutral-300">{fmtHours(job.deadline_hours)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-neutral-400 dark:text-neutral-500">Creator access</span>
@@ -2700,7 +3013,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-neutral-400 dark:text-neutral-500">Deadline</span>
-                    <span className="text-neutral-700 dark:text-neutral-300">{job.deadline_hours}h</span>
+                    <span className="text-neutral-700 dark:text-neutral-300">{fmtHours(job.deadline_hours)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-neutral-400 dark:text-neutral-500">Creator access</span>

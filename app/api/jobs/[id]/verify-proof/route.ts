@@ -72,7 +72,9 @@ export async function POST(
       if (!completion) {
         return NextResponse.json({ error: "You haven't accepted this job" }, { status: 403 });
       }
-      if (completion.status !== "accepted") {
+      // Custom competition: allow resubmit after rejection so creator can fix their proof.
+      const allowResubmit = job.type === "custom" && completion.status === "rejected";
+      if (completion.status !== "accepted" && !allowResubmit) {
         const msg =
           completion.status === "completed" ? "You have already submitted proof for this job" :
           completion.status === "missed"    ? "Your slot was released — the submission window has passed." :

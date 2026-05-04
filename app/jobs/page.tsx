@@ -5,6 +5,14 @@ import { JobsClient } from "@/components/JobsClient";
 import { Bot, Users, Briefcase } from "lucide-react";
 import { createServerClient } from "@/lib/supabase";
 
+function fmtHours(hours: number): string {
+  const d = Math.floor(hours / 24);
+  const h = hours % 24;
+  if (d === 0) return `${h}h`;
+  if (h === 0) return `${d}d`;
+  return `${d}d ${h}h`;
+}
+
 type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
 
 interface RawJob {
@@ -72,7 +80,7 @@ export default async function JobsPage() {
     minFollowers: j.min_followers ?? 0,
     maxCreators: j.max_creators ?? 1,
     slotsTaken: j.slots_taken ?? 0,
-    deadline: `${j.deadline_hours}h`,
+    deadline: fmtHours(j.deadline_hours),
     postedAt: timeAgo(j.created_at),
   }));
 

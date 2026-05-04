@@ -19,6 +19,11 @@ flowchart TD
     A4 -->|Existing| A6[POST /api/user\nSync wallet\nRefresh followers + blue\nBackfill name / avatar]
     A5 & A6 --> A7[[Dashboard ready]]
     A7 --> EDITPROF[Edit Profile modal\nCustom display_name + avatar_url\nPATCH /api/user]
+    A7 --> CANTCONN[Dashboard — Canton Wallet CC\nConnect Loop Wallet button\nBelow SOL wallet section]
+    CANTCONN --> CANTLOOP[Loop SDK · openMode: tab\nDevnet → devnet.cantonloop.com · Mainnet → cantonloop.com\nNetwork selected via NEXT_PUBLIC_CANTON_NETWORK env var\nonAccept: receives party_id]
+    CANTLOOP --> CANTAPI[POST /api/user/canton-wallet\nSaves canton_party_id on user record]
+    CANTAPI --> CANTSAVED([Party ID shown truncated XXXX…YYYY\nCopy + Disconnect available])
+    CANTSAVED --> CANTDIS[DELETE /api/user/canton-wallet\nClears canton_party_id]
     A7 --> NOTIF[Notification bell in Navbar\nGET /api/notifications — polls every 30s\nBadge count on unread]
     NOTIF --> NOTIF_LIST[Dropdown list\ne.g. Job accepted / rejected / expired]
     NOTIF_LIST --> NOTIF_READALL[CheckCheck button\nPATCH /api/notifications?handle=xxx\nMarks all as read]
@@ -35,10 +40,20 @@ flowchart TD
     CL2 -->|Content or Campaign\ntier pricing| CL4[Select tier — multi except Super CT\nNano CT 5 · Small CT 25 · Big CT 50 · Super CT custom\nPrice = sum of selected tiers\nmax_creators capped at 500]
     CL2 -->|Custom\nadmin approval| CL5[Free-form brief\nNo payment yet]
 
-    CL3 & CL4 --> CL6[Send USDC to escrow vault PDA]
+    CL3 & CL4 --> CLCURR{Currency?}
+
+    CLCURR -->|USDC Solana| CL6[Send USDC to escrow vault PDA]
     CL6 --> CL7[POST /api/verify-payment\nSolana RPC tx check]
     CL7 -->|Invalid TX| CL6
     CL7 -->|Valid TX| CL8[POST /api/jobs — status: open]
+
+    CLCURR -->|CC Canton Network| CCPRICE2[GET /api/cc-price\nCMC id=37263 · 10-min cache\ntotalCC = ⌈usdc ÷ price × 10⌉ ÷ 10]
+    CCPRICE2 --> CCPAY2[CCPaymentModal\nPay via Loop Wallet tab\nor manual canton TX hash]
+    CCPAY2 --> CCPOST[POST /api/jobs\ncurrency=cc · price_cc · canton_tx_hash]
+    CCPOST --> CCLHOUSE{verifyCantonTransfer\nLighthouse API\nverdict · receiver · Amulet · amount}
+    CCLHOUSE -->|invalid| CCPAY2
+    CCLHOUSE -->|valid| CL8
+
     CL5 --> CL9[POST /api/jobs — status: pending_approval]
 
     CL8 --> TGNOTIFY[Broadcast to Telegram channel]
@@ -58,12 +73,15 @@ flowchart TD
     CR5 --> NOTIF_ACCEPT[POST /api/notifications\nNotify client: creator accepted]
     NOTIF_ACCEPT -.->|client sees in bell| NOTIF
 
-    CR4 -->|Campaign more than 1| CR6[job_completions row created\nslots_taken++]
+    CR4 -->|Campaign type\nmore than 1| CR6[job_completions row created\nslots_taken++]
     CR6 --> NOTIF_SLOT[POST /api/notifications\nNotify client: creator joined — slot x of max]
     NOTIF_SLOT -.->|client sees in bell| NOTIF
     CR6 --> CR7{All slots filled?}
     CR7 -->|No| CR8[Job stays open — more creators can join]
     CR7 -->|Yes| CR9[status: in_progress]
+
+    CR4 -->|Custom type\nopen competition| CR_COMP[No slot cap — anyone who meets requirements can join\njob_completions row created · slots_taken++ for tracking only\nStatus stays open until deadline]
+    CR_COMP --> NOTIF_SLOT
 
     CR5 & CR8 & CR9 --> CR10[Creator does the work]
     CR10 --> CR11[Submit proof\nPOST /api/jobs/:id/verify-proof]
@@ -82,12 +100,14 @@ flowchart TD
     CR13A & CR14B -->|Verified| CR15{Single or Campaign?}
 
     CR15 -->|Single| CR16[job: completed\ncompleted_at set — stats incremented\nDashboard: Under Review]
-    CR15 -->|Campaign| CR17[completion row: completed\nStats incremented per slot\nDashboard: Under Review]
+    CR15 -->|Campaign type| CR17[completion row: completed\nStats incremented per slot\nDashboard: Under Review]
     CR17 --> CR18{All slots done?}
     CR18 -->|No| CR19[Waiting for other creators]
     CR18 -->|Yes| CR20[job: completed — completed_at set]
     CR20 --> NOTIF_CAMPAIGN_DONE[POST /api/notifications\nNotify client: all creators completed]
     NOTIF_CAMPAIGN_DONE -.->|client sees in bell| NOTIF
+
+    CR15 -->|Custom type| CR_COMP_PROOF[completion row: completed · stats incremented\nJob stays open — no auto-close\nRejected completion: creator can resubmit proof\nJob closes at deadline via cron\nAdmin Credits: competition group shows all submissions\nMark Paid per winner — max_creators is winner count target]
     CR16 & CR20 --> JOBDONE[[Job Completed\nDashboard: Under Review\nuntil admin batch credits]]
 
     %% ── POST-COMPLETION ─────────────────────────────────────────────────────
@@ -125,7 +145,7 @@ flowchart TD
     AD_ACT --> MANUALEXPIRE[POST /api/admin/expire-jobs\nAuto-run on tab load]
     AD_ACT --> ADMHIDE[Hide / Show — PATCH is_hidden]
     AD_ACT --> ADMEXT[Extend Deadline\nCalendarDays modal — PATCH deadline_override]
-    AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected\naccepted completions → missed]
+    AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected\naccepted completions → missed\nCC job: exerciseCancel + transferCC refund to client best-effort]
     AD_ACT --> ADMVIEW[View Creators modal\nGET /api/jobs/:id/applicants\nShows handle · status · proof · completion_id]
     ADMVIEW --> ADM_REJ[Reject creator submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared\nNotify creator via bell]
     ADM_REJ --> ADM_REOPENED([Slot available for another creator\nCredit item removed from payout queue])
@@ -189,6 +209,20 @@ flowchart TD
     CR_CLAIM2 --> CR_CLAIM3[USDC: vault PDA to creator wallet\nClaimRecord.amount reset to 0]
     CR_CLAIM3 --> CR_CLAIM4([Creator receives USDC\nTx viewable on Solscan])
 
+    %% ── ADMIN: CC CREDITS TAB ───────────────────────────────────────────────
+    AD5 -.->|CC tab toggle| ESC_CC_TAB
+    JOBDONE -.->|cc currency accumulates in| ESC_CC_TAB
+
+    ESC_CC_TAB[Admin — Credits tab — CC section\nUSEC/CC toggle in Credits tab\nShows ccPending: jobs + completions where canton_credited_at IS NULL AND currency='cc'\nIncludes: price_cc · canton_contract_id · creator_canton_party_id\nGrouped by job with creator list — non-custom jobs: checkbox]
+    ESC_CC_TAB --> ESC_CC_CUSTOM[Custom CC job — Mark Paid\nPOST /api/admin/credits/mark-manual + body currency:'cc'\nSets canton_credited_at + canton_credit_tx:'manual'\nNo ClaimReward exercised — no Transfer Offer created]
+    ESC_CC_CUSTOM --> ESC_CC_DONE
+    ESC_CC_TAB --> ESC_CC_SEL[Checkbox-select non-custom CC jobs]
+    ESC_CC_SEL --> ESC_CC_BATCH[Click Batch Claim CC\nPOST /api/admin/credits/cc-confirm\n1. exerciseBatchClaim — ClaimReward per DAML JobEscrow → updateIds\n2. transferCC — POST transfer-offers per creator best-effort\n3. DB: canton_credited_at + canton_credit_tx set on jobs and job_completions\nResponse: confirmed · skipped · updateIds · transferTxIds · transferPending]
+    ESC_CC_BATCH --> ESC_CC_OFFER([Transfer Offers on Canton ledger\nOffer valid 30 days — offer_contract_id stored as canton_credit_tx\nIf transferPending > 0: admin must manually send CC via Loop wallet])
+    ESC_CC_OFFER --> CR_CC_ACCEPT[Creator opens Loop wallet\ndevnet.cantonloop.com or cantonloop.com\nPending Transfer Offer shown in wallet\nClick Accept → CC deposited to creator canton party]
+    CR_CC_ACCEPT --> ESC_CC_DONE
+    ESC_CC_DONE([CC credited — canton_credited_at set\nGET /api/user coalesces canton_credited_at → credited_at for CC jobs\nCreator dashboard Done count reflects CC credits correctly])
+
     %% ── ADMIN: CANCELLED TAB ────────────────────────────────────────────────
     AD_CAN[Admin — Cancelled tab\nSearch + type filter + pagination]
     AD_CAN --> CANREASON{cancel_reason}
@@ -237,10 +271,19 @@ flowchart TD
         AG9 -->|Yes| AG10([Agent receives responses\ncontinues workflow])
         AG1 -.->|List all jobs| AG11[GET /api/agent/jobs?api_key=xxx]
         AG6 -.->|Report issue| AG12[POST /api/agent/support\napi_key + job_id + issue\nNotifies admins via bell]
-        AG2 -.->|Discovery| AGDISC[GET /.well-known/x402\nPayable endpoints + pricing per type]
+        AG2 -.->|Discovery| AGDISC[GET /.well-known/x402\nPayable endpoints + pricing per type\nBoth USDC and CC endpoints listed]
         AG2 -.->|Quickstart| AGSKILL[GET /skill.md\nMarkdown guide for x402-compatible agents]
         AG2 -.->|OpenAPI spec| AGOAPI[GET /openapi.json — MPP-compatible]
         AG2 -.->|MCP| AGMCP[POST /mcp — JSON-RPC 2.0\ntools: register / create / list / get / support]
+
+        AG_CC1[POST /api/agent/canton-jobs\nCC Canton payment path — Phase 4]
+        AG_CC1 -->|No X-Payment| AG_CC2[402 response\ncanton402Body: network=canton-mainnet\nasset=Amulet · payTo=YAPPER_PARTY\namountCC = ⌈usdc ÷ liveCCPrice × 10⌉ ÷ 10]
+        AG_CC2 --> AG_CC3[Agent transfers CC via cantonloop.com\nor Loop SDK → gets canton_tx_hash]
+        AG_CC3 --> AG_CC4[Retry: X-Payment: base64 canton_tx_hash]
+        AG_CC4 --> AG_CC5{verifyCantonTransfer\nLighthouse API}
+        AG_CC5 -->|invalid| AG_CC2
+        AG_CC5 -->|valid| AG_CC6[Job created\ncurrency=cc · price_cc · canton_tx_hash\nis_agent_job=true — Broadcast to Telegram]
+        AG_CC6 --> AG7
     end
 
     %% ── REFERENCE TABLES ────────────────────────────────────────────────────
@@ -261,22 +304,64 @@ flowchart TD
         CR_4["expired_no_approval — pending_approval job not reviewed by admin within 48h"]
     end
 
-    subgraph DB_FIELDS["Key DB Fields (jobs + job_completions)"]
+    subgraph DB_FIELDS["Key DB Fields (jobs + job_completions + users)"]
         direction LR
-        DB1["completed_at:      timestamptz  — set when status becomes completed"]
-        DB2["cancel_reason:     text         — set when status becomes cancelled"]
-        DB3["deadline_override: timestamptz  — admin override for expiry calculation"]
-        DB4["is_refunded:       boolean      — admin marks refund sent to client wallet"]
-        DB5["credited_at:       timestamptz  — set by admin batch credit (jobs + job_completions)"]
-        DB6["credit_tx:         text         — on-chain tx sig for batch credit, or 'manual' for custom jobs paid off-chain"]
+        DB1["completed_at:         timestamptz  — set when status becomes completed"]
+        DB2["cancel_reason:        text         — set when status becomes cancelled"]
+        DB3["deadline_override:    timestamptz  — admin override for expiry calculation"]
+        DB4["is_refunded:          boolean      — admin marks refund sent to client wallet"]
+        DB5["credited_at:          timestamptz  — set by admin batch credit USDC (jobs + job_completions)"]
+        DB6["credit_tx:            text         — on-chain tx sig for USDC batch credit, or 'manual' for custom off-chain"]
+        DB7["canton_party_id:      text         — users: Loop wallet party ID (e.g. Alice::1220ab...)"]
+        DB8["currency:             text         — jobs: 'usdc' default or 'cc' for Canton jobs"]
+        DB9["price_cc:             numeric      — jobs: CC amount; 0 for usdc jobs"]
+        DB10["canton_tx_hash:      text UNIQUE  — jobs: CC payment proof from client/agent — verified via Lighthouse"]
+        DB11["canton_contract_id:  text         — jobs: DAML JobEscrow contractId on Canton ledger — set after job insert"]
+        DB12["canton_credited_at:  timestamptz  — jobs + job_completions: set when CC credited via ClaimReward choice"]
+        DB13["canton_credit_tx:    text         — jobs + job_completions: Canton ledger tx ID for CC credit exercise"]
     end
 
     subgraph DASH_STATS["Creator Dashboard: Job Status Logic"]
         direction LR
-        DS1["Active:       status = in_progress"]
-        DS2["Under Review: status = completed AND credited_at IS NULL"]
-        DS3["Done:         status = completed AND credited_at IS NOT NULL"]
+        DS1["Active:          status = in_progress"]
+        DS2["Under Review:    status = completed AND credited_at IS NULL"]
+        DS3["Done (USDC):     status = completed AND credited_at IS NOT NULL"]
+        DS4["Done (CC):     canton_credited_at IS NOT NULL — GET /api/user coalesces to credited_at\n                 Dashboard Done count covers CC jobs correctly"]
     end
+
+    %% ── CANTON NETWORK (CC) ────────────────────────────────────────────────────
+    subgraph CANTON["Canton Network (CC) — lib/canton.ts + contracts/JobEscrow.daml"]
+        direction TB
+        CN_WALLET["POST /api/user/canton-wallet — Phase 2\nSave canton_party_id from Loop onAccept\nDELETE clears it"]
+
+        CN_PRICE["GET /api/cc-price — Phase 3\nlib/cc-price.ts → CMC API id=37263\n10-min cache — Returns { price_usd }"]
+
+        CN_X402["lib/canton-x402.ts — Phase 4\nrequiredCC(amountUsdc) → live CC amount\nparseCantonPaymentHeader(header) → canton_tx_hash\ncanton402Body(resource, amountCC, desc) → 402 body\nUsed by POST /api/agent/canton-jobs"]
+
+        CN_CONTRACT["contracts/JobEscrow.daml — sdk 3.4.11 (LF 2.1)\nTemplates: JobEscrow · CampaignEscrow\nSignatory: admin (YAPPER_CANTON_PARTY)\nObserver: client (canton_party_id from users)\nChoices: ClaimReward · CancelEscrow · ClaimSlot · CancelRemaining\nDeployed: dpm upload to shared hackathon participant node"]
+
+        CN_VERIFY["verifyCantonTransfer(txHash, amount)\nTries CANTON_SCAN_URL paths in order:\n  /transactions/{hash}\n  /api/scan/v0/updates/{hash}\n  /api/scan/v0/transfer/{hash}\nChecks: verdict=accepted · receiver=YAPPER_PARTY · Amulet · amount≥expected\nDevnet bypass: if all 404 and NEXT_PUBLIC_CANTON_NETWORK≠canton-mainnet\n  → trusts tx hash optimistically (DAML contract is audit trail)"]
+
+        CN_ESCROW["createJobEscrow(jobId, clientParty, amountCC)\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nCreates JobEscrow DAML contract on-chain\nStores contractId → jobs.canton_contract_id\nCalled after job insert for currency=cc jobs\nClient party = canton_party_id from users (or platform party)"]
+
+        CN_CLAIM["exerciseBatchClaim(claims[])\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nExercise ClaimReward per JobEscrow contract (marks escrow claimed)\nReturns Canton ledger updateIds → canton_credit_tx\nPhase 5 — admin batch CC credit"]
+
+        CN_TRANSFER["transferCC(toParty, amount, memo)\nPOST CANTON_VALIDATOR_URL/api/validator/v0/wallet/transfer-offers\nCreates a Transfer Offer on Canton ledger — NOT a direct CC push\nRecipient must ACCEPT the offer in Loop wallet to receive CC\nBody: { receiver_party_id, amount (string·10dp), description,\n  expires_at (Unix ms Long, 30 days), tracking_id (UUID) }\nResponse: { offer_contract_id } → stored as canton_credit_tx\nBest-effort: returns null on failure — does not block credit flow"]
+
+        CN_CANCEL["exerciseCancel(contractId)\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nExercise CancelEscrow — marks DAML escrow void\nFollowed by transferCC(clientParty, price_cc) — Transfer Offer to client for refund\nTriggered by two paths:\n  1. Cron expire — CC job deadline passed with no completed work\n  2. Admin cancel (Active tab) — PATCH /api/admin/jobs/:id\n     Fetches client canton_party_id → exerciseCancel + transferCC best-effort"]
+
+        CN_STATE["getEscrowState(contractId)\nGET CANTON_LEDGER_URL/v2/contracts/{id}\nCheck if DAML contract is still active\nReturns null if already consumed (claimed or cancelled)"]
+
+        CN_TOKEN["getToken() — auto-refreshing Keycloak JWT\nIn-memory cache: _cachedToken + _tokenExpAt (Unix seconds)\nRefreshes via Keycloak password grant when <5 min to expiry\nRequired env: CANTON_KEYCLOAK_USER + CANTON_KEYCLOAK_PASS\nFallback: static CANTON_LEDGER_TOKEN env var (no auto-refresh)\nAll ledger + validator calls use getToken() transparently\nNo cron or manual token rotation needed when KC creds are set"]
+    end
+
+    CN_WALLET  -.->|Phase 2 — dashboard Canton wallet| CANTCONN
+    CN_PRICE   -.->|Phase 3 — currency picker| CCPRICE2
+    CN_VERIFY  -.->|Phase 3 — post job CC verify| CCLHOUSE
+    CN_ESCROW  -.->|Phase 3/4 — create escrow after job insert| CL8
+    CN_CLAIM   -.->|Phase 5 — mark escrow claimed| ESC4
+    CN_TRANSFER -.->|Phase 5 — actual CC to creator| ESC4
+    CN_CANCEL  -.->|Phase 6 — cancel escrow + refund CC| AUTOCANCEL
 
     %% ── NAVIGATION (dotted) ─────────────────────────────────────────────────
     A7 -.->|Connect flow| TG1
@@ -289,7 +374,9 @@ flowchart TD
 
     %% ── CLASS ASSIGNMENTS ───────────────────────────────────────────────────
     class A1,A2,A3,A4,A5,A6,A7,EDITPROF auth
+    class CANTCONN,CANTLOOP,CANTAPI,CANTDIS auth
     class CL1,CL2,CL3,CL4,CL5,CL6,CL7,CL8,CL9 client
+    class CLCURR,CCPRICE2,CCPAY2,CCPOST,CCLHOUSE client
     class CLREVIEW,RV1,RV2 client
     class MKPL,DIRECTHIRE,CL1_DH client
     class NOTIF,NOTIF_LIST,NOTIF_READALL,NOTIF_CREATOR client
@@ -303,12 +390,17 @@ flowchart TD
     class AD5,AD6,AD7 admin
     class AD_CAN,CANVIEW,CANREASON,CANEXP,CANADM,CANCLI,RESTORE,CANDEL,REFUND admin
     class NOTIFCREATE,ESCROW_PEND,ESC1,ESC2,ESC3,ESC4,ESC_CUSTOM admin
+    class ESC_CC_TAB,ESC_CC_CUSTOM,ESC_CC_SEL,ESC_CC_BATCH admin
     class CRTAB,CRTAB_SET,CRTAB_CLR admin
     class CRON,EXPCHECK,MANUALEXPIRE,PENDINGCHECK,PARTIALCHECK,SLOTCHECK,SLOTREL cron
     class TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8,TG9,TG10,TG_DISCONNECT,TGNOTIFY telegram
-    class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED,ADM_REOPENED done
+    class JOBDONE,RESTORED,REFUNDED,ESC5,CR_CLAIM4,CRTAB_FX,ESC_REOPENED,ADM_REOPENED,CANTSAVED done
+    class ESC_CC_OFFER,ESC_CC_DONE,CR_CC_DONE done
+    class CR_CC_ACCEPT creator
     class CRERR,PROOFERR err
     class AUTOCANCEL,AUTOCOMPLETE,MISSEDSLOTS,TG_TIMEOUT,PENDINGEXPIRE cancelled
     class AG1,AG2,AG3,AG4,AG5,AG6,AG7,AG8,AG9,AG10,AG11,AG12 auth
     class AGDISC,AGSKILL,AGOAPI,AGMCP auth
+    class AG_CC1,AG_CC2,AG_CC3,AG_CC4,AG_CC5,AG_CC6 auth
+    class CN_WALLET,CN_PRICE,CN_X402,CN_CONTRACT,CN_VERIFY,CN_ESCROW,CN_CLAIM,CN_TRANSFER,CN_CANCEL,CN_STATE,CN_TOKEN cron
 ```

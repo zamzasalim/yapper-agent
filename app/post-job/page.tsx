@@ -8,14 +8,18 @@ import {
   FileText, Repeat2, Heart, Flag, HelpCircle,
   Info, ArrowRight, Bot, Users, X, Loader2,
   CheckCircle2, AlertCircle, Hash, Link2, Lock,
-  ExternalLink, Terminal, Key,
+  ExternalLink, Terminal, Key, Network,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Suspense } from "react";
 import { Zap, Copy, Check } from "lucide-react";
-const VAULT_ADDRESS = process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "";
-const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
-const DOCS_URL  = process.env.NEXT_PUBLIC_DOCS_URL  ?? "https://docs.yapperagent.xyz";
+const VAULT_ADDRESS       = process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "";
+const AGENT_URL           = process.env.NEXT_PUBLIC_AGENT_URL ?? "https://agent.yapperagent.xyz";
+const DOCS_URL            = process.env.NEXT_PUBLIC_DOCS_URL  ?? "https://docs.yapperagent.xyz";
+const YAPPER_CANTON_PARTY = process.env.NEXT_PUBLIC_YAPPER_CANTON_PARTY_ID ?? "";
+// CC payment option only shown when Canton party ID is properly configured (not placeholder)
+const CANTON_ENABLED = YAPPER_CANTON_PARTY.length > 20 && !YAPPER_CANTON_PARTY.includes("xxxx");
+const LOOP_NETWORK = process.env.NEXT_PUBLIC_CANTON_NETWORK === "canton-mainnet" ? "mainnet" : "devnet";
 
 type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
 type TxPhase = "idle" | "verifying" | "verified" | "error";
@@ -140,6 +144,116 @@ function PaymentModal({
               : phase === "verified"
               ? <><CheckCircle2 className="w-4 h-4" /> Done</>
               : <>Verify & Post <ArrowRight className="w-4 h-4" /></>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CC Payment Modal (Canton Network) ───────────────────────────────────────
+interface CCPaymentModalProps {
+  totalCC: number; totalUsdc: number; ccPriceUSD: number;
+  txHash: string; onTxHashChange: (v: string) => void;
+  onLoopPay: () => Promise<void>; onVerify: () => Promise<void>; onClose: () => void;
+  phase: TxPhase; error: string; copied: boolean; onCopy: () => void;
+}
+
+function CCPaymentModal({
+  totalCC, totalUsdc, ccPriceUSD,
+  txHash, onTxHashChange, onLoopPay, onVerify, onClose,
+  phase, error, copied, onCopy,
+}: CCPaymentModalProps) {
+  const busy = phase === "verifying" || phase === "verified";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="card p-6 max-w-sm w-full">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-neutral-900 dark:text-white">Pay with CC &amp; Post Job</h3>
+          {!busy && (
+            <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Amount */}
+        <div className="bg-violet-50 dark:bg-violet-950 rounded-2xl p-4 mb-4 text-center">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Send exactly</p>
+          <p className="text-3xl font-extrabold text-neutral-900 dark:text-white">
+            {totalCC}
+            <span className="text-base font-normal text-neutral-400 dark:text-neutral-500 ml-1">CC</span>
+          </p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            ≈ ${totalUsdc < 1 ? totalUsdc.toFixed(2) : totalUsdc} USDC · 1 CC = ${ccPriceUSD.toFixed(4)}
+          </p>
+        </div>
+
+        {/* Canton Party ID */}
+        <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+          Send CC on Canton Network to:
+        </p>
+        <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl px-3 py-2.5 mb-1">
+          <p className="text-[11px] font-mono text-neutral-700 dark:text-neutral-300 flex-1 break-all leading-relaxed">
+            {YAPPER_CANTON_PARTY || "—"}
+          </p>
+          <button onClick={onCopy} className="shrink-0 text-neutral-400 hover:text-violet-600 transition-colors ml-1">
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mb-4">
+          Open cantonloop.com → Send, enter the party ID above and the exact amount.
+        </p>
+
+        {/* Loop Pay button */}
+        <button
+          onClick={onLoopPay}
+          disabled={busy}
+          className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm rounded-2xl px-4 py-3 mb-3 transition-colors disabled:opacity-50"
+        >
+          <Network className="w-4 h-4" />
+          Pay via Loop Wallet
+        </button>
+
+        {/* Manual TX hash input */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+            Or paste Transaction Hash manually
+          </label>
+          <input
+            className="input-field font-mono text-xs"
+            placeholder="Canton transaction hash…"
+            value={txHash}
+            onChange={(e) => onTxHashChange(e.target.value)}
+            disabled={busy}
+          />
+        </div>
+
+        {phase === "error" && (
+          <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+          </div>
+        )}
+        {phase === "verified" && (
+          <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 mb-4">
+            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+            <p className="text-xs text-green-700 dark:text-green-400">Payment verified! Saving job…</p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button onClick={onClose} disabled={busy} className="btn-outline flex-1 text-sm">Cancel</button>
+          <button
+            onClick={onVerify}
+            disabled={!txHash.trim() || busy}
+            className="btn-primary flex-1 text-sm"
+          >
+            {phase === "verifying"
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</>
+              : phase === "verified"
+              ? <><CheckCircle2 className="w-4 h-4" /> Done</>
+              : <>Verify &amp; Post <ArrowRight className="w-4 h-4" /></>}
           </button>
         </div>
       </div>
@@ -333,12 +447,24 @@ function PostJobForm() {
   const [requireCenblue, setRequireCenblue] = useState(false);
   const [minFollowers, setMinFollowers]     = useState(0);
 
-  // Modal
+  // Payment currency
+  const [currency, setCurrency]         = useState<"usdc" | "cc">("usdc");
+  const [ccPriceUSD, setCCPriceUSD]     = useState(0);
+  const [loadingCCPrice, setLoadingCCPrice] = useState(false);
+
+  // USDC Modal
   const [showModal, setShowModal] = useState(false);
   const [txPhase, setTxPhase]     = useState<TxPhase>("idle");
   const [txError, setTxError]     = useState("");
   const [txHash, setTxHash]       = useState("");
   const [copied, setCopied]       = useState(false);
+
+  // CC Modal
+  const [showCCModal, setShowCCModal]     = useState(false);
+  const [cantonTxHash, setCantonTxHash]   = useState("");
+  const [cantonPhase, setCantonPhase]     = useState<TxPhase>("idle");
+  const [cantonError, setCantonError]     = useState("");
+  const [copiedCanton, setCopiedCanton]   = useState(false);
 
   // Auto-select tier and lock to content when hiring a specific creator
   useEffect(() => {
@@ -351,6 +477,17 @@ function PostJobForm() {
     else                                  setSelectedTiers(["50000-99999"]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefilledCreator]);
+
+  // Fetch CC/USD price whenever the user switches to CC currency
+  useEffect(() => {
+    if (currency !== "cc") return;
+    setLoadingCCPrice(true);
+    fetch("/api/cc-price")
+      .then((r) => r.json())
+      .then((d: { price_usd?: number }) => { if (typeof d.price_usd === "number") setCCPriceUSD(d.price_usd); })
+      .catch(() => {})
+      .finally(() => setLoadingCCPrice(false));
+  }, [currency]);
 
   // ── Price calc ──
   const fixedPrice   = FIXED_PRICE[jobType];
@@ -384,13 +521,16 @@ function PostJobForm() {
 
   const effectiveCreators = jobType === "campaign" ? Math.max(2, numCreators) : numCreators;
   const totalUsdc = parseFloat((unitPrice * effectiveCreators).toFixed(2));
+  const totalCC   = currency === "cc" && ccPriceUSD > 0
+    ? Math.ceil((totalUsdc / ccPriceUSD) * 10) / 10
+    : 0;
 
   const twitterHandle = embeddedWalletInfo?.user?.username ?? "";
   const displayName   = twitterHandle;
   const twitterId     = twitterHandle;
 
   // ── Save job ──
-  async function saveJob(txHashStr?: string) {
+  async function saveJob(txHashStr?: string, cantonHashStr?: string) {
     // For content/campaign: derive min followers from selected tiers (use lowest)
     const effectiveMinFollowers =
       showTier ? Math.min(...activeTiers.map((t) => t.min)) : minFollowers;
@@ -428,7 +568,7 @@ function PostJobForm() {
 
     if (jobType === "custom") {
       const rewardLabel = { whitelist: "Whitelist", nft: "NFT", code: "Access Code", other: "Other" }[rewardType];
-      const proofParts: string[] = ["URL of reply or post"];
+      const proofParts: string[] = ["URL of your post"];
       if (requireWallet) {
         const wt = walletType === "other" ? (walletTypeOther.trim() || "other") : walletType;
         proofParts.push(`wallet address (${wt})`);
@@ -453,8 +593,11 @@ function PostJobForm() {
         type: jobType, title,
         description: finalDescription,
         price_usdc: jobType === "custom" ? 0 : unitPrice,
+        currency: currency,
+        price_cc: currency === "cc" ? totalCC : 0,
         status: jobType === "custom" ? "pending_approval" : "open",
         tx_hash: txHashStr ?? null,
+        canton_tx_hash: cantonHashStr ?? null,
         tweet_url: tweetUrl || null,
         content_brief: null,
         is_agent_job: isAgentJob,
@@ -538,6 +681,72 @@ function PostJobForm() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  // ── CC payment handlers ──
+  async function handleLoopPay() {
+    setCantonPhase("verifying");
+    setCantonError("");
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { loop } = await import("@fivenorth/loop-sdk") as any;
+      loop.init({
+        appName: "Yapper Agent",
+        network: LOOP_NETWORK,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onAccept: (provider: any) => {
+          const hash: string =
+            provider?.tx_hash ?? provider?.txHash ?? provider?.transaction_hash ?? "";
+          setCantonTxHash(hash);
+          setCantonPhase("idle");
+        },
+        onReject: () => setCantonPhase("idle"),
+        options: {
+          openMode: "tab",
+          redirectUrl: window.location.href,
+          transfer: {
+            recipient: YAPPER_CANTON_PARTY,
+            amount: String(totalCC),
+            currency: "CC",
+          },
+        },
+      });
+      await loop.connect();
+    } catch (err: unknown) {
+      setCantonError(err instanceof Error ? err.message : "Loop SDK error");
+      setCantonPhase("error");
+    }
+  }
+
+  async function handleVerifyAndPostCC() {
+    if (!cantonTxHash.trim()) return;
+    setCantonPhase("verifying");
+    setCantonError("");
+    try {
+      const jobId = await saveJob(undefined, cantonTxHash.trim());
+      setShowCCModal(false);
+      setSubmitted(true);
+      if (prefilledCreator && jobId) {
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            handle: prefilledCreator,
+            job_id: jobId,
+            message: `@${twitterHandle} wants to hire you directly for "${title}"!`,
+          }),
+        }).catch(() => {});
+      }
+    } catch (err: unknown) {
+      setCantonError(err instanceof Error ? err.message : "Verification failed");
+      setCantonPhase("error");
+    }
+  }
+
+  function handleCopyCanton() {
+    navigator.clipboard.writeText(YAPPER_CANTON_PARTY);
+    setCopiedCanton(true);
+    setTimeout(() => setCopiedCanton(false), 2000);
+  }
+
   // ── Validation ──
   const macroCustomValid =
     !hasMacro ||
@@ -555,7 +764,11 @@ function PostJobForm() {
 
   function openModal() {
     if (!canSubmit || jobType === "custom") return;
-    setTxPhase("idle"); setTxError(""); setTxHash(""); setShowModal(true);
+    if (currency === "cc") {
+      setCantonPhase("idle"); setCantonError(""); setCantonTxHash(""); setShowCCModal(true);
+    } else {
+      setTxPhase("idle"); setTxError(""); setTxHash(""); setShowModal(true);
+    }
   }
 
   function resetForm() {
@@ -564,6 +777,7 @@ function PostJobForm() {
     setReferenceUrl(""); setRewardDescription(""); setRewardType("whitelist"); setCustomError("");
     setRequireWallet(false); setWalletType("ETH"); setWalletTypeOther("");
     setRequireEmail(false); setRequireDiscord(false); setRequireTelegram(false);
+    setCurrency("usdc"); setCantonTxHash(""); setCantonPhase("idle"); setCantonError("");
   }
 
   // ── Auth guard ──
@@ -611,7 +825,9 @@ function PostJobForm() {
           ) : (
             <>
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
-                ${totalUsdc} USDC payment verified. Job is now live for creators to accept.
+                {currency === "cc"
+                  ? `${totalCC} CC payment verified. Job is now live for creators to accept.`
+                  : `$${totalUsdc} USDC payment verified. Job is now live for creators to accept.`}
               </p>
               <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-6">
                 Job has been broadcast to the Yapper Agent Telegram channel.
@@ -641,6 +857,17 @@ function PostJobForm() {
           onClose={() => { if (txPhase !== "verifying" && txPhase !== "verified") setShowModal(false); }}
           phase={txPhase} error={txError}
           copied={copied} onCopy={handleCopyWallet}
+        />
+      )}
+      {showCCModal && (
+        <CCPaymentModal
+          totalCC={totalCC} totalUsdc={totalUsdc} ccPriceUSD={ccPriceUSD}
+          txHash={cantonTxHash} onTxHashChange={setCantonTxHash}
+          onLoopPay={handleLoopPay}
+          onVerify={handleVerifyAndPostCC}
+          onClose={() => { if (cantonPhase !== "verifying" && cantonPhase !== "verified") setShowCCModal(false); }}
+          phase={cantonPhase} error={cantonError}
+          copied={copiedCanton} onCopy={handleCopyCanton}
         />
       )}
 
@@ -1121,10 +1348,22 @@ function PostJobForm() {
             <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">You lock in escrow</p>
-                <p className="text-xl font-extrabold text-neutral-900 dark:text-white">
-                  {totalUsdc ? `$${totalUsdc < 1 ? totalUsdc.toFixed(2) : totalUsdc}` : "—"}{" "}
-                  <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500">USDC</span>
-                </p>
+                {currency === "cc" && ccPriceUSD > 0 ? (
+                  <>
+                    <p className="text-xl font-extrabold text-neutral-900 dark:text-white">
+                      {totalCC || "—"}
+                      <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500 ml-1">CC</span>
+                    </p>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                      ≈ ${totalUsdc < 1 ? totalUsdc.toFixed(2) : totalUsdc} USDC
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xl font-extrabold text-neutral-900 dark:text-white">
+                    {totalUsdc ? `$${totalUsdc < 1 ? totalUsdc.toFixed(2) : totalUsdc}` : "—"}{" "}
+                    <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500">USDC</span>
+                  </p>
+                )}
                 {effectiveCreators > 1 && unitPrice > 0 && (
                   <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
                     {effectiveCreators} creators × ${unitPrice < 1 ? unitPrice.toFixed(2) : unitPrice}
@@ -1139,6 +1378,59 @@ function PostJobForm() {
                 </p>
                 <p className="text-[10px] text-neutral-400 dark:text-neutral-500">0% platform fee</p>
               </div>
+            </div>
+
+            {/* Payment currency picker */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                Payment Currency
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { val: "usdc" as const, label: "USDC", sub: "Solana", emoji: "💵" },
+                  ...(CANTON_ENABLED ? [{ val: "cc" as const, label: "CC", sub: "Canton Network", emoji: "🔷" }] : []),
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.val}
+                    onClick={() => setCurrency(opt.val)}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all",
+                      currency === opt.val
+                        ? "border-violet-500 bg-violet-50 dark:bg-violet-950"
+                        : "border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700",
+                    )}
+                  >
+                    <span className="text-lg">{opt.emoji}</span>
+                    <div>
+                      <p className={cn("text-sm font-semibold", currency === opt.val ? "text-violet-700 dark:text-violet-400" : "text-neutral-700 dark:text-neutral-300")}>
+                        {opt.label}
+                      </p>
+                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{opt.sub}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {currency === "cc" && (
+                <div className="mt-2 bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800 rounded-xl px-4 py-3">
+                  {loadingCCPrice ? (
+                    <div className="flex items-center gap-2 text-xs text-neutral-400">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Loading CC price…
+                    </div>
+                  ) : ccPriceUSD > 0 ? (
+                    <>
+                      <p className="text-xs text-violet-700 dark:text-violet-300">
+                        You pay: <strong>{totalCC} CC</strong>
+                      </p>
+                      <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                        1 CC ≈ ${ccPriceUSD.toFixed(4)} USD · price refreshed every 10 min
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-red-500 dark:text-red-400">Could not load CC price. Try again.</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>}
 
@@ -1164,13 +1456,20 @@ function PostJobForm() {
             </>
           ) : (
             <>
-              <button className={cn("btn-primary text-sm py-3 w-full", !canSubmit && "opacity-50 cursor-not-allowed")}
-                onClick={openModal} disabled={!canSubmit}>
-                Post Job &amp; Pay ${totalUsdc || "—"} USDC
-                <ArrowRight className="w-4 h-4" />
+              <button
+                className={cn("btn-primary text-sm py-3 w-full", (!canSubmit || (currency === "cc" && ccPriceUSD <= 0)) && "opacity-50 cursor-not-allowed")}
+                onClick={openModal}
+                disabled={!canSubmit || (currency === "cc" && ccPriceUSD <= 0)}
+              >
+                {currency === "cc" && ccPriceUSD > 0
+                  ? <>Post Job &amp; Pay {totalCC || "—"} CC <ArrowRight className="w-4 h-4" /></>
+                  : <>Post Job &amp; Pay ${totalUsdc || "—"} USDC <ArrowRight className="w-4 h-4" /></>
+                }
               </button>
               <p className="text-center text-xs text-neutral-400 dark:text-neutral-500">
-                Send USDC manually to our wallet, then paste the TX hash to verify and post your job.
+                {currency === "cc"
+                  ? "Transfer CC via Loop Wallet (or manually via cantonloop.com), then paste the TX hash to verify."
+                  : "Send USDC manually to our wallet, then paste the TX hash to verify and post your job."}
               </p>
             </>
           )}
