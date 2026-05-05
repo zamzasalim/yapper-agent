@@ -7,8 +7,8 @@ import { createServerClient } from "@/lib/supabase";
 
 function fmtHours(hours: number): string {
   const d = Math.floor(hours / 24);
-  const h = hours % 24;
-  if (d === 0) return `${h}h`;
+  const h = Math.floor(hours % 24);
+  if (d === 0) return `${Math.floor(hours)}h`;
   if (h === 0) return `${d}d`;
   return `${d}d ${h}h`;
 }
