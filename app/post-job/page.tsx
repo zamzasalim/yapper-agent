@@ -691,22 +691,29 @@ function PostJobForm() {
       loop.init({
         appName: "Yapper Agent",
         network: LOOP_NETWORK,
+        // onAccept fires after wallet connects — initiate transfer here
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onAccept: (provider: any) => {
-          const hash: string =
-            provider?.tx_hash ?? provider?.txHash ?? provider?.transaction_hash ?? "";
-          setCantonTxHash(hash);
-          setCantonPhase("idle");
+        onAccept: async (provider: any) => {
+          try {
+            // CC on Canton = instrument_id "Amulet" (default, but explicit)
+            const result = await provider.transfer(
+              YAPPER_CANTON_PARTY,
+              String(totalCC),
+              { instrument_id: "Amulet" },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ) as any;
+            const hash: string = result?.update_id ?? result?.transaction_hash ?? result?.tx_hash ?? "";
+            setCantonTxHash(hash);
+            setCantonPhase("idle");
+          } catch (transferErr: unknown) {
+            setCantonError(transferErr instanceof Error ? transferErr.message : "Transfer failed");
+            setCantonPhase("error");
+          }
         },
         onReject: () => setCantonPhase("idle"),
         options: {
-          openMode: "tab",
+          openMode: "popup",
           redirectUrl: window.location.href,
-          transfer: {
-            recipient: YAPPER_CANTON_PARTY,
-            amount: String(totalCC),
-            currency: "CC",
-          },
         },
       });
       await loop.connect();

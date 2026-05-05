@@ -13,6 +13,16 @@ function fmtHours(hours: number): string {
   return `${d}d ${h}h`;
 }
 
+function fmtRemaining(createdAt: string, deadlineHours: number, deadlineOverride: string | null): string {
+  const expiresAt = deadlineOverride
+    ? new Date(deadlineOverride).getTime()
+    : new Date(createdAt).getTime() + deadlineHours * 3_600_000;
+  const remainingMs = expiresAt - Date.now();
+  if (remainingMs <= 0) return "Expired";
+  const remainingHours = remainingMs / 3_600_000;
+  return fmtHours(remainingHours);
+}
+
 type JobType = "content" | "repost" | "like_reply" | "campaign" | "custom";
 
 interface RawJob {
@@ -28,6 +38,7 @@ interface RawJob {
   tweet_url: string | null;
   is_agent_job: boolean;
   deadline_hours: number;
+  deadline_override: string | null;
   require_blue: boolean;
   min_followers: number;
   max_creators: number;
@@ -50,7 +61,7 @@ async function getJobs(): Promise<RawJob[] | null> {
       .from("jobs")
       .select(
         `id, created_at, type, status, title, description,
-         price_usdc, price_cc, currency, tweet_url, is_agent_job, deadline_hours,
+         price_usdc, price_cc, currency, tweet_url, is_agent_job, deadline_hours, deadline_override,
          require_blue, min_followers, max_creators, slots_taken,
          client:users!client_id(twitter_handle, display_name)`
       )
@@ -84,7 +95,7 @@ export default async function JobsPage() {
     minFollowers: j.min_followers ?? 0,
     maxCreators: j.max_creators ?? 1,
     slotsTaken: j.slots_taken ?? 0,
-    deadline: fmtHours(j.deadline_hours),
+    deadline: fmtRemaining(j.created_at, j.deadline_hours, j.deadline_override ?? null),
     postedAt: timeAgo(j.created_at),
   }));
 
