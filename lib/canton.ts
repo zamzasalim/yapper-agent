@@ -112,20 +112,6 @@ export const YAPPER_CANTON_PARTY =
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface LighthouseEvent {
-  choice_argument: {
-    sender:   string;
-    receiver: string;
-    amount:   string;
-    currency: string;
-  };
-}
-
-interface LighthouseTx {
-  events:  Record<string, LighthouseEvent>;
-  verdict: { verdict_result: string };
-}
-
 export interface VerifyResult {
   valid:   boolean;
   sender?: string;
@@ -199,16 +185,73 @@ function findField(obj: unknown, key: string): string | undefined {
 const IS_DEVNET = (process.env.NEXT_PUBLIC_CANTON_NETWORK ?? "canton-mainnet") !== "canton-mainnet";
 
 /**
+ * Search the parsed Lighthouse JSON for a transfer event with:
+ *   receiver === targetParty, instrument === "Amulet", amount >= minAmount
+ *
+ * Handles two format variants:
+ *   • Old:    choice_argument.{ receiver, currency, amount, sender }
+ *   • Devnet: choice_argument.transfer.{ receiver, instrumentId.id, amount, sender }
+ */
+function findTransferToReceiver(
+  obj:         unknown,
+  targetParty: string,
+  minAmount:   number,
+): { found: boolean; sender?: string; amount?: number } {
+  if (obj === null || typeof obj !== "object") return { found: false };
+
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const r = findTransferToReceiver(item, targetParty, minAmount);
+      if (r.found) return r;
+    }
+    return { found: false };
+  }
+
+  const rec = obj as Record<string, unknown>;
+  const ca  = rec.choice_argument as Record<string, unknown> | undefined;
+
+  if (ca) {
+    // Devnet format: choice_argument.transfer.{ receiver, amount, instrumentId.id }
+    const t = ca.transfer as Record<string, unknown> | undefined;
+    if (t) {
+      const receiver   = t.receiver as string | undefined;
+      const amount     = parseFloat(String(t.amount ?? "0"));
+      const instrument = (t.instrumentId as Record<string, unknown> | undefined)?.id as string | undefined;
+      if (receiver === targetParty && instrument === CANTON_CC_CURRENCY && amount >= minAmount) {
+        return { found: true, sender: t.sender as string | undefined, amount };
+      }
+    }
+
+    // Old format: choice_argument.{ receiver, currency, amount }
+    const receiver = ca.receiver as string | undefined;
+    const amount   = parseFloat(String(ca.amount ?? "0"));
+    const currency = ca.currency as string | undefined;
+    if (receiver === targetParty && currency === CANTON_CC_CURRENCY && amount >= minAmount) {
+      return { found: true, sender: ca.sender as string | undefined, amount };
+    }
+  }
+
+  for (const v of Object.values(rec)) {
+    const r = findTransferToReceiver(v, targetParty, minAmount);
+    if (r.found) return r;
+  }
+  return { found: false };
+}
+
+/**
  * Verify that a Canton CC transfer:
  *   - verdict accepted
  *   - receiver = YAPPER_CANTON_PARTY
- *   - currency = Amulet
+ *   - instrument = Amulet
  *   - amount >= expectedAmountCC
  *
+ * Uses flexible recursive parsing to handle both the mainnet Lighthouse format
+ * and the hackathon devnet format where:
+ *   • verdict_result appears as a top-level field on one of the events
+ *   • transfer details are under choice_argument.transfer.{ receiver, amount, instrumentId.id }
+ *
  * On devnet (NEXT_PUBLIC_CANTON_NETWORK !== "canton-mainnet"):
- *   If the scan API is unavailable (wrong path / 404 / timeout), the tx hash
- *   is trusted optimistically. DAML contract creation provides the audit trail.
- *   Set CANTON_SCAN_URL to a working scan endpoint when available.
+ *   If the scan API is unavailable, the tx hash is trusted optimistically.
  */
 export async function verifyCantonTransfer(
   txHash:           string,
@@ -216,7 +259,6 @@ export async function verifyCantonTransfer(
 ): Promise<VerifyResult> {
   if (!txHash || !YAPPER_CANTON_PARTY) return { valid: false };
 
-  // Try scan/lighthouse paths in order
   const scanPaths = [
     `/transactions/${txHash}`,
     `/api/scan/v0/updates/${txHash}`,
@@ -228,26 +270,22 @@ export async function verifyCantonTransfer(
       const res = await fetch(`${LIGHTHOUSE_URL}${path}`, { cache: "no-store" });
       if (!res.ok) continue;
 
-      const data: LighthouseTx = await res.json();
-      if (data.verdict?.verdict_result !== "accepted") continue;
+      const data: unknown = await res.json();
 
-      const event = Object.values(data.events ?? {})[0];
-      if (!event) continue;
+      // Quick check: our party ID must appear somewhere in the raw response
+      if (!JSON.stringify(data).includes(YAPPER_CANTON_PARTY)) continue;
 
-      const arg      = event.choice_argument;
-      const amount   = parseFloat(arg?.amount ?? "0");
-      const receiver = arg?.receiver ?? "";
-      const currency = arg?.currency ?? "";
+      // Find verdict_result === "accepted" anywhere in the tree
+      const verdict = findField(data, "verdict_result");
+      if (verdict !== "accepted") continue;
 
-      if (
-        receiver !== YAPPER_CANTON_PARTY ||
-        currency !== CANTON_CC_CURRENCY  ||
-        amount   <  expectedAmountCC
-      ) {
+      // Find a transfer event directed at our party with sufficient amount
+      const transfer = findTransferToReceiver(data, YAPPER_CANTON_PARTY, expectedAmountCC);
+      if (!transfer.found) {
         return { valid: false };
       }
 
-      return { valid: true, sender: arg.sender, amount };
+      return { valid: true, sender: transfer.sender, amount: transfer.amount };
     } catch {
       continue;
     }
