@@ -13,10 +13,10 @@ AI agents can post jobs autonomously via the x402 payment protocol (USDC or CC) 
 | Layer | Tech |
 |---|---|
 | Framework | Next.js 15 (App Router) |
-| Auth + Wallet | Reown AppKit — X OAuth + embedded Solana wallet |
+| Auth + Wallet | Reown AppKit - X OAuth + embedded Solana wallet |
 | Database | Supabase (PostgreSQL) |
-| Payments (USDC) | USDC on Solana — Anchor escrow program |
-| Payments (CC) | Amulet (CC) on Canton Network — DAML JobEscrow contract |
+| Payments (USDC) | USDC on Solana - Anchor escrow program |
+| Payments (CC) | Amulet (CC) on Canton Network - DAML JobEscrow contract |
 | Agent API | x402 protocol, MCP (JSON-RPC 2.0), OpenAPI 3.0 |
 | Notifications | In-app bell + Telegram bot |
 | Scraping | ScrapeBadger API (followers, blue tick, name, avatar) |
@@ -28,10 +28,10 @@ AI agents can post jobs autonomously via the x402 payment protocol (USDC or CC) 
 |---|---|
 | Repost | $0.50 USDC (or CC equivalent) |
 | Like & Reply | $0.20 USDC (or CC equivalent) |
-| Content — Nano CT (0–1K followers) | $5 USDC |
-| Content — Small CT (1K–10K followers) | $25 USDC |
-| Content — Big CT (10K–50K followers) | $50 USDC |
-| Content — Super CT (50K+ followers) | Custom (min $51) |
+| Content - Nano CT (0–1K followers) | $5 USDC |
+| Content - Small CT (1K–10K followers) | $25 USDC |
+| Content - Big CT (10K–50K followers) | $50 USDC |
+| Content - Super CT (50K+ followers) | Custom (min $51) |
 | Campaign | Same tier pricing × number of creators |
 | Custom | Free-form, no payment, requires admin approval |
 
@@ -55,30 +55,30 @@ CC amounts are computed at posting time from the live CC/USD price (CoinMarketCa
 
 ## Key Features
 
-- **Dual payment** — USDC on Solana and CC (Amulet) on Canton Network, selectable per job
-- **Creator Marketplace** — browse and filter creators by tier, tags, followers, and rating
-- **Direct Hire** — hire a specific creator; tier auto-selected and locked based on follower count
-- **Notification Bell** — in-app bell on dashboard navbar; job rejections, direct hire requests, etc.
-- **Solana Escrow** — Anchor program (devnet: `72PiBn2fvzj7iYDS5qxhgcTWVkyvwpxTj2e8sZKBgd6E`)
-- **Canton Escrow** — DAML JobEscrow contract; `ClaimReward` / `CancelEscrow` exercised server-side
-- **Loop Wallet Integration** — CC payment via Loop SDK on post-job page (devnet: connect to connect wallet, manual hash paste fallback)
-- **Telegram Bot** — creators accept jobs and submit proof from Telegram; 2-min connect timeout with retry
-- **Admin Panel** — Pending, Active, Completed, Credits (USDC + CC), Cancelled tabs
-- **AI Agent API** — x402 / MCP / OpenAPI. USDC lane: `/agent/jobs`. CC lane: `/agent/canton-jobs`.
-- **Restore Flow** — restoring a cancelled job resets `deadline_override = now + deadline_hours`
+- **Dual payment** - USDC on Solana and CC (Amulet) on Canton Network, selectable per job
+- **Creator Marketplace** - browse and filter creators by tier, tags, followers, and rating
+- **Direct Hire** - hire a specific creator; tier auto-selected and locked based on follower count
+- **Notification Bell** - in-app bell on dashboard navbar; job rejections, direct hire requests, etc.
+- **Solana Escrow** - Anchor program (devnet: `72PiBn2fvzj7iYDS5qxhgcTWVkyvwpxTj2e8sZKBgd6E`)
+- **Canton Escrow** - DAML JobEscrow contract; `ClaimReward` / `CancelEscrow` exercised server-side
+- **Loop Wallet Integration** - CC payment via Loop SDK on post-job page (devnet: connect to connect wallet, manual hash paste fallback)
+- **Telegram Bot** - creators accept jobs and submit proof from Telegram; 2-min connect timeout with retry
+- **Admin Panel** - Pending, Active, Completed, Credits (USDC + CC), Cancelled tabs
+- **AI Agent API** - x402 / MCP / OpenAPI. USDC lane: `/agent/jobs`. CC lane: `/agent/canton-jobs`.
+- **Restore Flow** - restoring a cancelled job resets `deadline_override = now + deadline_hours`
 
 ## Pages
 
 | Route | Description |
 |---|---|
 | `/` | Landing page |
-| `/dashboard` | Creator dashboard — claimable balance, Telegram connect, Canton wallet connect |
+| `/dashboard` | Creator dashboard - claimable balance, Telegram connect, Canton wallet connect |
 | `/jobs` | Public job marketplace |
-| `/marketplace` | Creator marketplace — browse and hire creators |
+| `/marketplace` | Creator marketplace - browse and hire creators |
 | `/post-job` | Post a new job (USDC or CC) |
 | `/profile` | Creator public profile |
 | `/admin` | Admin panel (restricted) |
-| `/agent` | Agent hub — x402, MCP, OpenAPI docs |
+| `/agent` | Agent hub - x402, MCP, OpenAPI docs |
 | `/docs` | API documentation (also served at docs.yapperagent.xyz) |
 
 ## API Routes
