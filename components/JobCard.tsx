@@ -290,7 +290,7 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
                 </span>
               ) : job.currency === "cc" ? (
                 <span className="tag text-[10px] px-2.5 py-1 font-semibold text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 border-violet-200 dark:border-violet-800">
-                  {job.priceCC ?? price} CC
+                  ${price} CC
                 </span>
               ) : (
                 <span className="tag text-[10px] px-2.5 py-1 font-semibold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
@@ -548,7 +548,7 @@ export function JobCard({ job }: { job: Job }) {
               {isCustom
                 ? <>{rewardType ?? "Reward"}</>
                 : job.currency === "cc"
-                  ? <>{job.priceCC ?? job.priceUsdc} <span className="text-xs font-normal text-violet-500 ml-0.5">CC</span></>
+                  ? <><DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc} <span className="text-xs font-normal text-violet-500 ml-0.5">CC</span></>
                   : <><DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}</>}
             </p>
           </div>
