@@ -202,7 +202,9 @@ function CCPaymentModal({
           </button>
         </div>
         <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mb-4">
-          Open cantonloop.com → Send, enter the party ID above and the exact amount.
+          Open cantonloop.com → Send, enter the party ID above and the exact amount. After sending, copy the hash from{" "}
+          <a href="https://lighthouse.devnet.cantonloop.com" target="_blank" rel="noopener noreferrer" className="underline">Lighthouse</a>{" "}
+          and paste below.
         </p>
 
         {/* Loop Pay button */}
@@ -695,18 +697,29 @@ function PostJobForm() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onAccept: async (provider: any) => {
           try {
-            // CC on Canton = instrument_id "Amulet" (default, but explicit)
+            // executionMode "wait" uses submitAndWaitForTransaction — returns update_id after Canton confirms
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const result = await provider.transfer(
               YAPPER_CANTON_PARTY,
               String(totalCC),
               { instrument_id: "Amulet" },
+              { executionMode: "wait" },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ) as any;
+            // update_id is Canton update hash (1220... hex) — what Lighthouse indexes
             const hash: string = result?.update_id ?? result?.transaction_hash ?? result?.tx_hash ?? "";
-            setCantonTxHash(hash);
-            setCantonPhase("idle");
+            if (hash) {
+              setCantonTxHash(hash);
+              setCantonPhase("idle");
+            } else {
+              // Transfer went through but hash not returned — prompt manual paste
+              setCantonError("Transfer submitted. Copy the transaction hash from Lighthouse and paste it below.");
+              setCantonPhase("idle");
+            }
           } catch (transferErr: unknown) {
-            setCantonError(transferErr instanceof Error ? transferErr.message : "Transfer failed");
+            const msg = transferErr instanceof Error ? transferErr.message : "Transfer failed";
+            // Transfer may have succeeded on Canton despite SDK parse error — prompt manual paste
+            setCantonError(`${msg}. If CC was sent, copy the hash from Lighthouse and paste it below.`);
             setCantonPhase("error");
           }
         },

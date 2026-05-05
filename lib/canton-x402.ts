@@ -16,9 +16,10 @@ export async function requiredCC(amountUsdc: number): Promise<number> {
 /**
  * Decode X-Payment header for Canton CC payments.
  * Accepts:
- *   - base64({"canton_tx_hash":"..."})
- *   - base64({"tx_hash":"..."})  — alias
- *   - raw hex tx hash (≥32 hex chars)
+ *   - base64({"canton_tx_hash":"..."})        — agent x402 format
+ *   - base64({"tx_hash":"..."})               — alias
+ *   - raw hex tx hash (≥32 hex chars)         — Lighthouse 1220... format
+ *   - base64 raw bytes (Loop submit-offer)    — decoded to hex for Lighthouse lookup
  */
 export function parseCantonPaymentHeader(
   header: string,
@@ -28,9 +29,16 @@ export function parseCantonPaymentHeader(
     if (typeof json.canton_tx_hash === "string") return { canton_tx_hash: json.canton_tx_hash };
     if (typeof json.tx_hash === "string")        return { canton_tx_hash: json.tx_hash };
   } catch {}
-  // Raw hex Canton tx hash
+  // Raw hex Canton tx hash (e.g. 1220... Lighthouse format)
   if (header.length >= 32 && /^[a-fA-F0-9]+$/.test(header)) {
     return { canton_tx_hash: header };
+  }
+  // Base64-encoded raw bytes (Loop submit-offer transaction_hash) → convert to hex
+  if (/^[A-Za-z0-9+/]+=*$/.test(header) && header.length >= 32) {
+    try {
+      const hex = Buffer.from(header, "base64").toString("hex");
+      if (hex.length >= 32) return { canton_tx_hash: hex };
+    } catch {}
   }
   return null;
 }
