@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
-const API_URL   = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
+const APP_URL        = process.env.NEXT_PUBLIC_APP_URL   ?? "https://yapperagent.xyz";
+const API_URL        = process.env.NEXT_PUBLIC_API_URL   ?? "https://api.yapperagent.xyz";
+const CANTON_NETWORK = process.env.NEXT_PUBLIC_CANTON_NETWORK ?? "canton-mainnet";
 
 /** GET /openapi.json — OpenAPI 3.0 spec for the Yapper Agent API (MPP-compatible) */
 export async function GET() {
@@ -17,9 +18,10 @@ export async function GET() {
     },
     servers: [{ url: API_URL, description: "API Gateway (api.yapperagent.xyz)" }],
     tags: [
-      { name: "Agent",    description: "Agent registration and job management" },
-      { name: "x402",     description: "x402 protocol discovery" },
-      { name: "Support",  description: "Support tickets" },
+      { name: "Agent",   description: "Agent registration and job management (USDC on Solana)" },
+      { name: "Canton",  description: "CC payment lane — jobs paid with Amulet on Canton Network" },
+      { name: "x402",    description: "x402 protocol discovery" },
+      { name: "Support", description: "Support tickets" },
     ],
     paths: {
       "/agent/register": {
@@ -209,6 +211,53 @@ export async function GET() {
         },
       },
 
+      "/agent/canton-jobs": {
+        post: {
+          tags:        ["Canton"],
+          summary:     "Create a job paid with CC (Canton Network)",
+          description: "Same job types as /agent/jobs but payment is in Amulet (CC) on Canton Network via the x402 protocol. First call (no X-Payment) returns a 402 with the exact CC amount required (live price from CoinMarketCap, ceiling-rounded to 0.1 CC). Send CC to the payTo party ID via cantonloop.com or Loop SDK, then retry with the transaction hash.",
+          operationId: "createCantonJob",
+          parameters: [
+            {
+              name:        "X-Payment",
+              in:          "header",
+              required:    false,
+              description: "base64-encoded JSON: {\"canton_tx_hash\":\"<hash>\"}. Omit to receive 402 with payment instructions.",
+              schema:      { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CreateJobInput" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Job created",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { job: { $ref: "#/components/schemas/Job" } },
+                  },
+                },
+              },
+            },
+            "402": {
+              description: "Payment required — Canton x402 (CC/Amulet)",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/CantonX402Response" },
+                },
+              },
+            },
+          },
+        },
+      },
+
       "/.well-known/x402": {
         get: {
           tags:        ["x402"],
@@ -247,16 +296,19 @@ export async function GET() {
         Job: {
           type: "object",
           properties: {
-            id:            { type: "string" },
-            created_at:    { type: "string", format: "date-time" },
-            type:          { type: "string" },
-            status:        { type: "string", enum: ["open", "in_progress", "completed", "cancelled", "pending_approval"] },
-            title:         { type: "string" },
-            price_usdc:    { type: "number" },
-            max_creators:  { type: "integer" },
-            slots_taken:   { type: "integer" },
-            deadline_hours: { type: "integer" },
-            completed_at:  { type: "string", format: "date-time", nullable: true },
+            id:                  { type: "string" },
+            created_at:          { type: "string", format: "date-time" },
+            type:                { type: "string" },
+            status:              { type: "string", enum: ["open", "in_progress", "completed", "cancelled", "pending_approval"] },
+            title:               { type: "string" },
+            price_usdc:          { type: "number" },
+            currency:            { type: "string", enum: ["usdc", "cc"], description: "Payment currency" },
+            price_cc:            { type: "number", nullable: true, description: "CC amount (if currency=cc)" },
+            canton_contract_id:  { type: "string", nullable: true, description: "DAML JobEscrow contract ID on Canton" },
+            max_creators:        { type: "integer" },
+            slots_taken:         { type: "integer" },
+            deadline_hours:      { type: "integer" },
+            completed_at:        { type: "string", format: "date-time", nullable: true },
           },
         },
         JobSummary: {
@@ -288,6 +340,39 @@ export async function GET() {
             },
           },
         },
+        CantonX402Response: {
+          type: "object",
+          description: "402 response for Canton CC payment lane",
+          properties: {
+            x402Version: { type: "integer", example: 1 },
+            error:        { type: "string", example: "Payment required" },
+            accepts: {
+              type:  "array",
+              items: {
+                type: "object",
+                properties: {
+                  scheme:            { type: "string", example: "exact" },
+                  network:           { type: "string", example: CANTON_NETWORK },
+                  asset:             { type: "string", example: "Amulet" },
+                  payTo:             { type: "string", description: "Yapper Canton party ID" },
+                  maxAmountRequired: { type: "string", description: "CC amount required (decimal string)" },
+                  resource:          { type: "string" },
+                  description:       { type: "string" },
+                  maxTimeoutSeconds: { type: "integer", example: 300 },
+                  extra: {
+                    type: "object",
+                    properties: {
+                      name:          { type: "string", example: "CC" },
+                      lighthouseUrl: { type: "string", description: "Lighthouse scan API base URL" },
+                      note:          { type: "string", description: "Payment instructions" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+
         X402Response: {
           type: "object",
           properties: {

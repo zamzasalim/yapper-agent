@@ -81,6 +81,39 @@ const TOOLS = [
     },
   },
   {
+    name:        "get_cc_payment_info",
+    description: "Get Canton CC payment details before creating a CC-paid job. Returns the Canton party ID to send Amulet (CC) to and the exact CC amount required (live price from CoinMarketCap).",
+    inputSchema: {
+      type:     "object",
+      required: ["type"],
+      properties: {
+        type:       { type: "string", enum: ["repost", "like_reply", "content", "campaign", "custom"], description: "Job type" },
+        price_usdc: { type: "number", description: "Custom USDC-equivalent price for content/campaign jobs" },
+      },
+    },
+  },
+  {
+    name:        "create_cc_job",
+    description: "Post a job paid with CC (Amulet on Canton Network). Use get_cc_payment_info to get the Canton party ID and CC amount, send CC via cantonloop.com or Loop SDK, then call this with the canton_tx_hash.",
+    inputSchema: {
+      type:     "object",
+      required: ["api_key", "type", "title", "canton_tx_hash"],
+      properties: {
+        api_key:          { type: "string", description: "Your agent API key" },
+        type:             { type: "string", enum: ["repost", "like_reply", "content", "campaign", "custom"] },
+        title:            { type: "string" },
+        description:      { type: "string" },
+        tweet_url:        { type: "string", description: "Required for repost and like_reply jobs" },
+        price_usdc:       { type: "number", description: "USDC-equivalent price. CC amount is derived from live CC/USD price." },
+        deadline_hours:   { type: "number", default: 24 },
+        num_creators:     { type: "number", default: 1, description: "Number of slots for campaign jobs" },
+        require_blue:     { type: "boolean", default: false },
+        min_followers:    { type: "number", default: 0 },
+        canton_tx_hash:   { type: "string", description: "Canton transaction hash from cantonloop.com Lighthouse after sending CC" },
+      },
+    },
+  },
+  {
     name:        "submit_support",
     description: "Report an issue with a job to Yapper moderators.",
     inputSchema: {
@@ -232,6 +265,61 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       `  - @${(s.creator as any)?.twitter_handle ?? "?"} | ${s.status} | ${s.proof_url ?? "no proof"}`
     );
     return `Job: ${job.id}\nStatus: ${job.status}\nType: ${job.type}\nTitle: "${job.title}"\nSlots: ${job.slots_taken}/${job.max_creators}\n\nSubmissions (${submissions.length}):\n${subLines.join("\n") || "  (none yet)"}`;
+  }
+
+  // ── get_cc_payment_info ───────────────────────────────────────────────────
+  if (name === "get_cc_payment_info") {
+    const type      = String(args.type ?? "");
+    const amountUsd = requiredUsdc(type, args.price_usdc as number | undefined);
+    // Fetch live CC price from our API
+    const priceRes  = await fetch(`${APP_URL}/api/cc-price`);
+    const priceData = await priceRes.json() as { price_usd?: number };
+    const ccUSD     = priceData.price_usd ?? 0;
+    const amountCC  = ccUSD > 0 ? Math.ceil((amountUsd / ccUSD) * 10) / 10 : null;
+    const partyId   = process.env.NEXT_PUBLIC_YAPPER_CANTON_PARTY_ID ?? process.env.YAPPER_CANTON_PARTY_ID ?? "";
+
+    if (!partyId) throw new Error("Canton Network payment not yet configured on this platform.");
+    if (!amountCC) throw new Error("Could not fetch live CC price. Try again.");
+
+    return `CC payment required to create a ${type} job:\n\n- Amount: ${amountCC} CC (Amulet)\n- Pay to: ${partyId}\n- Network: Canton Network\n- 1 CC ≈ $${ccUSD.toFixed(4)} USD\n\nSend CC via cantonloop.com or Loop SDK. After sending, get the transaction hash from Lighthouse and call create_cc_job with canton_tx_hash.`;
+  }
+
+  // ── create_cc_job ─────────────────────────────────────────────────────────
+  if (name === "create_cc_job") {
+    const apiKey = String(args.api_key ?? "");
+    const agent  = await resolveAgent(apiKey);
+    if (!agent) throw new Error("Invalid api_key");
+
+    const cantonHash = String(args.canton_tx_hash ?? "");
+    if (!cantonHash) throw new Error("canton_tx_hash required");
+
+    const jobType = String(args.type ?? "");
+
+    // Delegate to canton-jobs API route (handles verification + job creation)
+    const res = await fetch(`${APP_URL}/api/agent/canton-jobs`, {
+      method:  "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment":    Buffer.from(JSON.stringify({ canton_tx_hash: cantonHash })).toString("base64"),
+      },
+      body: JSON.stringify({
+        api_key:        apiKey,
+        type:           jobType,
+        title:          args.title,
+        description:    args.description ?? null,
+        tweet_url:      args.tweet_url ?? null,
+        price_usdc:     args.price_usdc ?? null,
+        deadline_hours: args.deadline_hours ?? 24,
+        num_creators:   args.num_creators ?? 1,
+        require_blue:   args.require_blue ?? false,
+        min_followers:  args.min_followers ?? 0,
+      }),
+    });
+    const data = await res.json() as { job?: { id: string; status: string; type: string; title: string; price_cc?: number }; error?: string };
+    if (!res.ok) throw new Error(data.error ?? "Failed to create CC job");
+
+    const job = data.job!;
+    return `CC Job created successfully!\n\n- ID: ${job.id}\n- Status: ${job.status}\n- Type: ${job.type}\n- Title: ${job.title}\n- Price: ${job.price_cc ?? "?"} CC (Amulet)\n\nPoll get_job with this ID to retrieve submissions once completed.`;
   }
 
   // ── submit_support ────────────────────────────────────────────────────────

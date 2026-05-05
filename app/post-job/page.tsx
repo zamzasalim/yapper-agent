@@ -719,17 +719,18 @@ function PostJobForm() {
             }
           } catch (transferErr: unknown) {
             const raw = transferErr instanceof Error ? transferErr.message : String(transferErr);
-            // "action failed" / "unexpected end of JSON input" = devnet WebSocket parse error
-            // after the transfer was already sent — treat as soft info, not hard error
-            const isDevnetParseError =
+            // "action failed" = Loop devnet REJECT_REQUEST — their submit-offer
+            // backend returns empty body, wallet rejects the transaction.
+            // Transfer was NOT sent. Show clear instructions for manual send.
+            const isLoopDevnetReject =
               raw.includes("action failed") ||
               raw.includes("unexpected end") ||
               raw.includes("JSON");
-            if (isDevnetParseError) {
-              setCantonError("Transfer submitted to Canton. The devnet confirmation response was incomplete — this is normal. Copy the transaction hash from Lighthouse and paste it below.");
-              setCantonPhase("submitted");
+            if (isLoopDevnetReject) {
+              setCantonError("Loop wallet devnet is unstable (server error on their end). CC was NOT sent. Please send manually via cantonloop.com and paste the transaction hash below.");
+              setCantonPhase("error");
             } else {
-              setCantonError(`${raw}. If CC was sent, copy the hash from Lighthouse and paste it below.`);
+              setCantonError(`${raw}. Please try sending CC manually via cantonloop.com and paste the hash below.`);
               setCantonPhase("error");
             }
           }
