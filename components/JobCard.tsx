@@ -17,6 +17,8 @@ interface Job {
   title: string;
   description: string;
   priceUsdc: number;
+  priceCC?: number | null;
+  currency?: "usdc" | "cc";
   tweetUrl?: string | null;
   status: JobStatus;
   isAgentJob: boolean;
@@ -286,6 +288,10 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
                 <span className="tag text-[10px] px-2.5 py-1 font-semibold">
                   {parseRewardType(job.description) ?? "Reward"}
                 </span>
+              ) : job.currency === "cc" ? (
+                <span className="tag text-[10px] px-2.5 py-1 font-semibold text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 border-violet-200 dark:border-violet-800">
+                  {job.priceCC ?? price} CC
+                </span>
               ) : (
                 <span className="tag text-[10px] px-2.5 py-1 font-semibold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
                   ${price} USDC
@@ -541,7 +547,9 @@ export function JobCard({ job }: { job: Job }) {
             <p className="font-bold text-sm text-neutral-900 dark:text-white flex items-center justify-center gap-0.5">
               {isCustom
                 ? <>{rewardType ?? "Reward"}</>
-                : <><DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}</>}
+                : job.currency === "cc"
+                  ? <>{job.priceCC ?? job.priceUsdc} <span className="text-xs font-normal text-violet-500 ml-0.5">CC</span></>
+                  : <><DollarSign className="w-3 h-3" />{job.priceUsdc < 1 ? job.priceUsdc.toFixed(2) : job.priceUsdc}</>}
             </p>
           </div>
           <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />

@@ -23,6 +23,8 @@ interface RawJob {
   title: string;
   description: string;
   price_usdc: number;
+  price_cc: number | null;
+  currency: string | null;
   tweet_url: string | null;
   is_agent_job: boolean;
   deadline_hours: number;
@@ -48,7 +50,7 @@ async function getJobs(): Promise<RawJob[] | null> {
       .from("jobs")
       .select(
         `id, created_at, type, status, title, description,
-         price_usdc, tweet_url, is_agent_job, deadline_hours,
+         price_usdc, price_cc, currency, tweet_url, is_agent_job, deadline_hours,
          require_blue, min_followers, max_creators, slots_taken,
          client:users!client_id(twitter_handle, display_name)`
       )
@@ -72,6 +74,8 @@ export default async function JobsPage() {
     title: j.title,
     description: j.description,
     priceUsdc: j.price_usdc,
+    priceCC: j.price_cc ?? null,
+    currency: (j.currency ?? "usdc") as "usdc" | "cc",
     tweetUrl: j.tweet_url ?? null,
     status: j.status as "open",
     isAgentJob: j.is_agent_job,

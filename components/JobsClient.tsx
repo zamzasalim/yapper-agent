@@ -14,6 +14,8 @@ interface Job {
   title: string;
   description: string;
   priceUsdc: number;
+  priceCC?: number | null;
+  currency?: "usdc" | "cc";
   tweetUrl?: string | null;
   status: JobStatus;
   isAgentJob: boolean;
