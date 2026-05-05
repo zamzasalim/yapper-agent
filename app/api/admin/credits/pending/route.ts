@@ -48,36 +48,46 @@ export async function GET(req: NextRequest) {
   if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
 
   // ── CC: campaign completions ───────────────────────────────────────────────
+  // Isolated: CC query errors must not block the USDC response
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: ccCampaignRows, error: e3 } = await (db as any)
-    .from("job_completions")
-    .select(`
-      id,
-      job_id,
-      jobs!inner ( id, title, type, price_cc, canton_contract_id, currency, is_agent_job, status ),
-      users ( twitter_handle, display_name, wallet_address, canton_party_id )
-    `)
-    .eq("status", "completed")
-    .is("canton_credited_at", null)
-    .eq("jobs.currency", "cc");
-
-  if (e3) return NextResponse.json({ error: e3.message }, { status: 500 });
-
-  // ── CC: single-creator jobs ────────────────────────────────────────────────
+  let ccCampaignRows: any[] | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: ccSingleRows, error: e4 } = await (db as any)
-    .from("jobs")
-    .select(`
-      id, title, type, price_cc, canton_contract_id, currency, creator_id, canton_credited_at, is_agent_job,
-      users!jobs_creator_id_fkey ( twitter_handle, display_name, wallet_address, canton_party_id )
-    `)
-    .eq("status", "completed")
-    .eq("currency", "cc")
-    .is("canton_credited_at", null)
-    .not("creator_id", "is", null)
-    .or("max_creators.is.null,max_creators.lte.1");
+  let ccSingleRows: any[] | null = null;
+  let ccError: string | null = null;
 
-  if (e4) return NextResponse.json({ error: e4.message }, { status: 500 });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: r3, error: e3 } = await (db as any)
+      .from("job_completions")
+      .select(`
+        id,
+        job_id,
+        jobs!inner ( id, title, type, price_cc, canton_contract_id, currency, is_agent_job, status ),
+        users ( twitter_handle, display_name, wallet_address, canton_party_id )
+      `)
+      .eq("status", "completed")
+      .is("canton_credited_at", null)
+      .eq("jobs.currency", "cc");
+    if (e3) { ccError = e3.message; } else { ccCampaignRows = r3; }
+  } catch (err) { ccError = err instanceof Error ? err.message : "CC campaign query failed"; }
+
+  if (!ccError) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: r4, error: e4 } = await (db as any)
+        .from("jobs")
+        .select(`
+          id, title, type, price_cc, canton_contract_id, currency, creator_id, canton_credited_at, is_agent_job,
+          users!jobs_creator_id_fkey ( twitter_handle, display_name, wallet_address, canton_party_id )
+        `)
+        .eq("status", "completed")
+        .eq("currency", "cc")
+        .is("canton_credited_at", null)
+        .not("creator_id", "is", null)
+        .or("max_creators.is.null,max_creators.lte.1");
+      if (e4) { ccError = e4.message; } else { ccSingleRows = r4; }
+    } catch (err) { ccError = err instanceof Error ? err.message : "CC single query failed"; }
+  }
 
   // ── Normalise USDC items ───────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -170,5 +180,5 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ pending, ccPending });
+  return NextResponse.json({ pending, ccPending, ...(ccError ? { ccError } : {}) });
 }
