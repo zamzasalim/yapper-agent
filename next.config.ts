@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "abs.twimg.com" },
     ],
   },
+  async rewrites() {
+    return [
+      // docs.yapperagent.xyz → serves /docs page (URL stays as docs.yapperagent.xyz)
+      {
+        source: "/",
+        has: [{ type: "host", value: "docs.yapperagent.xyz" }],
+        destination: "/docs",
+      },
+    ];
+  },
   // Bot runs as a separate process — exclude from Next.js build
   serverExternalPackages: ["grammy"],
   experimental: {
