@@ -31,6 +31,7 @@ export type Database = {
           rating: number;
           niches: string[];
           custom_content_rate: boolean | null;
+          canton_party_id: string | null;
         };
         Insert: {
           id: string;
@@ -55,6 +56,7 @@ export type Database = {
           rating?: number;
           niches?: string[];
           custom_content_rate?: boolean | null;
+          canton_party_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
         Relationships: [];
@@ -89,6 +91,13 @@ export type Database = {
           cancel_reason: string | null;
           deadline_override: string | null;
           is_refunded: boolean;
+          credited_at: string | null;
+          credit_tx: string | null;
+          currency: string;
+          price_cc: number;
+          canton_tx_hash: string | null;
+          canton_credited_at: string | null;
+          canton_credit_tx: string | null;
         };
         Insert: {
           id?: string;
@@ -119,6 +128,13 @@ export type Database = {
           cancel_reason?: string | null;
           deadline_override?: string | null;
           is_refunded?: boolean;
+          credited_at?: string | null;
+          credit_tx?: string | null;
+          currency?: string;
+          price_cc?: number;
+          canton_tx_hash?: string | null;
+          canton_credited_at?: string | null;
+          canton_credit_tx?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["jobs"]["Insert"]>;
         Relationships: [];
@@ -132,6 +148,10 @@ export type Database = {
           proof_url: string | null;
           status: string;
           additional_info: Record<string, string> | null;
+          credited_at: string | null;
+          credit_tx: string | null;
+          canton_credited_at: string | null;
+          canton_credit_tx: string | null;
         };
         Insert: {
           id?: string;
@@ -141,6 +161,10 @@ export type Database = {
           proof_url?: string | null;
           status?: string;
           additional_info?: Record<string, string> | null;
+          credited_at?: string | null;
+          credit_tx?: string | null;
+          canton_credited_at?: string | null;
+          canton_credit_tx?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["job_completions"]["Insert"]>;
         Relationships: [];

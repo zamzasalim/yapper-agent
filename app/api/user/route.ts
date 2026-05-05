@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // Check if user already exists
     const { data: existing } = await db
       .from("users")
-      .select("id, twitter_handle, display_name, avatar_url, twitter_followers, is_verified_blue, wallet_address, niches, role, rating, jobs_completed, total_earned_usdc, telegram_chat_id, telegram_username, custom_content_rate")
+      .select("id, twitter_handle, display_name, avatar_url, twitter_followers, is_verified_blue, wallet_address, niches, role, rating, jobs_completed, total_earned_usdc, telegram_chat_id, telegram_username, custom_content_rate, canton_party_id")
       .eq("twitter_handle", twitter_handle)
       .maybeSingle();
 
@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
 
     const { data: user, error } = await db
       .from("users")
-      .select("id, twitter_handle, display_name, avatar_url, twitter_followers, is_verified_blue, wallet_address, niches, role, rating, jobs_completed, total_earned_usdc, telegram_chat_id, telegram_username, custom_content_rate")
+      .select("id, twitter_handle, display_name, avatar_url, twitter_followers, is_verified_blue, wallet_address, niches, role, rating, jobs_completed, total_earned_usdc, telegram_chat_id, telegram_username, custom_content_rate, canton_party_id")
       .eq("twitter_handle", handle)
       .maybeSingle();
 
@@ -182,13 +182,13 @@ export async function GET(req: NextRequest) {
     const [{ data: singleJobs }, { data: completions }, { data: clientJobs }] = await Promise.all([
       (db as any)
         .from("jobs")
-        .select("id, created_at, type, title, price_usdc, status, client_id, credited_at, is_agent_job")
+        .select("id, created_at, type, title, price_usdc, status, client_id, credited_at, canton_credited_at, is_agent_job")
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50),
       (db as any)
         .from("job_completions")
-        .select("job_id, status, credited_at, jobs(id, created_at, type, title, price_usdc, status, is_agent_job)")
+        .select("job_id, status, credited_at, canton_credited_at, jobs(id, created_at, type, title, price_usdc, status, is_agent_job)")
         .eq("creator_id", user.id)
         .limit(50),
       db
@@ -207,12 +207,18 @@ export async function GET(req: NextRequest) {
         const displayStatus = c.status === "accepted"
           ? (c.jobs.status === "cancelled" ? "missed" : "in_progress")
           : c.status;
-        return { ...c.jobs, status: displayStatus, credited_at: c.credited_at };
+        return { ...c.jobs, status: displayStatus, credited_at: c.credited_at ?? c.canton_credited_at ?? null };
       })
       .filter(Boolean)
       .filter((j: any) => !(singleJobs ?? []).some((s: any) => s.id === j.id));
 
-    const jobs = [...(singleJobs ?? []), ...multiJobs]
+    const jobs = [
+      ...((singleJobs ?? []) as any[]).map((j: any) => ({
+        ...j,
+        credited_at: j.credited_at ?? j.canton_credited_at ?? null,
+      })),
+      ...multiJobs,
+    ]
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 50);
 

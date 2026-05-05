@@ -21,6 +21,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Network,
 } from "lucide-react";
 import { MarqueeName } from "@/components/MarqueeName";
 
@@ -34,6 +35,8 @@ const ALL_NICHES = [
   "Art", "Music", "Sports", "Fitness", "Fashion", "Lifestyle", "Travel",
   "Food", "Education", "News", "Entertainment", "Politics", "Meme", "Content Creator",
 ];
+
+const LOOP_NETWORK = process.env.NEXT_PUBLIC_CANTON_NETWORK === "canton-mainnet" ? "mainnet" : "devnet";
 
 interface UserRecord {
   id: string;
@@ -49,6 +52,7 @@ interface UserRecord {
   niches: string[] | null;
   telegram_chat_id: string | null;
   telegram_username: string | null;
+  canton_party_id: string | null;
 }
 
 interface JobRecord {
@@ -170,6 +174,9 @@ export default function DashboardPage() {
   const [awaitingTelegram, setAwaitingTelegram]     = useState(false);
   const [telegramTimedOut, setTelegramTimedOut]     = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [connectingCanton, setConnectingCanton] = useState(false);
+  const [copiedCanton, setCopiedCanton]         = useState(false);
 
   const [claimable, setClaimable]               = useState<number | null>(null);
   const [pendingBalance, setPendingBalance]     = useState<number | null>(null);
@@ -506,6 +513,66 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleConnectCanton() {
+    if (!twitterHandle) return;
+    setConnectingCanton(true);
+    try {
+      const { loop } = await import("@fivenorth/loop-sdk");
+      loop.init({
+        appName: "Yapper Agent",
+        network: LOOP_NETWORK,
+        onAccept: async (provider) => {
+          const partyId = provider.party_id;
+          try {
+            const res = await fetch("/api/user/canton-wallet", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ twitter_handle: twitterHandle, party_id: partyId }),
+            });
+            if (res.ok) {
+              setProfile((p) => p ? { ...p, canton_party_id: partyId } : p);
+            }
+          } catch { /* ignore */ }
+          setConnectingCanton(false);
+        },
+        onReject: () => {
+          setConnectingCanton(false);
+        },
+        options: {
+          openMode: "tab",
+          redirectUrl: window.location.href,
+        },
+      });
+      await loop.connect();
+    } catch {
+      setConnectingCanton(false);
+    }
+  }
+
+  async function handleDisconnectCanton() {
+    if (!twitterHandle) return;
+    setConnectingCanton(true);
+    try {
+      const { loop } = await import("@fivenorth/loop-sdk");
+      loop.logout();
+      await fetch("/api/user/canton-wallet", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ twitter_handle: twitterHandle }),
+      });
+      setProfile((p) => p ? { ...p, canton_party_id: null } : p);
+    } finally {
+      setConnectingCanton(false);
+    }
+  }
+
+  function handleCopyCanton() {
+    if (!profile?.canton_party_id) return;
+    navigator.clipboard.writeText(profile.canton_party_id);
+    setCopiedCanton(true);
+    setTimeout(() => setCopiedCanton(false), 1500);
+  }
+
   // ── Not mounted yet or restoring session ──────────────────────────────
   if (!mounted || isRestoring) {
     return (
@@ -546,6 +613,9 @@ export default function DashboardPage() {
   const walletAddress = profile?.wallet_address || reownAddress || null;
   const shortWallet = walletAddress
     ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}`
+    : null;
+  const shortCantonPartyId = profile?.canton_party_id
+    ? `${profile.canton_party_id.slice(0, 5)}...${profile.canton_party_id.slice(-4)}`
     : null;
 
   const totalEarned  = profile?.total_earned_usdc ?? 0;
@@ -624,6 +694,40 @@ export default function DashboardPage() {
                   <span className="text-amber-500">Syncing wallet…</span>
                 </div>
               )}
+
+              {/* Canton Wallet (CC) */}
+              <div className="flex items-center gap-2">
+                <Network className="w-3.5 h-3.5 shrink-0 text-violet-400" />
+                {profile?.canton_party_id ? (
+                  <>
+                    <span className="font-mono" title={profile.canton_party_id}>{shortCantonPartyId}</span>
+                    <button onClick={handleCopyCanton} title="Copy Party ID" className="hover:text-blue-500 transition-colors">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    {copiedCanton && <span className="text-green-500">Copied!</span>}
+                    <button
+                      onClick={handleDisconnectCanton}
+                      disabled={connectingCanton}
+                      title="Disconnect Canton Wallet"
+                      className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                    >
+                      {connectingCanton
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <X className="w-3.5 h-3.5" />}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleConnectCanton}
+                    disabled={connectingCanton}
+                    className="hover:text-violet-500 transition-colors flex items-center gap-1.5"
+                  >
+                    {connectingCanton
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : "Connect Loop Wallet"}
+                  </button>
+                )}
+              </div>
 
               {/* Telegram */}
               <div className="flex items-center gap-2">

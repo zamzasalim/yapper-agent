@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-
 import { ADMINS } from "@/lib/admins";
+import { exerciseCancel, transferCC } from "@/lib/canton";
 
 function isAdmin(handle: string) {
   return ADMINS.some((a) => a.toLowerCase() === handle.toLowerCase());
@@ -31,9 +31,10 @@ export async function PATCH(
     if (typeof body.is_refunded   === "boolean")   patch.is_refunded       = body.is_refunded;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (db.from("jobs").update(patch as any).eq("id", id).select("id, title, client_id, status").single());
+    const { data, error } = await (db as any).from("jobs").update(patch).eq("id", id).select("id, title, client_id, status, currency, canton_contract_id, price_cc").single() as { data: { id: string; title: string; client_id: string | null; status: string; currency: string | null; canton_contract_id: string | null; price_cc: number | null } | null; error: { message: string } | null };
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     // When cancelling: mark any accepted completions as missed so they don't stay stuck
     if (patch.status === "cancelled") {
@@ -49,6 +50,27 @@ export async function PATCH(
           job_id: id,
           message: `Your job "${data.title}" was cancelled by admin.`,
         });
+      }
+
+      // CC job: cancel DAML escrow + refund CC to client via Transfer Offer (best-effort).
+      // Refund runs regardless of canton_contract_id — escrow cancel is conditional only.
+      if (data.currency === "cc" && data.price_cc) {
+        void (async () => {
+          if (data.canton_contract_id) {
+            try { await exerciseCancel(data.canton_contract_id); } catch {}
+          }
+          if (data.client_id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: clientRow } = await (db as any)
+              .from("users")
+              .select("canton_party_id")
+              .eq("id", data.client_id)
+              .maybeSingle() as { data: { canton_party_id: string | null } | null };
+            if (clientRow?.canton_party_id) {
+              void transferCC(clientRow.canton_party_id, data.price_cc!, `Refund for cancelled job ${id}`);
+            }
+          }
+        })();
       }
     }
 

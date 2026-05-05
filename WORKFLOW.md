@@ -145,7 +145,7 @@ flowchart TD
     AD_ACT --> MANUALEXPIRE[POST /api/admin/expire-jobs\nAuto-run on tab load]
     AD_ACT --> ADMHIDE[Hide / Show — PATCH is_hidden]
     AD_ACT --> ADMEXT[Extend Deadline\nCalendarDays modal — PATCH deadline_override]
-    AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected\naccepted completions → missed\nCC job: exerciseCancel + transferCC refund to client best-effort]
+    AD_ACT --> ADMCANCEL[Cancel job\nstatus: cancelled — cancel_reason: admin_rejected\naccepted completions → missed\nCC job: exerciseCancel (only if canton_contract_id exists)\n+ transferCC refund — runs regardless of contract (price_cc > 0)]
     AD_ACT --> ADMVIEW[View Creators modal\nGET /api/jobs/:id/applicants\nShows handle · status · proof · completion_id]
     ADMVIEW --> ADM_REJ[Reject creator submission\nPOST /api/admin/completions/reject\ncompletion: status: rejected — slots_taken decremented — slot re-opened\nsingle job: status reset to open — proof cleared\nNotify creator via bell]
     ADM_REJ --> ADM_REOPENED([Slot available for another creator\nCredit item removed from payout queue])
@@ -168,7 +168,7 @@ flowchart TD
     AUTOCANCEL --> NOTIF_EXPIRE[POST /api/notifications\nNotify client: job expired]
     NOTIF_EXPIRE -.->|client sees in bell| NOTIF
     AUTOCANCEL --> AD_CAN
-    PARTIALCHECK -->|Yes — some creators submitted| PARTCOMP[status: completed — completed_at set\naccepted-only slots → missed\nCompleted slots enter payout list]
+    PARTIALCHECK -->|Yes — some creators submitted| PARTCOMP[status: completed — completed_at set\naccepted-only slots → missed · Completed slots enter payout list\nCC campaign: partial refund to client for unfilled slots via transferCC\nEscrow NOT cancelled — stays active for admin ClaimReward on completed slots]
     PARTCOMP --> NOTIF_PARTCOMP[POST /api/notifications\nNotify client: completed with partial creators]
     NOTIF_PARTCOMP -.->|client sees in bell| NOTIF
     PARTCOMP --> AD5
@@ -217,8 +217,8 @@ flowchart TD
     ESC_CC_TAB --> ESC_CC_CUSTOM[Custom CC job — Mark Paid\nPOST /api/admin/credits/mark-manual + body currency:'cc'\nSets canton_credited_at + canton_credit_tx:'manual'\nNo ClaimReward exercised — no Transfer Offer created]
     ESC_CC_CUSTOM --> ESC_CC_DONE
     ESC_CC_TAB --> ESC_CC_SEL[Checkbox-select non-custom CC jobs]
-    ESC_CC_SEL --> ESC_CC_BATCH[Click Batch Claim CC\nPOST /api/admin/credits/cc-confirm\n1. exerciseBatchClaim — ClaimReward per DAML JobEscrow → updateIds\n2. transferCC — POST transfer-offers per creator best-effort\n3. DB: canton_credited_at + canton_credit_tx set on jobs and job_completions\nResponse: confirmed · skipped · updateIds · transferTxIds · transferPending]
-    ESC_CC_BATCH --> ESC_CC_OFFER([Transfer Offers on Canton ledger\nOffer valid 30 days — offer_contract_id stored as canton_credit_tx\nIf transferPending > 0: admin must manually send CC via Loop wallet])
+    ESC_CC_SEL --> ESC_CC_BATCH[Click Batch Claim CC\nPOST /api/admin/credits/cc-confirm\n1. exerciseBatchClaim — ClaimReward once per unique contract_id (fault-tolerant)\n2. transferCC — per creator best-effort; skips only items with no party_id or amount\n3. DB: canton_credited_at + canton_credit_tx per item (updateId from matching contract)\nResponse: confirmed · trueSkipped · claimErrors · transferTxIds · transferPending\nItems missing only contract_id: still paid + marked — use Mark Paid if no party_id]
+    ESC_CC_BATCH --> ESC_CC_OFFER([Transfer Offers on Canton ledger\nOffer valid 30 days — offer_contract_id stored as canton_credit_tx per item\nIf transferPending > 0: admin must manually send CC via Loop wallet\nclaimErrors in response = DAML issues; CC still transferred for those items\nItems without creator_canton_party_id skipped entirely — use Mark Paid instead])
     ESC_CC_OFFER --> CR_CC_ACCEPT[Creator opens Loop wallet\ndevnet.cantonloop.com or cantonloop.com\nPending Transfer Offer shown in wallet\nClick Accept → CC deposited to creator canton party]
     CR_CC_ACCEPT --> ESC_CC_DONE
     ESC_CC_DONE([CC credited — canton_credited_at set\nGET /api/user coalesces canton_credited_at → credited_at for CC jobs\nCreator dashboard Done count reflects CC credits correctly])
@@ -344,11 +344,11 @@ flowchart TD
 
         CN_ESCROW["createJobEscrow(jobId, clientParty, amountCC)\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nCreates JobEscrow DAML contract on-chain\nStores contractId → jobs.canton_contract_id\nCalled after job insert for currency=cc jobs\nClient party = canton_party_id from users (or platform party)"]
 
-        CN_CLAIM["exerciseBatchClaim(claims[])\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nExercise ClaimReward per JobEscrow contract (marks escrow claimed)\nReturns Canton ledger updateIds → canton_credit_tx\nPhase 5 — admin batch CC credit"]
+        CN_CLAIM["exerciseBatchClaim(claims[])\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nExercise ClaimReward once per unique contract_id (consuming choice)\nFault-tolerant: per-claim error recorded in ClaimResult — never throws\nFailed claims → claimErrors in response; payment still proceeds\nReturns ClaimResult[] → updateId per contract → canton_credit_tx per item\nPhase 5 — admin batch CC credit"]
 
         CN_TRANSFER["transferCC(toParty, amount, memo)\nPOST CANTON_VALIDATOR_URL/api/validator/v0/wallet/transfer-offers\nCreates a Transfer Offer on Canton ledger — NOT a direct CC push\nRecipient must ACCEPT the offer in Loop wallet to receive CC\nBody: { receiver_party_id, amount (string·10dp), description,\n  expires_at (Unix ms Long, 30 days), tracking_id (UUID) }\nResponse: { offer_contract_id } → stored as canton_credit_tx\nBest-effort: returns null on failure — does not block credit flow"]
 
-        CN_CANCEL["exerciseCancel(contractId)\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nExercise CancelEscrow — marks DAML escrow void\nFollowed by transferCC(clientParty, price_cc) — Transfer Offer to client for refund\nTriggered by two paths:\n  1. Cron expire — CC job deadline passed with no completed work\n  2. Admin cancel (Active tab) — PATCH /api/admin/jobs/:id\n     Fetches client canton_party_id → exerciseCancel + transferCC best-effort"]
+        CN_CANCEL["exerciseCancel(contractId)\nPOST CANTON_LEDGER_URL/v2/commands/submit-and-wait\nExercise CancelEscrow — marks DAML escrow void (only if canton_contract_id exists)\nRefund via transferCC is independent — runs as long as price_cc > 0\n  even if canton_contract_id is NULL (escrow creation failed at job post time)\nTriggered by two paths:\n  1. Cron expire — CC job deadline passed with no completed work\n  2. Admin cancel (Active tab) — PATCH /api/admin/jobs/:id\n     Fetches client canton_party_id → exerciseCancel (if contract) + transferCC best-effort"]
 
         CN_STATE["getEscrowState(contractId)\nGET CANTON_LEDGER_URL/v2/contracts/{id}\nCheck if DAML contract is still active\nReturns null if already consumed (claimed or cancelled)"]
 

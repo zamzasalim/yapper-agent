@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase";
+import { exerciseCancel, transferCC } from "@/lib/canton";
 
 /**
  * Accept-to-submit windows per job type.
@@ -22,6 +23,10 @@ interface JobRow {
   client_id: string | null;
   title: string;
   is_agent_job: boolean;
+  max_creators?: number | null;
+  currency?: string;
+  canton_contract_id?: string | null;
+  price_cc?: number | null;
 }
 
 /**
@@ -70,17 +75,20 @@ export async function runExpireJobs(): Promise<{
   }
 
   // ── Pass 1: job-level deadline expiry ─────────────────────────────────────
-  const { data: activeJobs, error: fetchErr } = await db
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: activeJobsRaw, error: fetchErr } = await (db as any)
     .from("jobs")
-    .select("id, status, created_at, deadline_hours, deadline_override, client_id, title, is_agent_job")
+    .select("id, status, created_at, deadline_hours, deadline_override, client_id, title, is_agent_job, max_creators, currency, canton_contract_id, price_cc")
     .in("status", ["open", "in_progress"]);
 
-  if (fetchErr) throw new Error(fetchErr.message);
+  if (fetchErr) throw new Error((fetchErr as { message: string }).message);
+
+  const activeJobs = (activeJobsRaw ?? []) as JobRow[];
 
   const toCancel: string[]   = [];
   const toComplete: string[] = [];
 
-  for (const job of (activeJobs ?? []) as JobRow[]) {
+  for (const job of activeJobs) {
     const expiresAt = job.deadline_override
       ? new Date(job.deadline_override).getTime()
       : new Date(job.created_at).getTime() + (job.deadline_hours ?? 48) * 3_600_000;
@@ -118,7 +126,38 @@ export async function runExpireJobs(): Promise<{
       .update({ status: "missed" })
       .in("job_id", trueCancel)
       .eq("status", "accepted");
-    const notifs = (activeJobs as JobRow[])
+
+    // CC jobs: exercise CancelEscrow + refund CC to client (best-effort, don't block).
+    // Refund runs regardless of canton_contract_id — escrow cancel is conditional only.
+    const ccCancels = activeJobs.filter(
+      (j) => trueCancel.includes(j.id) && j.currency === "cc" && j.price_cc,
+    );
+    if (ccCancels.length > 0) {
+      type ClientPartyRow = { id: string; client: { canton_party_id: string | null } | null };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: clientPartyRows } = await (db as any)
+        .from("jobs")
+        .select("id, client:users!client_id(canton_party_id)")
+        .in("id", ccCancels.map((j) => j.id)) as { data: ClientPartyRow[] | null };
+
+      const clientPartyMap = new Map<string, string>(
+        (clientPartyRows ?? [])
+          .filter((r) => r.client?.canton_party_id)
+          .map((r) => [r.id, r.client!.canton_party_id!]),
+      );
+
+      for (const j of ccCancels) {
+        if (j.canton_contract_id) {
+          try { await exerciseCancel(j.canton_contract_id); } catch {}
+        }
+        const clientParty = clientPartyMap.get(j.id);
+        if (clientParty && j.price_cc) {
+          void transferCC(clientParty, j.price_cc, `Refund for expired job ${j.id}`);
+        }
+      }
+    }
+
+    const notifs = activeJobs
       .filter((j) => trueCancel.includes(j.id) && j.client_id && !j.is_agent_job)
       .map((j) => ({
         user_id: j.client_id!,
@@ -139,7 +178,7 @@ export async function runExpireJobs(): Promise<{
       .update({ status: "missed" })
       .in("job_id", partialDone)
       .eq("status", "accepted");
-    const notifs = (activeJobs as JobRow[])
+    const notifs = activeJobs
       .filter((j) => partialDone.includes(j.id) && j.client_id && !j.is_agent_job)
       .map((j) => ({
         user_id: j.client_id!,
@@ -147,6 +186,53 @@ export async function runExpireJobs(): Promise<{
         message: `Your job "${j.title}" reached its deadline — it's been completed with the creators who submitted in time.`,
       }));
     if (notifs.length) try { await db.from("notifications").insert(notifs); } catch {}
+
+    // CC partial campaigns: refund client for unfilled slots.
+    // Escrow is NOT cancelled here — admin still needs to ClaimReward for completed creators.
+    // Refund comes from Yapper's validator wallet via Transfer Offer (best-effort).
+    const ccPartial = activeJobs.filter(
+      (j) => partialDone.includes(j.id) && j.currency === "cc" && j.price_cc && j.max_creators,
+    );
+    if (ccPartial.length > 0) {
+      type ClientPartyRow = { id: string; client: { canton_party_id: string | null } | null };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: completedSlotRows } = await (db as any)
+        .from("job_completions")
+        .select("job_id")
+        .in("job_id", ccPartial.map((j) => j.id))
+        .eq("status", "completed") as { data: { job_id: string }[] | null };
+
+      const completedCountByJob = new Map<string, number>();
+      for (const row of (completedSlotRows ?? [])) {
+        completedCountByJob.set(row.job_id, (completedCountByJob.get(row.job_id) ?? 0) + 1);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: clientPartyRows } = await (db as any)
+        .from("jobs")
+        .select("id, client:users!client_id(canton_party_id)")
+        .in("id", ccPartial.map((j) => j.id)) as { data: ClientPartyRow[] | null };
+
+      const clientPartyMap = new Map<string, string>(
+        (clientPartyRows ?? [])
+          .filter((r) => r.client?.canton_party_id)
+          .map((r) => [r.id, r.client!.canton_party_id!]),
+      );
+
+      for (const j of ccPartial) {
+        const maxCreators   = j.max_creators!;
+        const completed     = completedCountByJob.get(j.id) ?? 0;
+        const unfilled      = maxCreators - completed;
+        if (unfilled <= 0) continue;
+
+        const pricePerSlot  = j.price_cc! / maxCreators;
+        const refundAmount  = Math.round(pricePerSlot * unfilled * 1e10) / 1e10;
+        const clientParty   = clientPartyMap.get(j.id);
+        if (clientParty && refundAmount > 0) {
+          void transferCC(clientParty, refundAmount, `Partial refund for expired job ${j.id} (${unfilled}/${maxCreators} slots unfilled)`);
+        }
+      }
+    }
   }
 
   // toComplete = jobs that were already in_progress when deadline passed (all slots filled)
@@ -160,7 +246,7 @@ export async function runExpireJobs(): Promise<{
       .update({ status: "missed" })
       .in("job_id", toComplete)
       .eq("status", "accepted");
-    const notifs = (activeJobs as JobRow[])
+    const notifs = activeJobs
       .filter((j) => toComplete.includes(j.id) && j.client_id && !j.is_agent_job)
       .map((j) => ({
         user_id: j.client_id!,

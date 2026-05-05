@@ -1,0 +1,93 @@
+-- JobEscrow.daml
+-- Canton Network DAML contract for Yapper job escrow (CC / Amulet)
+--
+-- Architecture:
+--   1. Client transfers CC to the platform (admin party) as escrow payment
+--   2. This contract is created as an authorization record — contractId stored in jobs.canton_tx_hash
+--   3. On job completion: admin exercises ClaimReward → authorizes CC transfer to creator
+--   4. On cancel/expire:  admin exercises CancelEscrow → authorizes CC refund to client
+--
+-- Note: Actual CC movement uses Canton's AmuletRules / TransferFactory outside this contract.
+--       This contract provides the authorization layer and is the source of truth for job state.
+
+module JobEscrow where
+
+-- ── JobEscrow ─────────────────────────────────────────────────────────────────
+-- Represents a locked CC payment for a single job.
+-- Signatory is admin (platform) to ensure only Yapper can create valid escrows.
+template JobEscrow
+  with
+    client  : Party    -- job poster who deposited CC
+    admin   : Party    -- yapper platform party (YAPPER_CANTON_PARTY_ID)
+    jobId   : Text     -- UUID linking to jobs table in Supabase
+    amount  : Decimal  -- total CC amount locked for this job
+  where
+    signatory admin
+    observer  client
+
+    ensure amount > 0.0
+
+    -- Release CC to a single creator upon job completion.
+    -- For single-creator jobs — admin calls this once.
+    choice ClaimReward : ()
+      with
+        creator     : Party
+        claimAmount : Decimal
+      controller admin
+      do
+        assertMsg "Claim amount must not exceed escrowed amount" (claimAmount <= amount)
+        -- CC transfer from admin (escrow custodian) to creator is executed
+        -- via Canton's AmuletRules / TransferFactory outside this choice.
+        return ()
+
+    -- Refund CC back to client (job cancelled or expired with no work done).
+    choice CancelEscrow : ()
+      controller admin
+      do
+        -- CC refund from admin back to client is executed externally.
+        return ()
+
+    -- Read-only: return job ID for off-chain indexing.
+    nonconsuming choice GetJobId : Text
+      controller admin
+      do return jobId
+
+-- ── CampaignEscrow ────────────────────────────────────────────────────────────
+-- Variant for campaign jobs with multiple creator slots.
+-- Stores per-creator claimed amounts to support partial payouts.
+template CampaignEscrow
+  with
+    client        : Party
+    admin         : Party
+    jobId         : Text
+    totalAmount   : Decimal   -- total CC locked (price_cc * max_creators)
+    pricePerSlot  : Decimal   -- CC per creator slot
+    maxCreators   : Int       -- max number of slots
+    claimedSlots  : [Party]   -- parties already paid (grows as claims happen)
+  where
+    signatory admin
+    observer  client
+
+    ensure totalAmount > 0.0 && pricePerSlot > 0.0 && maxCreators > 0
+
+    -- Claim one slot for a creator. Consumes and re-creates with updated claimedSlots.
+    choice ClaimSlot : ContractId CampaignEscrow
+      with
+        creator : Party
+      controller admin
+      do
+        assertMsg "Creator already claimed" (creator `notElem` claimedSlots)
+        assertMsg "All slots already claimed" (length claimedSlots < maxCreators)
+        -- CC transfer externally executed before or after this choice.
+        create this with claimedSlots = claimedSlots ++ [creator]
+
+    -- Cancel remaining unclaimed slots — refund proportional CC to client.
+    choice CancelRemaining : ()
+      controller admin
+      do
+        -- Refund (totalAmount - pricePerSlot * length claimedSlots) back to client.
+        return ()
+
+    nonconsuming choice GetClaimedSlots : [Party]
+      controller admin
+      do return claimedSlots
