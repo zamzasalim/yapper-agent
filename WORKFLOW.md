@@ -80,7 +80,7 @@ flowchart TD
     CR7 -->|No| CR8[Job stays open — more creators can join]
     CR7 -->|Yes| CR9[status: in_progress]
 
-    CR4 -->|Custom type\nopen competition| CR_COMP[No slot cap — anyone who meets requirements can join\njob_completions row created · slots_taken++ for tracking only\nStatus stays open until deadline]
+    CR4 -->|Custom type\nopen competition| CR_COMP[No slot cap — anyone who meets requirements can join\njob_completions row created · slots_taken++ for tracking only\nStatus stays open until deadline\nRe-accept allowed if previous slot status = missed — row reset to accepted · slots_taken++\n409 on re-click: routes to proof form if accepted · done if completed · proof+notice if rejected]
     CR_COMP --> NOTIF_SLOT
 
     CR5 & CR8 & CR9 --> CR10[Creator does the work]

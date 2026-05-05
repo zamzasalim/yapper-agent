@@ -155,8 +155,36 @@ function AcceptModal({ job, twitterHandle, onClose, onDone }: AcceptModalProps) 
           body: JSON.stringify({ twitter_handle: twitterHandle }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to accept job");
-        setAccepted(true);
+        if (!res.ok) {
+          if (res.status === 409) {
+            const msg: string = data.error ?? "";
+            // Already accepted but proof not yet submitted — skip to proof form
+            if (msg.includes("submit your proof")) {
+              setAccepted(true);
+              // fall through to proof/auto-verify logic below
+            }
+            // Already submitted proof — treat as done
+            else if (msg.includes("already submitted proof")) {
+              setPhase("done");
+              onDone();
+              return;
+            }
+            // Submission rejected — show proof form with rejection notice
+            else if (msg.includes("rejected")) {
+              setAccepted(true);
+              setError(msg);
+              setPhase("error_proof");
+              return;
+            }
+            else {
+              throw new Error(msg || "Failed to accept job");
+            }
+          } else {
+            throw new Error(data.error ?? "Failed to accept job");
+          }
+        } else {
+          setAccepted(true);
+        }
       }
 
       if (isAutoVerify) {

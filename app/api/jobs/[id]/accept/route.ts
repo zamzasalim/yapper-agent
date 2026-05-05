@@ -117,13 +117,25 @@ export async function PATCH(
     // Multi-creator: check if already applied
     const { data: existing } = await db
       .from("job_completions")
-      .select("id")
+      .select("id, status")
       .eq("job_id", id)
       .eq("creator_id", creator.id)
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ error: "You have already accepted this job." }, { status: 409 });
+      // Custom jobs stay open until deadline — allow re-accept if previous slot was released.
+      if (job.type === "custom" && existing.status === "missed") {
+        await db.from("job_completions").update({ status: "accepted" }).eq("id", existing.id);
+        await db.from("jobs").update({ slots_taken: newSlotsTaken }).eq("id", id);
+        const { data: updated } = await db.from("jobs").select().eq("id", id).single();
+        return NextResponse.json({ job: updated });
+      }
+      const msg =
+        existing.status === "accepted"   ? "You have already joined this job. Please submit your proof using the submission form." :
+        existing.status === "completed"  ? "You have already submitted proof for this job." :
+        existing.status === "rejected"   ? "Your submission was rejected. Please resubmit your proof." :
+        "You have already accepted this job.";
+      return NextResponse.json({ error: msg }, { status: 409 });
     }
 
     // Insert per-creator completion record
